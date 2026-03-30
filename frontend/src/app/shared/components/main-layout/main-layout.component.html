@@ -1,0 +1,39 @@
+<mat-sidenav-container class="sidenav-container">
+  <mat-sidenav #drawer class="sidenav" fixedInViewport
+      [attr.role]="'navigation'"
+      [mode]="'side'"
+      [opened]="true">
+    <mat-toolbar>Menu</mat-toolbar>
+    <mat-nav-list>
+      <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>dashboard</mat-icon>
+        <span matListItemTitle>Dashboard</span>
+      </a>
+      <a mat-list-item routerLink="/clients" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>people</mat-icon>
+        <span matListItemTitle>Clients</span>
+      </a>
+      <a mat-list-item routerLink="/leads" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>contact_mail</mat-icon>
+        <span matListItemTitle>Leads</span>
+      </a>
+      <a mat-list-item routerLink="/campaigns" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>campaign</mat-icon>
+        <span matListItemTitle>Campaigns</span>
+      </a>
+      <mat-divider></mat-divider>
+      <a mat-list-item routerLink="/settings" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>settings</mat-icon>
+        <span matListItemTitle>Settings</span>
+      </a>
+    </mat-nav-list>
+  </mat-sidenav>
+  <mat-sidenav-content>
+    <mat-toolbar color="primary">
+      <span>Leads & Outreach System</span>
+    </mat-toolbar>
+    <div class="container">
+      <router-outlet></router-outlet>
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>

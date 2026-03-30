@@ -1,0 +1,34 @@
+<h2 mat-dialog-title>{{ data.id ? 'Edit Client' : 'Add Client' }}</h2>
+<form [formGroup]="clientForm" (ngSubmit)="onSubmit()">
+  <mat-dialog-content>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Name</mat-label>
+      <input matInput formControlName="name" placeholder="Client Name">
+      <mat-error *ngIf="clientForm.get('name')?.hasError('required')">Name is required</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Email</mat-label>
+      <input matInput formControlName="email" placeholder="Email">
+      <mat-error *ngIf="clientForm.get('email')?.hasError('required')">Email is required</mat-error>
+      <mat-error *ngIf="clientForm.get('email')?.hasError('email')">Invalid email format</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>App Password</mat-label>
+      <input matInput formControlName="appPassword" placeholder="Gmail App Password" type="password">
+      <mat-error *ngIf="clientForm.get('appPassword')?.hasError('required')">App Password is required</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Phone</mat-label>
+      <input matInput formControlName="phone" placeholder="Phone">
+    </mat-form-field>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="onCancel()">Cancel</button>
+    <button mat-raised-button color="primary" type="submit" [disabled]="clientForm.invalid">
+      {{ data.id ? 'Update' : 'Create' }}
+    </button>
+  </mat-dialog-actions>
+</form>

@@ -1,0 +1,51 @@
+<div class="header">
+  <h2>Leads</h2>
+</div>
+
+<form [formGroup]="filterForm" class="filter-bar">
+  <mat-form-field appearance="outline">
+    <mat-label>City</mat-label>
+    <input matInput formControlName="city" placeholder="Filter by city">
+  </mat-form-field>
+  <mat-form-field appearance="outline">
+    <mat-label>Source</mat-label>
+    <input matInput formControlName="source" placeholder="Filter by source">
+  </mat-form-field>
+  <button mat-raised-button color="primary" (click)="loadLeads()">Search</button>
+</form>
+
+<div class="map-container" id="map"></div>
+
+<mat-table [dataSource]="leads" class="mat-elevation-z8">
+  <ng-container matColumnDef="email">
+    <mat-header-cell *matHeaderCellDef>Email</mat-header-cell>
+    <mat-cell *matCellDef="let lead">{{ lead.email }}</mat-cell>
+  </ng-container>
+
+  <ng-container matColumnDef="institution">
+    <mat-header-cell *matHeaderCellDef>Institution</mat-header-cell>
+    <mat-cell *matCellDef="let lead">{{ lead.institutionName }}</mat-cell>
+  </ng-container>
+
+  <ng-container matColumnDef="city">
+    <mat-header-cell *matHeaderCellDef>City</mat-header-cell>
+    <mat-cell *matCellDef="let lead">{{ lead.city }}</mat-cell>
+  </ng-container>
+
+  <ng-container matColumnDef="website">
+    <mat-header-cell *matHeaderCellDef>Website</mat-header-cell>
+    <mat-cell *matCellDef="let lead">
+      <a [href]="lead.website" target="_blank" *ngIf="lead.website">{{ lead.website }}</a>
+    </mat-cell>
+  </ng-container>
+
+  <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+  <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
+</mat-table>
+
+<mat-paginator
+  [length]="totalElements"
+  [pageSize]="pageSize"
+  [pageSizeOptions]="[5, 10, 25, 100]"
+  (page)="onPageChange($event)">
+</mat-paginator>

@@ -1,0 +1,26 @@
+<h2 mat-dialog-title>Create Campaign</h2>
+<form [formGroup]="campaignForm" (ngSubmit)="onSubmit()">
+  <mat-dialog-content>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Campaign Name</mat-label>
+      <input matInput formControlName="name" placeholder="Campaign Name">
+      <mat-error *ngIf="campaignForm.get('name')?.hasError('required')">Name is required</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Client</mat-label>
+      <mat-select formControlName="clientId">
+        <mat-option *ngFor="let client of clients" [value]="client.id">
+          {{ client.name }} ({{ client.email }})
+        </mat-option>
+      </mat-select>
+      <mat-error *ngIf="campaignForm.get('clientId')?.hasError('required')">Client is required</mat-error>
+    </mat-form-field>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="onCancel()">Cancel</button>
+    <button mat-raised-button color="primary" type="submit" [disabled]="campaignForm.invalid">
+      Create
+    </button>
+  </mat-dialog-actions>
+</form>

@@ -1,0 +1,41 @@
+<div class="header">
+  <h2>Campaigns</h2>
+  <button mat-raised-button color="primary" (click)="openCampaignDialog()">
+    <mat-icon>add</mat-icon> Create Campaign
+  </button>
+</div>
+
+<mat-table [dataSource]="campaigns" class="mat-elevation-z8">
+  <ng-container matColumnDef="name">
+    <mat-header-cell *matHeaderCellDef>Name</mat-header-cell>
+    <mat-cell *matCellDef="let campaign">{{ campaign.name }}</mat-cell>
+  </ng-container>
+
+  <ng-container matColumnDef="status">
+    <mat-header-cell *matHeaderCellDef>Status</mat-header-cell>
+    <mat-cell *matCellDef="let campaign">
+      <mat-chip-listbox>
+        <mat-chip [color]="getStatusColor(campaign.status)" selected>
+          {{ campaign.status }}
+        </mat-chip>
+      </mat-chip-listbox>
+    </mat-cell>
+  </ng-container>
+
+  <ng-container matColumnDef="createdAt">
+    <mat-header-cell *matHeaderCellDef>Created At</mat-header-cell>
+    <mat-cell *matCellDef="let campaign">{{ campaign.createdAt | date:'short' }}</mat-cell>
+  </ng-container>
+
+  <ng-container matColumnDef="actions">
+    <mat-header-cell *matHeaderCellDef>Actions</mat-header-cell>
+    <mat-cell *matCellDef="let campaign">
+      <button mat-icon-button color="primary" [routerLink]="['/campaigns', campaign.id]">
+        <mat-icon>visibility</mat-icon>
+      </button>
+    </mat-cell>
+  </ng-container>
+
+  <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+  <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
+</mat-table>

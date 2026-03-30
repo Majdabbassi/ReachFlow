@@ -1,0 +1,12 @@
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+}
+.stat-card {
+  padding: 16px;
+}
+mat-card-title {
+  font-size: 2rem;
+  font-weight: bold;
+}

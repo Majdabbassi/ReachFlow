@@ -1,0 +1,21 @@
+.header {
+  margin-bottom: 24px;
+}
+.filter-bar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  align-items: center;
+}
+mat-form-field {
+  flex: 1;
+}
+.map-container {
+  height: 400px;
+  margin-bottom: 24px;
+  border-radius: 8px;
+  z-index: 0;
+}
+mat-table {
+  width: 100%;
+}

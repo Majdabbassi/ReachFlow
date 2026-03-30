@@ -1,0 +1,33 @@
+<div class="dashboard-grid">
+  <mat-card class="stat-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar color="primary">people</mat-icon>
+      <mat-card-title>{{ stats.clients }}</mat-card-title>
+      <mat-card-subtitle>Total Clients</mat-card-subtitle>
+    </mat-card-header>
+  </mat-card>
+
+  <mat-card class="stat-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar color="accent">contact_mail</mat-icon>
+      <mat-card-title>{{ stats.leads }}</mat-card-title>
+      <mat-card-subtitle>Total Leads</mat-card-subtitle>
+    </mat-card-header>
+  </mat-card>
+
+  <mat-card class="stat-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar color="warn">campaign</mat-icon>
+      <mat-card-title>{{ stats.campaigns }}</mat-card-title>
+      <mat-card-subtitle>Total Campaigns</mat-card-subtitle>
+    </mat-card-header>
+  </mat-card>
+
+  <mat-card class="stat-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar style="color: #4caf50">send</mat-icon>
+      <mat-card-title>{{ stats.emailsSent }}</mat-card-title>
+      <mat-card-subtitle>Emails Sent</mat-card-subtitle>
+    </mat-card-header>
+  </mat-card>
+</div>

@@ -1,0 +1,100 @@
+<div class="header">
+  <button mat-icon-button routerLink="/campaigns">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <h2>Campaign Details</h2>
+</div>
+
+<div class="details-grid">
+  <!-- Info Card -->
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>{{ campaign?.name }}</mat-card-title>
+      <mat-card-subtitle>Client: {{ client?.name }} ({{ client?.email }})</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <p>Status: 
+        <mat-chip-listbox>
+          <mat-chip [color]="getStatusColor(campaign?.status)" selected>{{ campaign?.status }}</mat-chip>
+        </mat-chip-listbox>
+      </p>
+      <p>Created: {{ campaign?.createdAt | date:'medium' }}</p>
+    </mat-card-content>
+    <mat-card-actions>
+      <button mat-raised-button color="primary" 
+              [disabled]="campaign?.status !== CampaignStatus.DRAFT"
+              (click)="generateEmails()">
+        <mat-icon>settings</mat-icon> Generate Emails
+      </button>
+      <button mat-raised-button color="accent" 
+              [disabled]="campaign?.status === CampaignStatus.COMPLETED || stats.total === 0"
+              (click)="startCampaign()">
+        <mat-icon>play_arrow</mat-icon> Start Campaign
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+  <!-- Stats Card -->
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Campaign Statistics</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="label">Total</span>
+          <span class="value">{{ stats.total }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">Sent</span>
+          <span class="value">{{ stats.sent }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">Pending</span>
+          <span class="value">{{ stats.pending }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">Failed</span>
+          <span class="value">{{ stats.failed }}</span>
+        </div>
+      </div>
+      <mat-progress-bar mode="determinate" [value]="getProgress()"></mat-progress-bar>
+      <p class="progress-text">{{ getProgress() | number:'1.0-0' }}% Completed</p>
+    </mat-card-content>
+  </mat-card>
+</div>
+
+<!-- Email Template Card -->
+<mat-card class="template-card">
+  <mat-card-header>
+    <mat-card-title>Email Template</mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    <form [formGroup]="templateForm">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Subject</mat-label>
+        <input matInput formControlName="subject" placeholder="Outreach Subject">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Body</mat-label>
+        <textarea matInput formControlName="body" rows="10" 
+                  placeholder="Email body... Use {name}, {city}, etc."></textarea>
+      </mat-form-field>
+    </form>
+  </mat-card-content>
+  <mat-card-actions>
+    <button mat-button (click)="previewEmail()">Preview</button>
+  </mat-card-actions>
+</mat-card>
+
+<!-- Preview Box -->
+<mat-card *ngIf="previewVisible" class="preview-card">
+  <mat-card-header>
+    <mat-card-title>Preview</mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    <h3>{{ templateForm.value.subject }}</h3>
+    <div class="preview-body" [innerHTML]="getPreviewBody()"></div>
+  </mat-card-content>
+</mat-card>
