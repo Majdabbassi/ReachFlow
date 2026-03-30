@@ -3,37 +3,68 @@
       [attr.role]="'navigation'"
       [mode]="'side'"
       [opened]="true">
-    <mat-toolbar>Menu</mat-toolbar>
-    <mat-nav-list>
-      <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link">
+    
+    <div class="brand">
+      <div class="logo">
+        <mat-icon color="primary">rocket_launch</mat-icon>
+      </div>
+      <span class="brand-name">ReachFlow</span>
+    </div>
+
+    <mat-nav-list class="nav-list">
+      <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link" [routerLinkActiveOptions]="{exact: true}">
         <mat-icon matListItemIcon>dashboard</mat-icon>
         <span matListItemTitle>Dashboard</span>
       </a>
       <a mat-list-item routerLink="/clients" routerLinkActive="active-link">
-        <mat-icon matListItemIcon>people</mat-icon>
+        <mat-icon matListItemIcon>group</mat-icon>
         <span matListItemTitle>Clients</span>
       </a>
       <a mat-list-item routerLink="/leads" routerLinkActive="active-link">
-        <mat-icon matListItemIcon>contact_mail</mat-icon>
+        <mat-icon matListItemIcon>hub</mat-icon>
         <span matListItemTitle>Leads</span>
       </a>
       <a mat-list-item routerLink="/campaigns" routerLinkActive="active-link">
-        <mat-icon matListItemIcon>campaign</mat-icon>
+        <mat-icon matListItemIcon>auto_graph</mat-icon>
         <span matListItemTitle>Campaigns</span>
       </a>
-      <mat-divider></mat-divider>
+      
+      <div class="nav-divider"></div>
+      
       <a mat-list-item routerLink="/settings" routerLinkActive="active-link">
         <mat-icon matListItemIcon>settings</mat-icon>
         <span matListItemTitle>Settings</span>
       </a>
     </mat-nav-list>
+
+    <div class="nav-footer">
+      <div class="user-profile">
+        <div class="avatar">MA</div>
+        <div class="user-info">
+          <span class="name">Majd Abbassi</span>
+          <span class="role">Administrator</span>
+        </div>
+      </div>
+    </div>
   </mat-sidenav>
-  <mat-sidenav-content>
-    <mat-toolbar color="primary">
-      <span>Leads & Outreach System</span>
+
+  <mat-sidenav-content class="main-content">
+    <mat-toolbar class="glass-header">
+      <button mat-icon-button (click)="drawer.toggle()" class="menu-btn">
+        <mat-icon>menu_open</mat-icon>
+      </button>
+      <span class="page-title">Workspace</span>
+      <span class="spacer"></span>
+      <button mat-icon-button class="header-icon">
+        <mat-icon matBadge="3" matBadgeColor="accent">notifications</mat-icon>
+      </button>
+      <button mat-icon-button class="header-icon">
+        <mat-icon>help_outline</mat-icon>
+      </button>
     </mat-toolbar>
-    <div class="container">
-      <router-outlet></router-outlet>
+
+    <div class="page-container" [@routeAnimations]="prepareRoute(outlet)">
+      <router-outlet #outlet="outlet"></router-outlet>
     </div>
   </mat-sidenav-content>
 </mat-sidenav-container>

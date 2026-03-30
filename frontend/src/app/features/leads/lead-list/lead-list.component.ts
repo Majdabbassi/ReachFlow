@@ -6,6 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatCardModule } from '@angular/material/card';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { LeadService } from '../../../core/services/lead.service';
 import { Lead } from '../../../core/models/models';
@@ -22,6 +23,7 @@ import * as L from 'leaflet';
     MatInputModule,
     MatButtonModule,
     MatIconModule,
+    MatCardModule,
     ReactiveFormsModule
   ],
   templateUrl: './lead-list.component.html',

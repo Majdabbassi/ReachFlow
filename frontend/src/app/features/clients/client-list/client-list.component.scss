@@ -1,9 +1,137 @@
-.header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
+
+  .title-group {
+    h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: -0.025em;
+      background: linear-gradient(to right, #f8fafc, #94a3b8);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    p {
+      color: #64748b;
+      margin: 4px 0 0;
+      font-size: 1rem;
+    }
+  }
+
+  button {
+    height: 48px;
+    padding: 0 24px;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    
+    mat-icon {
+      margin-right: 8px;
+    }
+  }
 }
-mat-table {
+
+.table-card {
+  padding: 0 !important;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mat-mdc-table {
   width: 100%;
+}
+
+.mat-mdc-header-cell {
+  color: #94a3b8 !important;
+  font-weight: 600 !important;
+  font-size: 0.85rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 20px 24px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.mat-mdc-cell {
+  padding: 16px 24px !important;
+  color: #e2e8f0 !important;
+  font-size: 0.95rem !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+}
+
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .avatar-mini {
+    width: 36px;
+    height: 36px;
+    background: rgba(99, 102, 241, 0.1);
+    color: #818cf8;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+  }
+
+  span {
+    font-weight: 600;
+  }
+}
+
+.email-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #94a3b8;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: #475569;
+  }
+}
+
+.action-buttons {
+  display: flex;
+  gap: 4px;
+
+  button {
+    color: #64748b;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+      
+      &[color="primary"] { color: #818cf8; }
+      &[color="accent"] { color: #f472b6; }
+    }
+  }
+}
+
+.empty-state {
+  padding: 80px 0;
+  text-align: center;
+  color: #64748b;
+
+  mat-icon {
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+    opacity: 0.2;
+  }
+
+  p {
+    font-size: 1.1rem;
+    margin: 0;
+  }
 }

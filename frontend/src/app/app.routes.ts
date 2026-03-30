@@ -13,12 +13,12 @@ export const routes: Routes = [
     component: MainLayoutComponent,
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-      { path: 'dashboard', component: DashboardHomeComponent },
-      { path: 'clients', component: ClientListComponent },
-      { path: 'leads', component: LeadListComponent },
-      { path: 'campaigns', component: CampaignListComponent },
-      { path: 'campaigns/:id', component: CampaignDetailsComponent },
-      { path: 'settings', component: SettingsPageComponent }
+      { path: 'dashboard', component: DashboardHomeComponent, data: { animation: 'Dashboard' } },
+      { path: 'clients', component: ClientListComponent, data: { animation: 'Clients' } },
+      { path: 'leads', component: LeadListComponent, data: { animation: 'Leads' } },
+      { path: 'campaigns', component: CampaignListComponent, data: { animation: 'Campaigns' } },
+      { path: 'campaigns/:id', component: CampaignDetailsComponent, data: { animation: 'CampaignDetails' } },
+      { path: 'settings', component: SettingsPageComponent, data: { animation: 'Settings' } }
     ]
   }
 ];
