@@ -200,17 +200,33 @@
     
     <div class="table-container">
       <mat-table [dataSource]="results">
-        <ng-container matColumnDef="email">
-          <mat-header-cell *matHeaderCellDef>Email</mat-header-cell>
-          <mat-cell *matCellDef="let r">{{ r.email || r.allEmails?.[0] || '—' }}</mat-cell>
-        </ng-container>
         <ng-container matColumnDef="institution">
           <mat-header-cell *matHeaderCellDef>Institution</mat-header-cell>
-          <mat-cell *matCellDef="let r">{{ r.title || r.institution || '—' }}</mat-cell>
+          <mat-cell *matCellDef="let r">{{ getInstitutionName(r) }}</mat-cell>
         </ng-container>
         <ng-container matColumnDef="city">
           <mat-header-cell *matHeaderCellDef>City</mat-header-cell>
           <mat-cell *matCellDef="let r">{{ r.city || '—' }}</mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="phone">
+          <mat-header-cell *matHeaderCellDef>Phone</mat-header-cell>
+          <mat-cell *matCellDef="let r">{{ r.phone || '—' }}</mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="coordinates">
+          <mat-header-cell *matHeaderCellDef>Coordinates</mat-header-cell>
+          <mat-cell *matCellDef="let r">{{ getCoordinatesText(r) }}</mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="emails">
+          <mat-header-cell *matHeaderCellDef>All Emails</mat-header-cell>
+          <mat-cell *matCellDef="let r">
+            <div>
+              <div *ngFor="let email of getEmailsForDisplay(r)">{{ email }}</div>
+            </div>
+          </mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="address">
+          <mat-header-cell *matHeaderCellDef>Address</mat-header-cell>
+          <mat-cell *matCellDef="let r">{{ r.address || '—' }}</mat-cell>
         </ng-container>
         <ng-container matColumnDef="website">
           <mat-header-cell *matHeaderCellDef>Website</mat-header-cell>
@@ -350,7 +366,7 @@
       <ng-container matColumnDef="coordinates">
         <mat-header-cell *matHeaderCellDef>Coordinates</mat-header-cell>
         <mat-cell *matCellDef="let lead">
-          {{ (lead.latitude !== undefined && lead.longitude !== undefined) ? ((lead.latitude | number:'1.4-6') + ', ' + (lead.longitude | number:'1.4-6')) : '—' }}
+          {{ (lead.latitude != null && lead.longitude != null) ? ((lead.latitude | number:'1.4-6') + ', ' + (lead.longitude | number:'1.4-6')) : '—' }}
         </mat-cell>
       </ng-container>
 

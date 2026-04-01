@@ -23,6 +23,15 @@
       <mat-icon matPrefix>search</mat-icon>
       <input matInput [(ngModel)]="searchTerm" placeholder="Filter by name...">
     </mat-form-field>
+      
+      <mat-form-field appearance="outline" class="status-filter-field">
+        <mat-label>Filter by status</mat-label>
+        <mat-select [(ngModel)]="selectedStatus">
+          <mat-option *ngFor="let status of campaignStatusOptions" [value]="status">
+            {{ status === 'ALL' ? 'All statuses' : status }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
     
     <button mat-flat-button color="primary" class="update-btn" (click)="loadCampaigns()" [disabled]="isLoading">
       <mat-icon *ngIf="!isLoading">sync</mat-icon>
@@ -109,7 +118,12 @@
       </ng-container>
 
       <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
-      <mat-row *matRowDef="let row; columns: displayedColumns;" class="animate-fade-in" [routerLink]="['/campaigns', row.id]"></mat-row>
+      <mat-row
+        *matRowDef="let row; columns: displayedColumns;"
+        class="animate-fade-in"
+        [class.needs-attention]="row.status === 'DRAFT'"
+        [routerLink]="['/campaigns', row.id]">
+      </mat-row>
     </mat-table>
   </ng-container>
 </mat-card>

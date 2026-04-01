@@ -37,4 +37,10 @@ export class ClientService {
     formData.append('file', file);
     return this.http.put<void>(`${this.apiUrl}/${id}/document`, formData);
   }
+
+  downloadDocument(id: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${id}/document`, {
+      responseType: 'blob'
+    });
+  }
 }

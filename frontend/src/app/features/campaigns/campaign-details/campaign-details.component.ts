@@ -211,18 +211,6 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
     });
   }
 
-  generateEmails() {
-    if (this.campaign?.id) {
-      this.addLog('info', 'Starting email generation...');
-      this.campaignService.generateSends(this.campaign.id).subscribe(() => {
-        this.toastr.success('Emails generated successfully');
-        this.addLog('success', 'Email generation completed');
-        this.loadStats(this.campaign!.id!);
-        this.loadCampaignSends(this.campaign!.id!);
-      });
-    }
-  }
-
   startCampaign() {
     if (this.campaign?.id) {
       if (this.templateForm.invalid) {

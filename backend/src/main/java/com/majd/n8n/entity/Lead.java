@@ -22,6 +22,10 @@ public class Lead {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
+    private String allEmails;
+
     private String institutionName;
 
     private String city;

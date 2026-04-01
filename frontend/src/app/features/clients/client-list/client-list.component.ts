@@ -125,6 +125,27 @@ export class ClientListComponent implements OnInit {
     }
   }
 
+  downloadDocument(client: Client) {
+    if (!client.id) {
+      return;
+    }
+
+    this.clientService.downloadDocument(client.id).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = client.documentName || `client-${client.id}-document`;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.toastr.success('Document downloaded successfully');
+      },
+      error: () => {
+        this.toastr.error('No document found for this client');
+      }
+    });
+  }
+
   deleteClient(client: Client) {
     if (confirm(`Are you sure you want to delete ${client.name}?`)) {
       this.toastr.info('Delete feature coming soon');

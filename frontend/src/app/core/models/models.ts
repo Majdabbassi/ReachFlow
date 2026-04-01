@@ -11,6 +11,7 @@ export interface Client {
 export interface Lead {
   id?: number;
   email: string;
+  allEmails?: string;
   institutionName?: string;
   city?: string;
   phone?: string;

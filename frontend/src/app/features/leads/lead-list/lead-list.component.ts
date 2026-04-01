@@ -508,39 +508,57 @@ export class LeadListComponent implements OnInit {
   }
 
   private expandWebhookResultsToLeads(results: WebhookLeadResult[]): Lead[] {
-    const leads: Lead[] = [];
+    const byInstitution = new Map<string, { lead: Lead; emails: Set<string> }>();
 
     results.forEach((result) => {
       const emails = this.getEmailsForDisplay(result);
+      if (emails.length === 0) {
+        return;
+      }
+
       const institutionName = this.getInstitutionName(result);
       const city = result.city || this.cities[0] || 'Unknown City';
       const latitude = this.parseNumber(result.latitude ?? result.lat);
       const longitude = this.parseNumber(result.longitude ?? result.lng);
 
-      emails.forEach((email) => {
-        leads.push({
-          email,
-          institutionName,
-          city,
-          phone: result.phone || '',
-          address: result.address || '',
-          latitude,
-          longitude,
-          website: result.website || '',
-          source: 'Webhook Collector'
+      const key = [
+        institutionName.trim().toLowerCase(),
+        (city || '').trim().toLowerCase(),
+        (result.website || '').trim().toLowerCase(),
+        (result.address || '').trim().toLowerCase()
+      ].join('|');
+
+      const existing = byInstitution.get(key);
+      if (!existing) {
+        byInstitution.set(key, {
+          lead: {
+            email: emails[0],
+            allEmails: emails.join('\n'),
+            institutionName,
+            city,
+            phone: result.phone || '',
+            address: result.address || '',
+            latitude,
+            longitude,
+            website: result.website || '',
+            source: 'Webhook Collector'
+          },
+          emails: new Set(emails)
         });
-      });
+        return;
+      }
+
+      emails.forEach((email) => existing.emails.add(email));
+      existing.lead.email = Array.from(existing.emails)[0];
+      existing.lead.allEmails = Array.from(existing.emails).join('\n');
+      if (!existing.lead.phone && result.phone) existing.lead.phone = result.phone;
+      if (!existing.lead.address && result.address) existing.lead.address = result.address;
+      if (existing.lead.latitude == null && latitude != null) existing.lead.latitude = latitude;
+      if (existing.lead.longitude == null && longitude != null) existing.lead.longitude = longitude;
+      if (!existing.lead.website && result.website) existing.lead.website = result.website;
     });
 
-    const seen = new Set<string>();
-    return leads.filter((lead) => {
-      const key = lead.email.trim().toLowerCase();
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
+    return Array.from(byInstitution.values()).map((entry) => entry.lead);
   }
 
   private parseNumber(value: unknown): number | undefined {

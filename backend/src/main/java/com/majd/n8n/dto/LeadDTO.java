@@ -20,6 +20,8 @@ public class LeadDTO {
     @Email(message = "Invalid email format")
     private String email;
 
+    private String allEmails;
+
     private String institutionName;
     private String city;
     private String phone;

@@ -20,12 +20,6 @@
       <mat-icon>{{ showLogs ? 'terminal' : 'history' }}</mat-icon> 
       {{ showLogs ? 'Hide Console' : 'Execution Logs' }}
     </button>
-    <button mat-stroked-button 
-            [disabled]="campaign?.status === CampaignStatus.RUNNING"
-            (click)="generateEmails()"
-            class="action-btn">
-      <mat-icon>auto_awesome</mat-icon> Generate Queue
-    </button>
     <button mat-flat-button color="primary" 
           [disabled]="campaign?.status === CampaignStatus.RUNNING || (stats.pending + stats.failed) === 0"
             (click)="startCampaign()"

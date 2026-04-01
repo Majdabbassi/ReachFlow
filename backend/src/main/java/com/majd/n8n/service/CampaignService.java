@@ -46,13 +46,15 @@ public class CampaignService {
     @Transactional(readOnly = true)
     public List<CampaignDTO> getAllCampaigns() {
         ensureCampaignForEachClient();
+        reconcileCampaignStatuses();
         return campaignRepository.findAll().stream()
                 .map(campaignMapper::toDTO)
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public CampaignDTO getCampaignById(Long id) {
+        syncCampaignSendsWithAllLeads(id);
         Campaign campaign = campaignRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Campaign not found with id: " + id));
         return campaignMapper.toDTO(campaign);
@@ -97,6 +99,7 @@ public class CampaignService {
     @Async
     @Transactional
     public void startCampaign(Long id, CampaignStartRequestDTO request) {
+        syncCampaignSendsWithAllLeads(id);
         Campaign campaign = campaignRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Campaign not found with id: " + id));
         if (campaign.getStatus() == CampaignStatus.RUNNING) {
@@ -123,8 +126,9 @@ public class CampaignService {
         checkCampaignCompletion(id);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public CampaignStatsDTO getCampaignStats(Long id) {
+        syncCampaignSendsWithAllLeads(id);
         long total = campaignSendRepository.countByCampaignId(id);
         long sent = campaignSendRepository.countByCampaignIdAndStatus(id, CampaignSendStatus.SENT);
         long pending = campaignSendRepository.countByCampaignIdAndStatus(id, CampaignSendStatus.PENDING);
@@ -147,11 +151,13 @@ public class CampaignService {
         checkCampaignCompletion(campaignSend.getCampaign().getId());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Page<CampaignSendDTO> getCampaignSends(Long campaignId, String status, Pageable pageable) {
         if (!campaignRepository.existsById(campaignId)) {
             throw new RuntimeException("Campaign not found with id: " + campaignId);
         }
+
+        syncCampaignSendsWithAllLeads(campaignId);
 
         Page<CampaignSend> sendPage;
         if (status == null || status.isBlank()) {
@@ -179,21 +185,51 @@ public class CampaignService {
     }
 
     private void checkCampaignCompletion(Long campaignId) {
+        Campaign campaign = campaignRepository.findById(campaignId).orElse(null);
+        if (campaign == null) {
+            return;
+        }
+
+        long total = campaignSendRepository.countByCampaignId(campaignId);
         long pending = campaignSendRepository.countByCampaignIdAndStatus(campaignId, CampaignSendStatus.PENDING);
         long failed = campaignSendRepository.countByCampaignIdAndStatus(campaignId, CampaignSendStatus.FAILED);
-        if (pending == 0 && failed == 0) {
-            Campaign campaign = campaignRepository.findById(campaignId).orElse(null);
-            if (campaign != null && campaign.getStatus() == CampaignStatus.RUNNING) {
-                campaign.setStatus(CampaignStatus.COMPLETED);
-                campaignRepository.save(campaign);
-            }
-        } else {
-            Campaign campaign = campaignRepository.findById(campaignId).orElse(null);
-            if (campaign != null && campaign.getStatus() == CampaignStatus.RUNNING) {
-                campaign.setStatus(CampaignStatus.DRAFT);
-                campaignRepository.save(campaign);
-            }
+
+        CampaignStatus nextStatus = (total > 0 && pending == 0 && failed == 0)
+                ? CampaignStatus.COMPLETED
+                : CampaignStatus.DRAFT;
+
+        if (campaign.getStatus() != nextStatus) {
+            campaign.setStatus(nextStatus);
+            campaignRepository.save(campaign);
         }
+    }
+
+    private void syncCampaignSendsWithAllLeads(Long campaignId) {
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new RuntimeException("Campaign not found with id: " + campaignId));
+
+        Set<Long> existingLeadIds = campaignSendRepository.findLeadIdsByCampaignId(campaignId);
+        int pageSize = 500;
+        int pageNumber = 0;
+        Page<Lead> leadPage;
+
+        do {
+            leadPage = leadRepository.findAll(PageRequest.of(pageNumber, pageSize));
+            List<CampaignSend> newSends = leadPage.getContent().stream()
+                    .filter(lead -> !existingLeadIds.contains(lead.getId()))
+                    .map(lead -> CampaignSend.builder()
+                            .campaign(campaign)
+                            .lead(lead)
+                            .status(CampaignSendStatus.PENDING)
+                            .build())
+                    .collect(Collectors.toList());
+
+            if (!newSends.isEmpty()) {
+                campaignSendRepository.saveAll(newSends);
+                newSends.forEach(send -> existingLeadIds.add(send.getLead().getId()));
+            }
+            pageNumber++;
+        } while (leadPage.hasNext());
     }
 
     @Transactional
@@ -206,6 +242,60 @@ public class CampaignService {
                         .status(CampaignStatus.DRAFT)
                         .client(client)
                         .build();
+                campaignRepository.save(campaign);
+            }
+        }
+    }
+
+    @Transactional
+    public void syncLeadAcrossAllCampaigns(Lead lead) {
+        if (lead == null || lead.getId() == null) {
+            return;
+        }
+
+        ensureCampaignForEachClient();
+
+        Set<Long> linkedCampaignIds = campaignSendRepository.findCampaignIdsByLeadId(lead.getId());
+        List<CampaignSend> missingSends = campaignRepository.findAll().stream()
+                .filter(campaign -> !linkedCampaignIds.contains(campaign.getId()))
+                .map(campaign -> CampaignSend.builder()
+                        .campaign(campaign)
+                        .lead(lead)
+                        .status(CampaignSendStatus.PENDING)
+                        .build())
+                .collect(Collectors.toList());
+
+        if (!missingSends.isEmpty()) {
+            campaignSendRepository.saveAll(missingSends);
+
+            for (CampaignSend send : missingSends) {
+                Campaign campaign = send.getCampaign();
+                if (campaign.getStatus() != CampaignStatus.RUNNING) {
+                    campaign.setStatus(CampaignStatus.DRAFT);
+                    campaignRepository.save(campaign);
+                }
+            }
+        }
+    }
+
+    @Transactional
+    protected void reconcileCampaignStatuses() {
+        List<Campaign> campaigns = campaignRepository.findAll();
+        for (Campaign campaign : campaigns) {
+            if (campaign.getStatus() == CampaignStatus.RUNNING) {
+                continue;
+            }
+
+            long total = campaignSendRepository.countByCampaignId(campaign.getId());
+            long pending = campaignSendRepository.countByCampaignIdAndStatus(campaign.getId(), CampaignSendStatus.PENDING);
+            long failed = campaignSendRepository.countByCampaignIdAndStatus(campaign.getId(), CampaignSendStatus.FAILED);
+
+            CampaignStatus targetStatus = (total > 0 && pending == 0 && failed == 0)
+                    ? CampaignStatus.COMPLETED
+                    : CampaignStatus.DRAFT;
+
+            if (campaign.getStatus() != targetStatus) {
+                campaign.setStatus(targetStatus);
                 campaignRepository.save(campaign);
             }
         }

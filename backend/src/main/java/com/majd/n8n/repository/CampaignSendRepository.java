@@ -21,6 +21,9 @@ public interface CampaignSendRepository extends JpaRepository<CampaignSend, Long
     @Query("SELECT cs.lead.id FROM CampaignSend cs WHERE cs.campaign.id = :campaignId")
     Set<Long> findLeadIdsByCampaignId(@Param("campaignId") Long campaignId);
 
+    @Query("SELECT cs.campaign.id FROM CampaignSend cs WHERE cs.lead.id = :leadId")
+    Set<Long> findCampaignIdsByLeadId(@Param("leadId") Long leadId);
+
     List<CampaignSend> findByCampaignIdAndStatus(Long campaignId, CampaignSendStatus status);
 
     List<CampaignSend> findByCampaignIdAndStatusIn(Long campaignId, List<CampaignSendStatus> statuses);

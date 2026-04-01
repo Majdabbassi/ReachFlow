@@ -324,6 +324,21 @@
 .editor-card {
   .editor-body {
     padding: 24px;
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+    }
+
+    .full-width {
+      width: 100%;
+    }
+
+    ::ng-deep .full-width .mat-mdc-form-field-infix {
+      width: auto !important;
+    }
     
     .narrative-wrapper {
       position: relative;

@@ -38,6 +38,18 @@ public class ClientService {
         return clientMapper.toDTO(client);
     }
 
+    @Transactional(readOnly = true)
+    public Client getClientDocument(Long id) {
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Client not found with id: " + id));
+
+        if (client.getDocument() == null || client.getDocument().length == 0) {
+            throw new RuntimeException("No document found for client id: " + id);
+        }
+
+        return client;
+    }
+
     @Transactional
     public ClientDTO createClient(ClientDTO clientDTO) {
         Client client = clientMapper.toEntity(clientDTO);

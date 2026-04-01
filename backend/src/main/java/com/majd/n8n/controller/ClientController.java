@@ -1,9 +1,12 @@
 package com.majd.n8n.controller;
 
 import com.majd.n8n.dto.ClientDTO;
+import com.majd.n8n.entity.Client;
 import com.majd.n8n.service.ClientService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,6 +29,29 @@ public class ClientController {
     @GetMapping("/{id}")
     public ResponseEntity<ClientDTO> getClientById(@PathVariable Long id) {
         return ResponseEntity.ok(clientService.getClientById(id));
+    }
+
+    @GetMapping("/{id}/document")
+    public ResponseEntity<byte[]> downloadClientDocument(@PathVariable Long id) {
+        Client client = clientService.getClientDocument(id);
+
+        String fileName = client.getDocumentName() == null || client.getDocumentName().isBlank()
+                ? "client-document"
+                : client.getDocumentName();
+
+        MediaType mediaType;
+        try {
+            mediaType = client.getDocumentContentType() == null || client.getDocumentContentType().isBlank()
+                    ? MediaType.APPLICATION_OCTET_STREAM
+                    : MediaType.parseMediaType(client.getDocumentContentType());
+        } catch (Exception ex) {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                .contentType(mediaType)
+                .body(client.getDocument());
     }
 
     @PostMapping

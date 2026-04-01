@@ -17,6 +17,7 @@ import { catchError, finalize, map } from 'rxjs/operators';
 
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormsModule } from '@angular/forms';
@@ -36,6 +37,7 @@ import { FormsModule } from '@angular/forms';
     MatTooltipModule, 
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
     MatCheckboxModule,
     MatProgressSpinnerModule,
     RouterLink
@@ -56,6 +58,8 @@ export class CampaignListComponent implements OnInit {
   isLoading = false;
   loadError: string | null = null;
   searchTerm = '';
+  selectedStatus: CampaignStatus | 'ALL' = 'ALL';
+  campaignStatusOptions: Array<CampaignStatus | 'ALL'> = ['ALL', CampaignStatus.DRAFT, CampaignStatus.RUNNING, CampaignStatus.COMPLETED];
 
   ngOnInit() {
     this.loadCampaigns();
@@ -81,9 +85,12 @@ export class CampaignListComponent implements OnInit {
   get filteredCampaigns$() {
     return this.campaigns$.pipe(
       map(campaigns => {
-        if (!this.searchTerm) return campaigns;
-        const s = this.searchTerm.toLowerCase();
-        return campaigns.filter(c => c.name.toLowerCase().includes(s));
+        const s = this.searchTerm.trim().toLowerCase();
+        return campaigns.filter(campaign => {
+          const matchesName = !s || campaign.name.toLowerCase().includes(s);
+          const matchesStatus = this.selectedStatus === 'ALL' || campaign.status === this.selectedStatus;
+          return matchesName && matchesStatus;
+        });
       })
     );
   }
