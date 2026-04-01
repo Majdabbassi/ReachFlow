@@ -55,7 +55,7 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
   stats: CampaignStats = { total: 0, sent: 0, pending: 0, failed: 0 };
   campaignSends: CampaignSend[] = [];
   logs: CampaignLog[] = [];
-  sendColumns: string[] = ['leadEmail', 'institution', 'city', 'status', 'sentAt'];
+  sendColumns: string[] = ['email', 'institution', 'city', 'status', 'sentAt'];
   selectedSendStatus: CampaignSendStatus | 'ALL' = 'ALL';
   sendPageSize = 25;
   sendPageIndex = 0;
@@ -72,15 +72,6 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
   showLogs = false;
   isLoading = false;
   loadError: string | null = null;
-  
-  // Tag helper
-  insertTag(tag: string) {
-    const bodyControl = this.templateForm.get('body');
-    if (bodyControl) {
-      const currentVal = bodyControl.value || '';
-      bodyControl.setValue(currentVal + `{${tag}}`);
-    }
-  }
 
   private statsSubscription?: Subscription;
   private pollCount = 0;

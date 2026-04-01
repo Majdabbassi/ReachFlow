@@ -36,6 +36,7 @@ interface WebhookLeadResult {
   address?: string;
   email?: string;
   allEmails?: string[];
+  emails?: string[];
   latitude?: number;
   longitude?: number;
   lat?: number;
@@ -471,6 +472,11 @@ export class LeadListComponent implements OnInit {
     if (result.email) {
       emails.add(result.email.trim().toLowerCase());
     }
+    (result.emails || []).forEach((email) => {
+      if (email && email.trim()) {
+        emails.add(email.trim().toLowerCase());
+      }
+    });
     (result.allEmails || []).forEach((email) => {
       if (email && email.trim()) {
         emails.add(email.trim().toLowerCase());
@@ -533,7 +539,8 @@ export class LeadListComponent implements OnInit {
         byInstitution.set(key, {
           lead: {
             email: emails[0],
-            allEmails: emails.join('\n'),
+            primaryEmail: emails[0],
+            emails: [...emails],
             institutionName,
             city,
             phone: result.phone || '',
@@ -550,7 +557,8 @@ export class LeadListComponent implements OnInit {
 
       emails.forEach((email) => existing.emails.add(email));
       existing.lead.email = Array.from(existing.emails)[0];
-      existing.lead.allEmails = Array.from(existing.emails).join('\n');
+      existing.lead.primaryEmail = Array.from(existing.emails)[0];
+      existing.lead.emails = Array.from(existing.emails);
       if (!existing.lead.phone && result.phone) existing.lead.phone = result.phone;
       if (!existing.lead.address && result.address) existing.lead.address = result.address;
       if (existing.lead.latitude == null && latitude != null) existing.lead.latitude = latitude;

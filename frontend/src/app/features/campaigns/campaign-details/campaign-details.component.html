@@ -145,13 +145,6 @@
         </mat-form-field>
 
         <div class="narrative-wrapper">
-          <div class="tag-helper">
-            <span class="label">Insert Tag:</span>
-            <button type="button" (click)="insertTag('name')">{{ '{' }}name{{ '}' }}</button>
-            <button type="button" (click)="insertTag('city')">{{ '{' }}city{{ '}' }}</button>
-            <button type="button" (click)="insertTag('institutionName')">{{ '{' }}institutionName{{ '}' }}</button>
-            <button type="button" (click)="insertTag('website')">{{ '{' }}website{{ '}' }}</button>
-          </div>
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Message Body</mat-label>
             <textarea matInput formControlName="body" rows="12" placeholder="Write your outreach narrative..."></textarea>
@@ -206,11 +199,11 @@
 
   <div class="table-wrap">
     <mat-table [dataSource]="campaignSends">
-      <ng-container matColumnDef="leadEmail">
+      <ng-container matColumnDef="email">
         <mat-header-cell *matHeaderCellDef>Contact</mat-header-cell>
         <mat-cell *matCellDef="let send">
           <div class="email-info">
-            <span class="email">{{ send.leadEmail }}</span>
+            <span class="email">{{ send.email }}</span>
           </div>
         </mat-cell>
       </ng-container>

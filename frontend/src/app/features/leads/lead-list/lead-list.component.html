@@ -14,7 +14,7 @@
 <div class="collector-grid">
         <ng-container matColumnDef="email">
           <mat-header-cell *matHeaderCellDef>Email</mat-header-cell>
-          <mat-cell *matCellDef="let r">{{ r.email || r.allEmails?.[0] || '—' }}</mat-cell>
+          <mat-cell *matCellDef="let r">{{ r.email || r.emails?.[0] || '—' }}</mat-cell>
         </ng-container>
   <!-- City Selection -->
   <mat-card class="glass-card collect-card">

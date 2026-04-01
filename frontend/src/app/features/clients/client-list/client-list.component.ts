@@ -11,6 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormsModule } from '@angular/forms';
 import { ClientService } from '../../../core/services/client.service';
+import { ArchiveService } from '../../../core/services/archive.service';
 import { Client } from '../../../core/models/models';
 import { ClientDialogComponent } from '../client-dialog/client-dialog.component';
 import { ToastrService } from 'ngx-toastr';
@@ -38,6 +39,7 @@ import { catchError, finalize, map, switchMap } from 'rxjs/operators';
 })
 export class ClientListComponent implements OnInit {
   private clientService = inject(ClientService);
+  private archiveService = inject(ArchiveService);
   private dialog = inject(MatDialog);
   private toastr = inject(ToastrService);
 
@@ -146,9 +148,23 @@ export class ClientListComponent implements OnInit {
     });
   }
 
-  deleteClient(client: Client) {
-    if (confirm(`Are you sure you want to delete ${client.name}?`)) {
-      this.toastr.info('Delete feature coming soon');
+  archiveClient(client: Client) {
+    if (!client.id) {
+      return;
     }
+
+    if (!confirm(`Archive ${client.name}? This will move the client and its campaigns to archive.`)) {
+      return;
+    }
+
+    this.archiveService.archiveClient(client.id).subscribe({
+      next: () => {
+        this.toastr.success('Client archived successfully');
+        this.loadClients();
+      },
+      error: () => {
+        this.toastr.error('Failed to archive client');
+      }
+    });
   }
 }

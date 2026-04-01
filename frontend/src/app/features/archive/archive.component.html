@@ -1,0 +1,165 @@
+<div class="page-header">
+  <div class="title-group">
+    <h2>Archive</h2>
+    <p>Review archived clients, inspect historical campaigns, and restore records when needed.</p>
+  </div>
+</div>
+
+<mat-card class="glass-card table-card">
+  <div class="card-header">
+    <mat-icon>inventory_2</mat-icon>
+    <h3>Archived Clients</h3>
+  </div>
+
+  <mat-table [dataSource]="archivedClients">
+    <ng-container matColumnDef="name">
+      <mat-header-cell *matHeaderCellDef>Name</mat-header-cell>
+      <mat-cell *matCellDef="let client">{{ client.name }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="email">
+      <mat-header-cell *matHeaderCellDef>Email</mat-header-cell>
+      <mat-cell *matCellDef="let client">{{ client.email }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="archivedAt">
+      <mat-header-cell *matHeaderCellDef>Archived At</mat-header-cell>
+      <mat-cell *matCellDef="let client">{{ client.archivedAt | date:'medium' }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <mat-header-cell *matHeaderCellDef>Actions</mat-header-cell>
+      <mat-cell *matCellDef="let client">
+        <button mat-stroked-button color="primary" (click)="viewClient(client)">View</button>
+        <button mat-flat-button color="accent" (click)="restoreClient(client)">Restore</button>
+      </mat-cell>
+    </ng-container>
+
+    <mat-header-row *matHeaderRowDef="clientsColumns"></mat-header-row>
+    <mat-row
+      *matRowDef="let row; columns: clientsColumns;"
+      [class.selected-row]="selectedClient?.id === row.id">
+    </mat-row>
+  </mat-table>
+
+  <mat-paginator
+    [length]="clientsTotalElements"
+    [pageSize]="clientsPageSize"
+    [pageIndex]="clientsPageIndex"
+    [pageSizeOptions]="[5, 10, 25, 50]"
+    (page)="onClientsPageChange($event)">
+  </mat-paginator>
+</mat-card>
+
+<mat-card class="glass-card table-card" *ngIf="selectedClient">
+  <div class="card-header">
+    <mat-icon>folder</mat-icon>
+    <h3>Campaigns for {{ selectedClient.name }}</h3>
+  </div>
+
+  <mat-table [dataSource]="archivedCampaigns">
+    <ng-container matColumnDef="name">
+      <mat-header-cell *matHeaderCellDef>Campaign</mat-header-cell>
+      <mat-cell *matCellDef="let campaign">{{ campaign.name }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="status">
+      <mat-header-cell *matHeaderCellDef>Status</mat-header-cell>
+      <mat-cell *matCellDef="let campaign">
+        <mat-chip>{{ campaign.status }}</mat-chip>
+      </mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="total">
+      <mat-header-cell *matHeaderCellDef>Total</mat-header-cell>
+      <mat-cell *matCellDef="let campaign">{{ campaign.stats.total }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="sent">
+      <mat-header-cell *matHeaderCellDef>Sent</mat-header-cell>
+      <mat-cell *matCellDef="let campaign">{{ campaign.stats.sent }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="pending">
+      <mat-header-cell *matHeaderCellDef>Pending</mat-header-cell>
+      <mat-cell *matCellDef="let campaign">{{ campaign.stats.pending }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="failed">
+      <mat-header-cell *matHeaderCellDef>Failed</mat-header-cell>
+      <mat-cell *matCellDef="let campaign">{{ campaign.stats.failed }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <mat-header-cell *matHeaderCellDef>Actions</mat-header-cell>
+      <mat-cell *matCellDef="let campaign">
+        <button mat-stroked-button color="primary" (click)="viewCampaign(campaign)">View</button>
+      </mat-cell>
+    </ng-container>
+
+    <mat-header-row *matHeaderRowDef="campaignsColumns"></mat-header-row>
+    <mat-row *matRowDef="let row; columns: campaignsColumns;"></mat-row>
+  </mat-table>
+
+  <mat-paginator
+    [length]="campaignsTotalElements"
+    [pageSize]="campaignsPageSize"
+    [pageIndex]="campaignsPageIndex"
+    [pageSizeOptions]="[5, 10, 25]"
+    (page)="onCampaignsPageChange($event)">
+  </mat-paginator>
+</mat-card>
+
+<mat-card class="glass-card table-card" *ngIf="selectedCampaign">
+  <div class="card-header">
+    <mat-icon>mail</mat-icon>
+    <h3>Sends for {{ selectedCampaign.name }}</h3>
+    <span class="spacer"></span>
+    <div class="filter-pills">
+      <button [class.active]="selectedStatus === 'ALL'" (click)="onStatusFilterChange('ALL')">All</button>
+      <button [class.active]="selectedStatus === CampaignSendStatus.SENT" (click)="onStatusFilterChange(CampaignSendStatus.SENT)">Sent</button>
+      <button [class.active]="selectedStatus === CampaignSendStatus.PENDING" (click)="onStatusFilterChange(CampaignSendStatus.PENDING)">Pending</button>
+      <button [class.active]="selectedStatus === CampaignSendStatus.FAILED" (click)="onStatusFilterChange(CampaignSendStatus.FAILED)">Failed</button>
+    </div>
+  </div>
+
+  <mat-table [dataSource]="archivedSends">
+    <ng-container matColumnDef="email">
+      <mat-header-cell *matHeaderCellDef>Email</mat-header-cell>
+      <mat-cell *matCellDef="let send">{{ send.email }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="institution">
+      <mat-header-cell *matHeaderCellDef>Institution</mat-header-cell>
+      <mat-cell *matCellDef="let send">{{ send.leadInstitutionName || '—' }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="city">
+      <mat-header-cell *matHeaderCellDef>City</mat-header-cell>
+      <mat-cell *matCellDef="let send">{{ send.leadCity || '—' }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="status">
+      <mat-header-cell *matHeaderCellDef>Status</mat-header-cell>
+      <mat-cell *matCellDef="let send">
+        <mat-chip>{{ send.status }}</mat-chip>
+      </mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="sentAt">
+      <mat-header-cell *matHeaderCellDef>Sent At</mat-header-cell>
+      <mat-cell *matCellDef="let send">{{ send.sentAt ? (send.sentAt | date:'medium') : 'Pending' }}</mat-cell>
+    </ng-container>
+
+    <mat-header-row *matHeaderRowDef="sendsColumns"></mat-header-row>
+    <mat-row *matRowDef="let row; columns: sendsColumns;"></mat-row>
+  </mat-table>
+
+  <mat-paginator
+    [length]="sendsTotalElements"
+    [pageSize]="sendsPageSize"
+    [pageIndex]="sendsPageIndex"
+    [pageSizeOptions]="[10, 25, 50]"
+    (page)="onSendsPageChange($event)">
+  </mat-paginator>
+</mat-card>

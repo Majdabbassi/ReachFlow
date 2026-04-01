@@ -32,6 +32,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/campaigns/campaign-details/campaign-details.component').then((m) => m.CampaignDetailsComponent),
         data: { animation: 'CampaignDetails' }
       },
+      {
+        path: 'archive',
+        loadComponent: () => import('./features/archive/archive.component').then((m) => m.ArchiveComponent),
+        data: { animation: 'Archive' }
+      }
     ]
   }
 ];

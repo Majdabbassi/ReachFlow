@@ -11,7 +11,8 @@ export interface Client {
 export interface Lead {
   id?: number;
   email: string;
-  allEmails?: string;
+  primaryEmail?: string;
+  emails: string[];
   institutionName?: string;
   city?: string;
   phone?: string;
@@ -48,12 +49,45 @@ export enum CampaignSendStatus {
 export interface CampaignSend {
   id?: number;
   campaignId: number;
+  leadEmailId: number;
+  email: string;
   leadId: number;
-  leadEmail: string;
   leadInstitutionName?: string;
   leadCity?: string;
   status: CampaignSendStatus;
   sentAt?: string;
+}
+
+export interface ArchivedClient {
+  id: number;
+  name: string;
+  email: string;
+  appPassword: string;
+  phone?: string;
+  documentName?: string;
+  documentContentType?: string;
+  createdAt?: string;
+  archivedAt: string;
+  originalId: number;
+}
+
+export interface ArchivedCampaign {
+  id: number;
+  name: string;
+  status: CampaignStatus;
+  createdAt?: string;
+  archivedClientId: number;
+  originalId: number;
+  stats: CampaignStats;
+}
+
+export interface ArchivedCampaignSend {
+  email: string;
+  leadInstitutionName?: string;
+  leadCity?: string;
+  status: CampaignSendStatus;
+  sentAt?: string;
+  archivedCampaignId: number;
 }
 
 export interface PageResponse<T> {
