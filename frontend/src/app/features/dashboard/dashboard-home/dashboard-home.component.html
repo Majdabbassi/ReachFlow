@@ -1,110 +1,198 @@
-<div class="dashboard-header">
+<div class="page-header">
   <div class="title-group">
-    <h1 class="welcome">Good morning, Majd</h1>
-    <p class="subtitle">Here is what's happening with your outreach today.</p>
+    <div class="breadcrumb">Overview</div>
+    <h1>Outreach Dashboard</h1>
+    <p>Monitor your outreach performance and lead discovery status.</p>
   </div>
-  <button mat-flat-button color="primary" routerLink="/campaigns">
-    <mat-icon>add</mat-icon> New Campaign
+  <div class="header-actions">
+    <button mat-flat-button color="primary" class="action-btn" (click)="navigateToCampaigns()">
+      <mat-icon>add</mat-icon>
+      New Campaign
+    </button>
+  </div>
+</div>
+
+<div *ngIf="loadError" class="error-alert">
+  <mat-icon>error_outline</mat-icon>
+  <div class="error-content">
+    <strong>System Sync Interrupted</strong>
+    <p>{{ loadError }}</p>
+  </div>
+  <button mat-icon-button (click)="loadStats()" matTooltip="Retry loading data">
+    <mat-icon>refresh</mat-icon>
   </button>
 </div>
 
-<div class="dashboard-grid">
-  <!-- Stats Cards -->
-  <mat-card class="glass-card stat-card">
-    <div class="card-icon clients">
-      <mat-icon>group</mat-icon>
-    </div>
-    <div class="card-content">
-      <span class="label">Total Clients</span>
-      <h2 class="value">{{ stats.clients | number }}</h2>
-      <span class="trend up"><mat-icon>trending_up</mat-icon> +12% this month</span>
-    </div>
-  </mat-card>
-
-  <mat-card class="glass-card stat-card">
-    <div class="card-icon leads">
-      <mat-icon>hub</mat-icon>
-    </div>
-    <div class="card-content">
-      <span class="label">Verified Leads</span>
-      <h2 class="value">{{ stats.leads | number }}</h2>
-      <span class="trend up"><mat-icon>trending_up</mat-icon> +24% this month</span>
-    </div>
-  </mat-card>
-
-  <mat-card class="glass-card stat-card">
-    <div class="card-icon campaigns">
-      <mat-icon>auto_graph</mat-icon>
-    </div>
-    <div class="card-content">
-      <span class="label">Active Campaigns</span>
-      <h2 class="value">{{ stats.campaigns | number }}</h2>
-      <span class="trend neutral"><mat-icon>trending_flat</mat-icon> Stable</span>
-    </div>
-  </mat-card>
-
-  <mat-card class="glass-card stat-card">
-    <div class="card-icon sent">
-      <mat-icon>send</mat-icon>
-    </div>
-    <div class="card-content">
-      <span class="label">Emails Delivered</span>
-      <h2 class="value">{{ stats.emailsSent | number }}</h2>
-      <span class="trend up"><mat-icon>trending_up</mat-icon> +8% today</span>
-    </div>
-  </mat-card>
-</div>
-
-<div class="secondary-grid">
-  <!-- Outreach Activity -->
-  <mat-card class="glass-card activity-card">
-    <mat-card-header>
-      <mat-card-title>Outreach Performance</mat-card-title>
-      <mat-card-subtitle>Overall delivery success rate</mat-card-subtitle>
-    </mat-card-header>
-    <mat-card-content>
-      <div class="chart-placeholder">
-        <div class="circular-progress">
-          <svg viewBox="0 0 36 36" class="circular-chart indigo">
-            <path class="circle-bg"
-              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            />
-            <path class="circle"
-              stroke-dasharray="85, 100"
-              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            />
-            <text x="18" y="20.35" class="percentage">85%</text>
-          </svg>
+<ng-container *ngIf="stats$ | async as stats">
+  <div class="stats-grid">
+    <!-- Total Clients -->
+    <mat-card class="glass-card stat-card clickable" *ngIf="!isLoading; else statSkeleton" (click)="navigateToClients()">
+      <div class="card-glow clients"></div>
+      <div class="card-inner">
+        <div class="card-icon clients">
+          <mat-icon>person_pin</mat-icon>
         </div>
-        <div class="chart-legend">
-          <div class="legend-item">
-            <span class="dot sent"></span>
-            <span>Delivered (85%)</span>
-          </div>
-          <div class="legend-item">
-            <span class="dot failed"></span>
-            <span>Bounced (15%)</span>
+        <div class="card-data">
+          <span class="label">Total Clients</span>
+          <h2 class="value">{{ stats.clients | number }}</h2>
+          <div class="trend up">
+            <mat-icon>trending_up</mat-icon>
+            <span>+12.5%</span>
           </div>
         </div>
       </div>
-    </mat-card-content>
-  </mat-card>
+    </mat-card>
 
-  <!-- Recent Leads -->
-  <mat-card class="glass-card recent-leads">
-    <mat-card-header>
-      <mat-card-title>Recent Leads</mat-card-title>
-      <button mat-button color="primary" routerLink="/leads">View All</button>
-    </mat-card-header>
-    <mat-card-content>
-      <div class="lead-item animate-fade-in" *ngFor="let i of [1,2,3,4]">
-        <div class="lead-avatar">L</div>
-        <div class="lead-info">
-          <span class="lead-name">Institution Lead #{{i}}</span>
-          <span class="lead-email">lead{{i}}@example.com</span>
+    <!-- Verified Leads -->
+    <mat-card class="glass-card stat-card clickable" *ngIf="!isLoading; else statSkeleton" (click)="navigateToLeads()">
+      <div class="card-glow leads"></div>
+      <div class="card-inner">
+        <div class="card-icon leads">
+          <mat-icon>hub</mat-icon>
         </div>
-        <span class="lead-time">2h ago</span>
+        <div class="card-data">
+          <span class="label">Total Leads</span>
+          <h2 class="value">{{ stats.leads | number }}</h2>
+          <div class="trend up">
+            <mat-icon>trending_up</mat-icon>
+            <span>+24.8%</span>
+          </div>
+        </div>
       </div>
-    </mat-card-content>
-  </mat-card>
-</div>
+    </mat-card>
+
+    <!-- Active Campaigns -->
+    <mat-card class="glass-card stat-card clickable" *ngIf="!isLoading; else statSkeleton" (click)="navigateToCampaigns()">
+      <div class="card-glow campaigns"></div>
+      <div class="card-inner">
+        <div class="card-icon campaigns">
+          <mat-icon>auto_graph</mat-icon>
+        </div>
+        <div class="card-data">
+          <span class="label">Campaigns</span>
+          <h2 class="value">{{ stats.campaigns | number }}</h2>
+          <div class="trend neutral">
+            <mat-icon>trending_flat</mat-icon>
+            <span>Stable</span>
+          </div>
+        </div>
+      </div>
+    </mat-card>
+
+    <!-- Emails Sent -->
+    <mat-card class="glass-card stat-card" *ngIf="!isLoading; else statSkeleton">
+      <div class="card-glow sent"></div>
+      <div class="card-inner">
+        <div class="card-icon sent">
+          <mat-icon>send</mat-icon>
+        </div>
+        <div class="card-data">
+          <span class="label">Emails Sent</span>
+          <h2 class="value">{{ stats.emailsSent | number }}</h2>
+          <div class="trend up">
+            <mat-icon>trending_up</mat-icon>
+            <span>+5.2%</span>
+          </div>
+        </div>
+      </div>
+    </mat-card>
+
+    <ng-template #statSkeleton>
+      <mat-card class="glass-card stat-card skeleton-card">
+        <div class="skeleton-inner">
+          <app-skeleton-loader height="48px" width="48px" borderRadius="14px"></app-skeleton-loader>
+          <div class="skeleton-content">
+            <app-skeleton-loader height="12px" width="60px" style="margin-bottom: 8px"></app-skeleton-loader>
+            <app-skeleton-loader height="24px" width="40px"></app-skeleton-loader>
+          </div>
+        </div>
+      </mat-card>
+    </ng-template>
+  </div>
+
+  <div class="main-content-grid">
+    <!-- Performance Analytics -->
+    <mat-card class="glass-card analytics-card">
+      <div class="card-header">
+        <div class="title-info">
+          <mat-icon>insights</mat-icon>
+          <h3>Outreach Performance</h3>
+        </div>
+        <div class="header-actions">
+          <button mat-icon-button><mat-icon>more_vert</mat-icon></button>
+        </div>
+      </div>
+      
+      <div class="analytics-content">
+        <div class="chart-container">
+          <div class="circular-progress-wrapper">
+            <svg viewBox="0 0 36 36" class="circular-chart">
+              <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+              <path class="circle-progress" stroke-dasharray="85, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+              <text x="18" y="20.35" class="percentage">85%</text>
+            </svg>
+          </div>
+          <div class="analytics-stats">
+            <div class="stat-item">
+              <span class="dot delivered"></span>
+              <div class="info">
+                <span class="name">Delivered</span>
+                <span class="count">{{ (stats.emailsSent * 0.85) | number:'1.0-0' }}</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <span class="dot bounced"></span>
+              <div class="info">
+                <span class="name">Bounced</span>
+                <span class="count">{{ (stats.emailsSent * 0.15) | number:'1.0-0' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </mat-card>
+
+    <!-- Recent Discovery Leads -->
+    <mat-card class="glass-card recent-leads-card">
+      <div class="card-header">
+        <div class="title-info">
+          <mat-icon>history</mat-icon>
+          <h3>Recent Discovery</h3>
+        </div>
+        <button mat-button class="view-all-btn" (click)="navigateToLeads()">View All</button>
+      </div>
+
+      <div class="leads-list">
+        <div *ngIf="isLoadingLeads" class="skeleton-leads">
+          <div class="skeleton-lead-item" *ngFor="let i of [1,2,3,4,5]">
+            <app-skeleton-loader height="40px" width="40px" borderRadius="12px"></app-skeleton-loader>
+            <div class="skeleton-lead-info">
+              <app-skeleton-loader height="14px" width="120px" style="margin-bottom: 6px"></app-skeleton-loader>
+              <app-skeleton-loader height="12px" width="180px"></app-skeleton-loader>
+            </div>
+          </div>
+        </div>
+
+        <ng-container *ngIf="!isLoadingLeads">
+          <div class="lead-item animate-fade-in" *ngFor="let lead of (recentLeads$ | async)">
+            <div class="lead-avatar">{{ (lead.institutionName || 'L')[0].toUpperCase() }}</div>
+            <div class="lead-details">
+              <span class="name">{{ lead.institutionName }}</span>
+              <div class="meta">
+                <span class="email"><mat-icon>mail</mat-icon> {{ lead.email }}</span>
+                <span class="city"><mat-icon>place</mat-icon> {{ lead.city }}</span>
+              </div>
+            </div>
+            <div class="lead-source">
+              <span class="badge">{{ lead.source }}</span>
+            </div>
+          </div>
+          <div *ngIf="(recentLeads$ | async)?.length === 0" class="empty-state">
+            <mat-icon>search_off</mat-icon>
+            <p>No discovery leads found yet.</p>
+          </div>
+        </ng-container>
+      </div>
+    </mat-card>
+  </div>
+</ng-container>

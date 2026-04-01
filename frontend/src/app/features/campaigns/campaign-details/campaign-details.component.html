@@ -1,144 +1,272 @@
 <div class="page-header">
   <div class="title-group">
     <div class="breadcrumb">
-      <button mat-icon-button routerLink="/campaigns" class="back-btn">
+      <button mat-icon-button routerLink="/campaigns" class="back-btn" matTooltip="Back to Campaigns">
         <mat-icon>arrow_back</mat-icon>
       </button>
-      <span>Campaigns / Details</span>
+      <span>Intelligence / Outreach Campaign</span>
     </div>
-    <h2>{{ campaign?.name || 'Loading Campaign...' }}</h2>
+    <div class="header-name">
+      <h2>{{ campaign?.name || 'Loading...' }}</h2>
+      <div class="status-indicator" [attr.data-status]="campaign?.status">
+        <div class="dot"></div>
+        <span>{{ campaign?.status }}</span>
+      </div>
+    </div>
   </div>
   
   <div class="header-actions">
-    <button mat-stroked-button color="primary" 
-            [disabled]="campaign?.status !== CampaignStatus.DRAFT"
+    <button mat-stroked-button (click)="toggleLogs()" class="action-btn">
+      <mat-icon>{{ showLogs ? 'terminal' : 'history' }}</mat-icon> 
+      {{ showLogs ? 'Hide Console' : 'Execution Logs' }}
+    </button>
+    <button mat-stroked-button 
+            [disabled]="campaign?.status === CampaignStatus.RUNNING"
             (click)="generateEmails()"
             class="action-btn">
-      <mat-icon>auto_awesome</mat-icon> Generate Emails
+      <mat-icon>auto_awesome</mat-icon> Generate Queue
     </button>
-    <button mat-flat-button color="accent" 
-            [disabled]="campaign?.status === CampaignStatus.COMPLETED || stats.total === 0"
+    <button mat-flat-button color="primary" 
+          [disabled]="campaign?.status === CampaignStatus.RUNNING || (stats.pending + stats.failed) === 0"
             (click)="startCampaign()"
             class="action-btn start-btn">
-      <mat-icon>rocket_launch</mat-icon> Launch Outreach
+      <mat-icon>rocket_launch</mat-icon> Launch outreach
     </button>
   </div>
 </div>
 
 <div class="details-grid">
-  <!-- Status & Info Card -->
+  <!-- Audience Summary -->
   <mat-card class="glass-card info-card">
-    <div class="card-inner">
-      <div class="status-badge" [attr.data-status]="campaign?.status">
-        <div class="status-dot"></div>
-        <span>{{ campaign?.status }}</span>
+    <div class="card-header">
+      <mat-icon>person_search</mat-icon>
+      <mat-card-title>Target Audience</mat-card-title>
+    </div>
+    
+    <div class="info-content">
+      <div class="info-item">
+        <div class="icon-wrap">
+          <mat-icon>business</mat-icon>
+        </div>
+        <div class="text">
+          <span class="label">Primary Client</span>
+          <span class="value">{{ client?.name || 'N/A' }}</span>
+          <span class="sub">{{ client?.email }}</span>
+        </div>
       </div>
       
-      <div class="info-content">
-        <div class="client-info">
-          <mat-icon>person_pin</mat-icon>
-          <div class="text">
-            <span class="label">Target Client</span>
-            <span class="value">{{ client?.name }}</span>
-            <span class="sub-value">{{ client?.email }}</span>
-          </div>
+      <div class="info-item">
+        <div class="icon-wrap">
+          <mat-icon>event_available</mat-icon>
         </div>
-        
-        <div class="date-info">
-          <mat-icon>calendar_today</mat-icon>
-          <div class="text">
-            <span class="label">Initiated On</span>
-            <span class="value">{{ campaign?.createdAt | date:'mediumDate' }}</span>
-          </div>
+        <div class="text">
+          <span class="label">Date Created</span>
+          <span class="value">{{ campaign?.createdAt | date:'MMMM d, y' }}</span>
         </div>
       </div>
+
+        <div class="info-item">
+          <div class="icon-wrap">
+            <mat-icon>attach_file</mat-icon>
+          </div>
+          <div class="text">
+            <span class="label">Attachment</span>
+            <span class="value">{{ client?.documentName || 'No file uploaded' }}</span>
+          </div>
+        </div>
     </div>
   </mat-card>
 
-  <!-- Performance Stats Card -->
-  <mat-card class="glass-card stats-card">
-    <div class="card-inner">
-      <div class="stats-header">
-        <h3>Outreach Performance</h3>
-        <span class="progress-percent">{{ getProgress() | number:'1.0-0' }}%</span>
-      </div>
-      
-      <div class="stats-visual">
-        <div class="stat-bubble total">
+  <!-- Outreach Performance -->
+  <mat-card class="glass-card performance-card">
+    <div class="card-header">
+      <mat-icon>query_stats</mat-icon>
+      <mat-card-title>Real-time Outreach Performance</mat-card-title>
+      <div class="progress-pill">{{ getProgress() | number:'1.0-0' }}% Complete</div>
+    </div>
+    
+    <div class="performance-content">
+      <div class="stats-grid">
+        <div class="stat-box total">
           <span class="count">{{ stats.total }}</span>
-          <span class="label">Leads</span>
+          <span class="label">Leads Identified</span>
         </div>
-        <div class="stat-bubble sent">
+        <div class="stat-box sent">
           <span class="count">{{ stats.sent }}</span>
-          <span class="label">Delivered</span>
+          <span class="label">Sent Successfully</span>
         </div>
-        <div class="stat-bubble pending">
+        <div class="stat-box pending">
           <span class="count">{{ stats.pending }}</span>
-          <span class="label">Queued</span>
+          <span class="label">In Queue</span>
         </div>
-        <div class="stat-bubble failed">
+        <div class="stat-box failed">
           <span class="count">{{ stats.failed }}</span>
-          <span class="label">Bounced</span>
+          <span class="label">Failed / Bounced</span>
         </div>
       </div>
       
-      <div class="progress-container">
-        <div class="progress-bar-bg">
-          <div class="progress-bar-fill" [style.width.%]="getProgress()"></div>
-        </div>
+      <div class="progress-track">
+        <div class="track-fill" [style.width.%]="getProgress()"></div>
+        <div class="glow" [style.left.%]="getProgress()"></div>
       </div>
     </div>
   </mat-card>
 </div>
 
-<div class="workflow-container">
-  <!-- Template Editor Section -->
+<!-- Real-time Console -->
+<mat-card class="glass-card console-card animate-fade-in" *ngIf="showLogs">
+  <div class="card-header">
+    <mat-icon>terminal</mat-icon>
+    <mat-card-title>System Execution Monitor</mat-card-title>
+    <span class="spacer"></span>
+    <button mat-icon-button (click)="logs = []" matTooltip="Clear Terminal">
+      <mat-icon>delete_sweep</mat-icon>
+    </button>
+  </div>
+  <div class="console-output">
+    <div *ngFor="let log of logs" class="log-line" [attr.data-level]="log.level">
+      <span class="time">{{ log.timestamp | date:'HH:mm:ss' }}</span>
+      <span class="level">[{{ log.level }}]</span>
+      <span class="msg">{{ log.message }}</span>
+      <span *ngIf="log.details" class="details">{{ log.details }}</span>
+    </div>
+    <div *ngIf="logs.length === 0" class="empty-msg">Waiting for outreach activity...</div>
+  </div>
+</mat-card>
+
+<div class="workflow-editor">
+  <!-- Content Editor -->
   <mat-card class="glass-card editor-card">
     <div class="card-header">
-      <mat-icon>mail_lock</mat-icon>
-      <h3>Engagement Template</h3>
-      <span class="spacer"></span>
-      <button mat-icon-button (click)="previewEmail()" matTooltip="Toggle Live Preview">
-        <mat-icon>{{ previewVisible ? 'visibility_off' : 'visibility' }}</mat-icon>
-      </button>
+      <mat-icon>edit_note</mat-icon>
+      <mat-card-title>Email Narrative Flow</mat-card-title>
     </div>
     
-    <div class="editor-content">
-      <form [formGroup]="templateForm" class="glass-form">
-        <mat-form-field appearance="outline" class="full-width glass-field">
+    <div class="editor-body">
+      <form [formGroup]="templateForm">
+        <mat-form-field appearance="outline" class="full-width">
           <mat-label>Subject Line</mat-label>
-          <input matInput formControlName="subject" placeholder="e.g. Collaboration Proposal for {institutionName}">
-          <mat-icon matSuffix>title</mat-icon>
+          <input matInput formControlName="subject" placeholder="Enter email subject...">
+          <mat-icon matSuffix>mail_outline</mat-icon>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width glass-field body-field">
-          <mat-label>Email Narrative</mat-label>
-          <textarea matInput formControlName="body" rows="12" 
-                    placeholder="Craft your message here... Use tags like {name}, {city}, {institutionName} to personalize."></textarea>
-          <div class="variable-helper">
-            Available Tags: <span>{{ '{' }}name{{ '}' }}</span> <span>{{ '{' }}city{{ '}' }}</span> <span>{{ '{' }}institutionName{{ '}' }}</span> <span>{{ '{' }}website{{ '}' }}</span>
+        <div class="narrative-wrapper">
+          <div class="tag-helper">
+            <span class="label">Insert Tag:</span>
+            <button type="button" (click)="insertTag('name')">{{ '{' }}name{{ '}' }}</button>
+            <button type="button" (click)="insertTag('city')">{{ '{' }}city{{ '}' }}</button>
+            <button type="button" (click)="insertTag('institutionName')">{{ '{' }}institutionName{{ '}' }}</button>
+            <button type="button" (click)="insertTag('website')">{{ '{' }}website{{ '}' }}</button>
           </div>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Message Body</mat-label>
+            <textarea matInput formControlName="body" rows="12" placeholder="Write your outreach narrative..."></textarea>
+          </mat-form-field>
+        </div>
+
+        <mat-form-field appearance="outline" class="full-width delay-field">
+          <mat-label>Delivery Delay (seconds)</mat-label>
+          <input matInput type="number" formControlName="delaySeconds" min="0" max="120">
+          <mat-icon matSuffix>timer</mat-icon>
         </mat-form-field>
+
+        <mat-checkbox formControlName="htmlBody" color="primary">
+          Send body as HTML
+        </mat-checkbox>
       </form>
     </div>
   </mat-card>
 
-  <!-- Real-time Preview Section -->
-  <mat-card *ngIf="previewVisible" class="glass-card preview-card animate-fade-in">
+  <!-- Live Preview -->
+  <mat-card class="glass-card preview-card">
     <div class="card-header">
       <mat-icon>preview</mat-icon>
-      <h3>Live Personalization Preview</h3>
+      <mat-card-title>Dynamic Outreach Preview</mat-card-title>
     </div>
-    <div class="preview-content">
-      <div class="preview-browser">
-        <div class="browser-header">
-          <div class="dots"><span></span><span></span><span></span></div>
-          <div class="address-bar">Subject: {{ templateForm.value.subject || '(No Subject)' }}</div>
+    
+    <div class="preview-body">
+      <div class="email-mockup">
+        <div class="mock-header">
+          <div class="mock-dots"><span></span><span></span><span></span></div>
+          <div class="mock-subject">{{ templateForm.value.subject || '(Subject line empty)' }}</div>
         </div>
-        <div class="preview-body-container">
-          <div class="preview-body" [innerHTML]="getPreviewBody() || 'Your personalized message will appear here...'"></div>
-        </div>
+        <div class="mock-content" [innerHTML]="getPreviewBody()"></div>
       </div>
     </div>
   </mat-card>
 </div>
+
+<!-- Queue Intelligence -->
+<mat-card class="glass-card sends-card">
+  <div class="card-header">
+    <mat-icon>dataset</mat-icon>
+    <mat-card-title>Queue Intelligence & Logs</mat-card-title>
+    <span class="spacer"></span>
+    <div class="filter-pills">
+      <button [class.active]="selectedSendStatus === 'ALL'" (click)="onSendStatusFilterChange('ALL')">All</button>
+      <button [class.active]="selectedSendStatus === CampaignSendStatus.PENDING" (click)="onSendStatusFilterChange(CampaignSendStatus.PENDING)">Queued</button>
+      <button [class.active]="selectedSendStatus === CampaignSendStatus.SENT" (click)="onSendStatusFilterChange(CampaignSendStatus.SENT)">Delivered</button>
+      <button [class.active]="selectedSendStatus === CampaignSendStatus.FAILED" (click)="onSendStatusFilterChange(CampaignSendStatus.FAILED)">Failed</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <mat-table [dataSource]="campaignSends">
+      <ng-container matColumnDef="leadEmail">
+        <mat-header-cell *matHeaderCellDef>Contact</mat-header-cell>
+        <mat-cell *matCellDef="let send">
+          <div class="email-info">
+            <span class="email">{{ send.leadEmail }}</span>
+          </div>
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="institution">
+        <mat-header-cell *matHeaderCellDef>Institution</mat-header-cell>
+        <mat-cell *matCellDef="let send">
+          <span class="institution">{{ send.leadInstitutionName || '—' }}</span>
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="city">
+        <mat-header-cell *matHeaderCellDef>Location</mat-header-cell>
+        <mat-cell *matCellDef="let send">
+          <span class="city-badge">{{ send.leadCity || '—' }}</span>
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <mat-header-cell *matHeaderCellDef>Delivery</mat-header-cell>
+        <mat-cell *matCellDef="let send">
+          <span class="send-status-badge" [class]="send.status.toLowerCase()">
+            {{ send.status }}
+          </span>
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="sentAt">
+        <mat-header-cell *matHeaderCellDef>Timestamp</mat-header-cell>
+        <mat-cell *matCellDef="let send">
+          <span class="timestamp">{{ send.sentAt ? (send.sentAt | date:'medium') : 'Pending...' }}</span>
+        </mat-cell>
+      </ng-container>
+
+      <mat-header-row *matHeaderRowDef="sendColumns"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: sendColumns;" class="animate-fade-in"></mat-row>
+    </mat-table>
+
+    <div class="empty-results" *ngIf="campaignSends.length === 0">
+      <mat-icon>mark_as_unread</mat-icon>
+      <p>No activity records match your current filter.</p>
+    </div>
+
+    <mat-paginator
+      [length]="sendTotalElements"
+      [pageSize]="sendPageSize"
+      [pageIndex]="sendPageIndex"
+      [pageSizeOptions]="[10, 25, 50, 100]"
+      (page)="onSendPageChange($event)"
+      class="glass-paginator">
+    </mat-paginator>
+  </div>
+</mat-card>

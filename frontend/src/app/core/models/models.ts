@@ -4,6 +4,7 @@ export interface Client {
   email: string;
   appPassword?: string;
   phone?: string;
+  documentName?: string;
   createdAt?: string;
 }
 
@@ -12,11 +13,13 @@ export interface Lead {
   email: string;
   institutionName?: string;
   city?: string;
+  phone?: string;
   address?: string;
   latitude?: number;
   longitude?: number;
   website?: string;
   source?: string;
+  status?: 'NEW' | 'CONTACTED' | 'INTERESTED' | 'INVALID';
   createdAt?: string;
 }
 
@@ -46,8 +49,18 @@ export interface CampaignSend {
   campaignId: number;
   leadId: number;
   leadEmail: string;
+  leadInstitutionName?: string;
+  leadCity?: string;
   status: CampaignSendStatus;
   sentAt?: string;
+}
+
+export interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
 }
 
 export interface CampaignStats {
@@ -55,4 +68,12 @@ export interface CampaignStats {
   sent: number;
   pending: number;
   failed: number;
+}
+
+export interface CampaignLog {
+  id: string;
+  timestamp: Date;
+  level: 'info' | 'success' | 'warning' | 'error';
+  message: string;
+  details?: string;
 }

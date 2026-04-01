@@ -1,26 +1,72 @@
-<h2 mat-dialog-title>Create Campaign</h2>
-<form [formGroup]="campaignForm" (ngSubmit)="onSubmit()">
-  <mat-dialog-content>
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Campaign Name</mat-label>
-      <input matInput formControlName="name" placeholder="Campaign Name">
-      <mat-error *ngIf="campaignForm.get('name')?.hasError('required')">Name is required</mat-error>
-    </mat-form-field>
+<div class="dialog-header">
+  <div class="header-content">
+    <div class="icon-badge">
+      <mat-icon>campaign</mat-icon>
+    </div>
+    <div class="title-info">
+      <h2 mat-dialog-title>Create New Campaign</h2>
+      <p class="subtitle">Set up a new outreach campaign for your client</p>
+    </div>
+  </div>
+  <button mat-icon-button class="close-btn" (click)="onCancel()">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Client</mat-label>
-      <mat-select formControlName="clientId">
-        <mat-option *ngFor="let client of clients" [value]="client.id">
-          {{ client.name }} ({{ client.email }})
-        </mat-option>
-      </mat-select>
-      <mat-error *ngIf="campaignForm.get('clientId')?.hasError('required')">Client is required</mat-error>
-    </mat-form-field>
+<form [formGroup]="campaignForm" (ngSubmit)="onSubmit()">
+  <mat-dialog-content class="custom-content">
+    <div class="form-section">
+      <div class="section-header">
+        <mat-icon>info</mat-icon>
+        <span>Campaign Setup</span>
+      </div>
+      
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Campaign Name</mat-label>
+          <input matInput formControlName="name" placeholder="e.g. Q2 Outreach - Real Estate">
+          <mat-icon matPrefix>edit_note</mat-icon>
+          <mat-error *ngIf="campaignForm.get('name')?.hasError('required')">Name is required</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Assign to Client</mat-label>
+          <mat-select formControlName="clientId">
+            <mat-select-trigger>
+              <div class="select-trigger-content" *ngIf="campaignForm.get('clientId')?.value">
+                <mat-icon>person</mat-icon>
+                <span>{{ (clients$ | async | filterById:campaignForm.get('clientId')?.value)?.name }}</span>
+              </div>
+            </mat-select-trigger>
+            <mat-icon matPrefix>business</mat-icon>
+            <ng-container *ngIf="clients$ | async as clients">
+              <mat-option *ngFor="let client of clients" [value]="client.id">
+                <div class="client-option">
+                  <div class="client-avatar">{{ client.name.charAt(0) }}</div>
+                  <div class="client-info">
+                    <span class="name">{{ client.name }}</span>
+                    <span class="email">{{ client.email }}</span>
+                  </div>
+                </div>
+              </mat-option>
+            </ng-container>
+          </mat-select>
+          <mat-icon matPrefix>business</mat-icon>
+          <mat-error *ngIf="campaignForm.get('clientId')?.hasError('required')">Client is required</mat-error>
+        </mat-form-field>
+      </div>
+    </div>
   </mat-dialog-content>
-  <mat-dialog-actions align="end">
-    <button mat-button (click)="onCancel()">Cancel</button>
-    <button mat-raised-button color="primary" type="submit" [disabled]="campaignForm.invalid">
-      Create
+
+  <mat-dialog-actions align="end" class="custom-actions">
+    <button mat-button type="button" (click)="onCancel()" class="cancel-btn">
+      Cancel
+    </button>
+    <button mat-raised-button color="primary" type="submit" [disabled]="campaignForm.invalid" class="submit-btn">
+      <mat-icon>add</mat-icon>
+      Create Campaign
     </button>
   </mat-dialog-actions>
 </form>

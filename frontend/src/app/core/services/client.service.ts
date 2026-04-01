@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { Client } from '../models/models';
 
 @Injectable({
@@ -9,9 +9,15 @@ import { Client } from '../models/models';
 export class ClientService {
   private http = inject(HttpClient);
   private apiUrl = 'http://localhost:8080/api/clients';
+  private clientsSubject = new BehaviorSubject<Client[]>([]);
+  readonly clients$ = this.clientsSubject.asObservable();
 
   getClients(): Observable<Client[]> {
     return this.http.get<Client[]>(this.apiUrl);
+  }
+
+  loadClients(): Observable<Client[]> {
+    return this.getClients().pipe(tap((clients) => this.clientsSubject.next(clients)));
   }
 
   getClient(id: number): Observable<Client> {

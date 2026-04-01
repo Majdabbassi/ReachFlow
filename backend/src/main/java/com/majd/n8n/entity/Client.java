@@ -36,6 +36,10 @@ public class Client {
     @Column(columnDefinition = "LONGBLOB")
     private byte[] document;
 
+    private String documentName;
+
+    private String documentContentType;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

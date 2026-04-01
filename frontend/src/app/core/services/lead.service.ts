@@ -1,28 +1,38 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { Lead } from '../models/models';
 
-@Injectable({
-  providedIn: 'root'
-})
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { Lead, PageResponse } from '../models/models';
+
+@Injectable({ providedIn: 'root' })
 export class LeadService {
   private http = inject(HttpClient);
   private apiUrl = 'http://localhost:8080/api/leads';
 
-  getLeads(page: number = 0, size: number = 10, city?: string, source?: string): Observable<any> {
+  getLeads(page = 0, size = 10, city?: string, source?: string): Observable<PageResponse<Lead>> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('size', size.toString());
-
     if (city) params = params.set('city', city);
     if (source) params = params.set('source', source);
-
-    return this.http.get<any>(this.apiUrl, { params });
+    return this.http.get<PageResponse<Lead>>(this.apiUrl, { params });
   }
 
-  getLead(id: number): Observable<Lead> {
-    return this.http.get<Lead>(`${this.apiUrl}/${id}`);
+  collectFromWebhook(webhookUrl: string, payload: { cities: string[]; keywords: string[]; maxResults: number }): Observable<HttpResponse<string>> {
+    return this.http.post(webhookUrl, payload, {
+      observe: 'response',
+      responseType: 'text'
+    });
+  }
+
+  bulkImport(leads: Partial<Lead>[]): Observable<Lead[]> {
+    return this.http.post<Lead[]>(`${this.apiUrl}/bulk`, leads);
+  }
+
+  downloadAllEmailsFile(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/emails/download`, {
+      responseType: 'blob'
+    });
   }
 
   createLead(lead: Lead): Observable<Lead> {

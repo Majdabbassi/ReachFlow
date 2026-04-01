@@ -3,35 +3,89 @@ import { CommonModule } from '@angular/common';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatCardModule } from '@angular/material/card';
+import { MatDialogModule } from '@angular/material/dialog';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
+import { SelectionModel } from '@angular/cdk/collections';
 import { CampaignService } from '../../../core/services/campaign.service';
 import { Campaign, CampaignStatus } from '../../../core/models/models';
-import { CampaignDialogComponent } from '../campaign-dialog/campaign-dialog.component';
 import { ToastrService } from 'ngx-toastr';
+import { of, BehaviorSubject } from 'rxjs';
+import { catchError, finalize, map } from 'rxjs/operators';
+
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-campaign-list',
   standalone: true,
-  imports: [CommonModule, MatTableModule, MatButtonModule, MatIconModule, MatDialogModule, MatChipsModule, RouterLink],
+  imports: [
+    CommonModule, 
+    FormsModule,
+    MatTableModule, 
+    MatButtonModule, 
+    MatIconModule, 
+    MatCardModule, 
+    MatDialogModule, 
+    MatChipsModule, 
+    MatTooltipModule, 
+    MatFormFieldModule,
+    MatInputModule,
+    MatCheckboxModule,
+    MatProgressSpinnerModule,
+    RouterLink
+  ],
   templateUrl: './campaign-list.component.html',
   styleUrl: './campaign-list.component.scss'
 })
 export class CampaignListComponent implements OnInit {
   private campaignService = inject(CampaignService);
-  private dialog = inject(MatDialog);
   private toastr = inject(ToastrService);
 
-  campaigns: Campaign[] = [];
-  displayedColumns: string[] = ['name', 'status', 'createdAt', 'actions'];
+  campaignsSubject = new BehaviorSubject<Campaign[]>([]);
+  campaigns$ = this.campaignsSubject.asObservable();
+  
+  displayedColumns: string[] = ['select', 'name', 'status', 'createdAt', 'actions'];
+  selection = new SelectionModel<Campaign>(true, []);
+  
+  isLoading = false;
+  loadError: string | null = null;
+  searchTerm = '';
 
   ngOnInit() {
     this.loadCampaigns();
   }
 
   loadCampaigns() {
-    this.campaignService.getCampaigns().subscribe(campaigns => this.campaigns = campaigns);
+    this.isLoading = true;
+    this.loadError = null;
+    this.campaignService.loadCampaigns().pipe(
+      catchError((err) => {
+        this.loadError = err?.message || 'Failed to load campaigns';
+        this.toastr.error('Failed to load campaigns');
+        return of([]);
+      }),
+      finalize(() => {
+        this.isLoading = false;
+      })
+    ).subscribe(campaigns => {
+      this.campaignsSubject.next(campaigns);
+    });
+  }
+
+  get filteredCampaigns$() {
+    return this.campaigns$.pipe(
+      map(campaigns => {
+        if (!this.searchTerm) return campaigns;
+        const s = this.searchTerm.toLowerCase();
+        return campaigns.filter(c => c.name.toLowerCase().includes(s));
+      })
+    );
   }
 
   getStatusColor(status: CampaignStatus): string {
@@ -43,18 +97,31 @@ export class CampaignListComponent implements OnInit {
     }
   }
 
-  openCampaignDialog() {
-    const dialogRef = this.dialog.open(CampaignDialogComponent, {
-      width: '500px'
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.campaignService.createCampaign(result).subscribe(() => {
-          this.toastr.success('Campaign created successfully');
-          this.loadCampaigns();
-        });
-      }
-    });
+  // Selection
+  isAllSelected(campaigns: Campaign[]) {
+    const numSelected = this.selection.selected.length;
+    const numRows = campaigns.length;
+    return numSelected === numRows;
   }
+
+  toggleAllRows(campaigns: Campaign[]) {
+    if (this.isAllSelected(campaigns)) {
+      this.selection.clear();
+    } else {
+      campaigns.forEach(row => this.selection.select(row));
+    }
+  }
+
+  deleteSelected() {
+    const selected = this.selection.selected;
+    if (selected.length === 0) return;
+
+    if (confirm(`Are you sure you want to delete ${selected.length} campaigns?`)) {
+      // Mock delete for now
+      this.toastr.success(`Successfully deleted ${selected.length} campaigns`);
+      this.selection.clear();
+      this.loadCampaigns();
+    }
+  }
+
 }

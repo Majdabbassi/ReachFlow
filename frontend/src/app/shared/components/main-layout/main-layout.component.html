@@ -1,8 +1,8 @@
 <mat-sidenav-container class="sidenav-container">
   <mat-sidenav #drawer class="sidenav" fixedInViewport
-      [attr.role]="'navigation'"
-      [mode]="'side'"
-      [opened]="true">
+      [attr.role]="(isHandset$ | async) ? 'dialog' : 'navigation'"
+      [mode]="(isHandset$ | async) ? 'over' : 'side'"
+      [opened]="(isHandset$ | async) === false">
     
     <div class="brand">
       <div class="logo">
@@ -12,43 +12,40 @@
     </div>
 
     <mat-nav-list class="nav-list">
-      <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link" [routerLinkActiveOptions]="{exact: true}">
+      <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link" [routerLinkActiveOptions]="{exact: true}" (click)="closeSidenav(drawer)">
         <mat-icon matListItemIcon>dashboard</mat-icon>
         <span matListItemTitle>Dashboard</span>
       </a>
-      <a mat-list-item routerLink="/clients" routerLinkActive="active-link">
+      <a mat-list-item routerLink="/clients" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
         <mat-icon matListItemIcon>group</mat-icon>
         <span matListItemTitle>Clients</span>
       </a>
-      <a mat-list-item routerLink="/leads" routerLinkActive="active-link">
+      <a mat-list-item routerLink="/leads" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
         <mat-icon matListItemIcon>hub</mat-icon>
         <span matListItemTitle>Leads</span>
       </a>
-      <a mat-list-item routerLink="/campaigns" routerLinkActive="active-link">
+      <a mat-list-item routerLink="/campaigns" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
         <mat-icon matListItemIcon>auto_graph</mat-icon>
         <span matListItemTitle>Campaigns</span>
       </a>
       
       <div class="nav-divider"></div>
       
-      <a mat-list-item routerLink="/settings" routerLinkActive="active-link">
-        <mat-icon matListItemIcon>settings</mat-icon>
-        <span matListItemTitle>Settings</span>
-      </a>
     </mat-nav-list>
 
     <div class="nav-footer">
       <div class="user-profile">
-        <div class="avatar">MA</div>
+        <div class="avatar">{{ user.initials }}</div>
         <div class="user-info">
-          <span class="name">Majd Abbassi</span>
-          <span class="role">Administrator</span>
+          <span class="name">{{ user.name }}</span>
+          <span class="role">{{ user.role }}</span>
         </div>
       </div>
     </div>
   </mat-sidenav>
 
   <mat-sidenav-content class="main-content">
+    <mat-progress-bar mode="indeterminate" *ngIf="loading$ | async" class="global-progress"></mat-progress-bar>
     <mat-toolbar class="glass-header">
       <button mat-icon-button (click)="drawer.toggle()" class="menu-btn">
         <mat-icon>menu_open</mat-icon>

@@ -13,4 +13,6 @@ public class CampaignStartRequestDTO {
     private String webhookUrl;
     private String subject;
     private String body;
+    private Integer delaySeconds;
+    private Boolean htmlBody;
 }

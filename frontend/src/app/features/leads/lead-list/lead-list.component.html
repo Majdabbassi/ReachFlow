@@ -1,91 +1,397 @@
 <div class="page-header">
   <div class="title-group">
     <h2>Lead Intelligence</h2>
-    <p>Explore and filter potential leads across different regions and sources.</p>
+    <p>Discover and manage potential leads across multiple industries.</p>
+  </div>
+  <div class="header-actions">
+    <button mat-stroked-button (click)="toggleDebug()" [color]="showDebug ? 'accent' : 'primary'">
+      <mat-icon>{{ showDebug ? 'bug_report' : 'terminal' }}</mat-icon>
+      {{ showDebug ? 'Hide Debug' : 'Debug Logs' }}
+    </button>
+  </div>
+</div>
+
+<div class="collector-grid">
+        <ng-container matColumnDef="email">
+          <mat-header-cell *matHeaderCellDef>Email</mat-header-cell>
+          <mat-cell *matCellDef="let r">{{ r.email || r.allEmails?.[0] || '—' }}</mat-cell>
+        </ng-container>
+  <!-- City Selection -->
+  <mat-card class="glass-card collect-card">
+    <div class="card-header">
+      <mat-icon>location_city</mat-icon>
+      <mat-card-title>Target Cities</mat-card-title>
+    </div>
+    
+    <mat-card-content>
+        <ng-container matColumnDef="phone">
+          <mat-header-cell *matHeaderCellDef>Phone</mat-header-cell>
+          <mat-cell *matCellDef="let r">{{ r.phone || '—' }}</mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="coordinates">
+          <mat-header-cell *matHeaderCellDef>Coordinates</mat-header-cell>
+          <mat-cell *matCellDef="let r">{{ getCoordinatesText(r) }}</mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="emails">
+          <mat-header-cell *matHeaderCellDef>All Emails</mat-header-cell>
+          <mat-cell *matCellDef="let r">
+            <div>
+              <div *ngFor="let email of getEmailsForDisplay(r)">{{ email }}</div>
+            </div>
+          </mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="address">
+          <mat-header-cell *matHeaderCellDef>Address</mat-header-cell>
+          <mat-cell *matCellDef="let r">{{ r.address || '—' }}</mat-cell>
+        </ng-container>
+      <div class="row-input">
+        <mat-form-field class="full-field" appearance="outline">
+          <mat-label>Search City</mat-label>
+          <input matInput 
+                 [(ngModel)]="cityInput" 
+                 (ngModelChange)="onCityInputChange()"
+                 [matAutocomplete]="auto"
+                 (keydown)="onCityKeydown($event)" 
+                 placeholder="e.g. Berlin">
+          <mat-autocomplete #auto="matAutocomplete" (optionSelected)="addCity($event.option.value)">
+            <mat-option *ngFor="let city of filteredCities$ | async" [value]="city">
+              {{ city }}
+            </mat-option>
+          </mat-autocomplete>
+        </mat-form-field>
+        <button mat-icon-button class="add-btn" (click)="addCity()" matTooltip="Add City">
+          <mat-icon>add</mat-icon>
+        </button>
+      </div>
+
+      <div class="selected-chips">
+        <mat-chip-listbox *ngIf="cities.length" multiple>
+          <mat-chip-option *ngFor="let city of cities" [removable]="true" (removed)="removeCity(city)" selected>
+            {{ city }}
+            <mat-icon matChipRemove>cancel</mat-icon>
+          </mat-chip-option>
+        </mat-chip-listbox>
+        <div *ngIf="!cities.length" class="empty-hint">No cities selected yet. Search and add above.</div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Keyword Domains -->
+  <mat-card class="glass-card collect-card keywords-card">
+    <div class="card-header">
+      <mat-icon>category</mat-icon>
+      <mat-card-title>Industries & Keywords</mat-card-title>
+      <div class="keyword-search-box" (click)="$event.stopPropagation()">
+        <mat-icon>search</mat-icon>
+        <input type="text" [(ngModel)]="keywordSearch" placeholder="Filter industries..." (click)="$event.stopPropagation()">
+      </div>
+    </div>
+
+    <mat-card-content>
+      <div class="keyword-domains-scroll">
+        <mat-accordion multi>
+          <mat-expansion-panel *ngFor="let domain of filteredKeywordDomains; trackBy: trackByDomain" [expanded]="isAnyKeywordSelected(domain)" class="domain-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <mat-checkbox [checked]="isAllKeywordsSelected(domain)" 
+                              [indeterminate]="isAnyKeywordSelected(domain) && !isAllKeywordsSelected(domain)"
+                              (change)="toggleAllKeywords(domain, $event.checked)"
+                              (click)="$event.stopPropagation()"
+                              color="primary"
+                              class="header-checkbox">
+                </mat-checkbox>
+                {{ domain.name }}
+              </mat-panel-title>
+              <mat-panel-description>
+                {{ getSelectedCount(domain) }} selected
+              </mat-panel-description>
+            </mat-expansion-panel-header>
+            
+            <div class="keyword-grid">
+              <mat-checkbox *ngFor="let keyword of domain.keywords; trackBy: trackByKeyword" [(ngModel)]="keyword.selected" color="primary">
+                {{ keyword.label }}
+              </mat-checkbox>
+            </div>
+          </mat-expansion-panel>
+        </mat-accordion>
+        <div *ngIf="filteredKeywordDomains.length === 0" class="empty-hint">No industries match your search criteria.</div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Collection Settings -->
+  <mat-card class="glass-card collect-card settings-card">
+    <div class="card-header">
+      <mat-icon>settings</mat-icon>
+      <mat-card-title>Collection Engine</mat-card-title>
+    </div>
+
+    <mat-card-content>
+      <div class="settings-content">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Max results per search</mat-label>
+          <input matInput type="number" [(ngModel)]="maxResults" min="1" max="100">
+          <mat-hint>Total estimated: {{ estimatedResults }} leads</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Webhook URL</mat-label>
+          <input matInput [(ngModel)]="webhookUrl" placeholder="https://...">
+          <mat-icon matSuffix>link</mat-icon>
+        </mat-form-field>
+
+        <div class="estimate-banner">
+          <div class="cost-grid">
+            <div class="cost">
+              <span class="label">Processing Cost</span>
+              <span class="value money">{{ estimatedCost }}</span>
+            </div>
+            <div class="cost">
+              <span class="label">Time Estimate</span>
+              <span class="value">{{ estimatedTimeText }}</span>
+            </div>
+          </div>
+          <button mat-flat-button color="primary" class="launch-btn" (click)="runCollection()" [disabled]="isCollecting">
+            <mat-icon *ngIf="!isCollecting">rocket_launch</mat-icon>
+            <mat-progress-spinner *ngIf="isCollecting" diameter="24" mode="indeterminate" style="margin-right: 10px"></mat-progress-spinner>
+            {{ isCollecting ? 'Collecting Leads...' : 'Launch Search' }}
+          </button>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>
+
+<!-- Debug Logs -->
+<mat-card class="glass-card debug-card animate-fade-in" *ngIf="showDebug">
+  <div class="card-header">
+    <mat-icon>terminal</mat-icon>
+    <mat-card-title>Developer Console</mat-card-title>
+    <span class="spacer"></span>
+    <button mat-icon-button (click)="clearDebugLogs()" matTooltip="Clear Console">
+      <mat-icon>delete_sweep</mat-icon>
+    </button>
+  </div>
+  <mat-card-content>
+    <div class="debug-log-list">
+      <div class="log-row" *ngFor="let log of (debugLogs$ | async)" [attr.data-level]="log.level">
+        <span class="time">{{ log.time | date:'HH:mm:ss' }}</span>
+        <span class="message">{{ log.message }}</span>
+        <span class="details" *ngIf="log.details">{{ log.details }}</span>
+      </div>
+      <div *ngIf="(debugLogs$ | async)?.length === 0" class="empty-hint">No activity recorded. Launch a search to see logs.</div>
+    </div>
+  </mat-card-content>
+</mat-card>
+
+<!-- Collected Results Review -->
+<mat-card class="glass-card results-preview-card animate-fade-in" *ngIf="(collectedResults$ | async) as results">
+  <ng-container *ngIf="results.length > 0">
+    <div class="card-header">
+      <mat-icon>fact_check</mat-icon>
+      <h3>Review {{ results.length }} New Leads</h3>
+      <span class="spacer"></span>
+      <button mat-flat-button color="accent" class="import-btn" (click)="saveCollectedLeads()" [disabled]="isSaving">
+        <mat-icon *ngIf="!isSaving">cloud_download</mat-icon>
+        <mat-progress-spinner *ngIf="isSaving" diameter="20" mode="indeterminate" style="margin-right: 8px"></mat-progress-spinner>
+        Import to Database
+      </button>
+    </div>
+    
+    <div class="table-container">
+      <mat-table [dataSource]="results">
+        <ng-container matColumnDef="email">
+          <mat-header-cell *matHeaderCellDef>Email</mat-header-cell>
+          <mat-cell *matCellDef="let r">{{ r.email || r.allEmails?.[0] || '—' }}</mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="institution">
+          <mat-header-cell *matHeaderCellDef>Institution</mat-header-cell>
+          <mat-cell *matCellDef="let r">{{ r.title || r.institution || '—' }}</mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="city">
+          <mat-header-cell *matHeaderCellDef>City</mat-header-cell>
+          <mat-cell *matCellDef="let r">{{ r.city || '—' }}</mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="website">
+          <mat-header-cell *matHeaderCellDef>Website</mat-header-cell>
+          <mat-cell *matCellDef="let r">
+            <a [href]="r.website" target="_blank" *ngIf="r.website">{{ r.website | slice:0:40 }}{{ r.website.length > 40 ? '...' : '' }}</a>
+            <span *ngIf="!r.website" class="dim">—</span>
+          </mat-cell>
+        </ng-container>
+        <mat-header-row *matHeaderRowDef="collectedColumns"></mat-header-row>
+        <mat-row *matRowDef="let row; columns: collectedColumns;"></mat-row>
+      </mat-table>
+    </div>
+  </ng-container>
+</mat-card>
+
+<div class="section-title">
+  <div class="title-icon">
+    <mat-icon>storage</mat-icon>
+  </div>
+  <h3>Lead Database</h3>
+  <span class="spacer"></span>
+
+  <button mat-flat-button color="primary" (click)="downloadAllEmailsFromDb()" class="bulk-btn">
+    <mat-icon>file_download</mat-icon> Download All Emails
+  </button>
+  
+  <div class="bulk-actions-bar animate-fade-in" *ngIf="selection.hasValue()">
+    <span class="selection-count">{{ selection.selected.length }} selected</span>
+    <button mat-flat-button color="primary" (click)="exportToCsv()" class="bulk-btn">
+      <mat-icon>download</mat-icon> Export CSV
+    </button>
+    <button mat-flat-button color="warn" (click)="deleteSelected()" class="bulk-btn">
+      <mat-icon>delete</mat-icon> Delete
+    </button>
+    <button mat-icon-button (click)="selection.clear()" matTooltip="Clear Selection">
+      <mat-icon>close</mat-icon>
+    </button>
   </div>
 </div>
 
 <div class="glass-card filter-card">
   <form [formGroup]="filterForm" class="filter-bar">
-    <div class="filter-inputs">
-      <mat-form-field appearance="outline" class="glass-field">
-        <mat-label>City</mat-label>
-        <mat-icon matPrefix>location_on</mat-icon>
-        <input matInput formControlName="city" placeholder="e.g. New York">
-      </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>City Filter</mat-label>
+      <mat-icon matPrefix>place</mat-icon>
+      <input matInput formControlName="city" placeholder="e.g. Berlin">
+    </mat-form-field>
 
-      <mat-form-field appearance="outline" class="glass-field">
-        <mat-label>Source</mat-label>
-        <mat-icon matPrefix>source</mat-icon>
-        <input matInput formControlName="source" placeholder="e.g. Google Maps">
-      </mat-form-field>
-    </div>
+    <mat-form-field appearance="outline">
+      <mat-label>Source Filter</mat-label>
+      <mat-icon matPrefix>travel_explore</mat-icon>
+      <input matInput formControlName="source" placeholder="e.g. Webhook">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>Global Search</mat-label>
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput formControlName="searchTerm" placeholder="Search by name, email, or domain...">
+    </mat-form-field>
     
-    <button mat-flat-button color="primary" (click)="loadLeads()" class="search-btn">
-      <mat-icon>search</mat-icon> Analyze Leads
+    <button mat-flat-button color="primary" class="update-btn" (click)="loadLeads()" [disabled]="isLoadingLeads">
+      <mat-icon *ngIf="!isLoadingLeads">sync</mat-icon>
+      <mat-progress-spinner *ngIf="isLoadingLeads" diameter="20" mode="indeterminate" style="margin-right: 8px"></mat-progress-spinner>
+      Update View
     </button>
   </form>
 </div>
 
-<div class="glass-card map-card">
-  <div class="map-container" id="map"></div>
-  <div class="map-overlay">
-    <mat-icon>map</mat-icon>
-    <span>Interactive Coverage Map</span>
-  </div>
-</div>
-
 <mat-card class="glass-card table-card">
-  <mat-table [dataSource]="leads">
-    <ng-container matColumnDef="email">
-      <mat-header-cell *matHeaderCellDef>Lead Contact</mat-header-cell>
-      <mat-cell *matCellDef="let lead">
-        <div class="lead-email">
-          <mat-icon>alternate_email</mat-icon>
-          <span>{{ lead.email }}</span>
-        </div>
-      </mat-cell>
-    </ng-container>
+  <div *ngIf="isLoadingLeads" class="skeleton-container">
+    <div class="skeleton-row" *ngFor="let i of [1,2,3,4,5,6]">
+      <div class="skeleton-item" style="width: 25%"></div>
+      <div class="skeleton-item" style="width: 35%"></div>
+      <div class="skeleton-item" style="width: 15%"></div>
+      <div class="skeleton-item" style="width: 25%"></div>
+    </div>
+  </div>
 
-    <ng-container matColumnDef="institution">
-      <mat-header-cell *matHeaderCellDef>Organization</mat-header-cell>
-      <mat-cell *matCellDef="let lead">
-        <div class="institution-cell">
-          <span class="name">{{ lead.institutionName }}</span>
-        </div>
-      </mat-cell>
-    </ng-container>
+  <ng-container *ngIf="leads$ | async as leads">
+    <div *ngIf="!isLoadingLeads && leads.length === 0" class="empty-state">
+      <mat-icon>search_off</mat-icon>
+      <h3>No leads match your criteria</h3>
+      <p>Try adjusting your filters or running a new discovery collection.</p>
+    </div>
 
-    <ng-container matColumnDef="city">
-      <mat-header-cell *matHeaderCellDef>Location</mat-header-cell>
-      <mat-cell *matCellDef="let lead">
-        <div class="location-badge">
-          <mat-icon>place</mat-icon>
-          {{ lead.city }}
-        </div>
-      </mat-cell>
-    </ng-container>
+    <mat-table [dataSource]="leads" *ngIf="leads.length > 0 && !isLoadingLeads">
+      <!-- Checkbox Column -->
+      <ng-container matColumnDef="select">
+        <mat-header-cell *matHeaderCellDef>
+          <mat-checkbox (change)="$event ? toggleAllRows(leads) : null"
+                        [checked]="selection.hasValue() && isAllSelected(leads)"
+                        [indeterminate]="selection.hasValue() && !isAllSelected(leads)"
+                        color="primary">
+          </mat-checkbox>
+        </mat-header-cell>
+        <mat-cell *matCellDef="let row">
+          <mat-checkbox (click)="$event.stopPropagation()"
+                        (change)="$event ? selection.toggle(row) : null"
+                        [checked]="selection.isSelected(row)"
+                        color="primary">
+          </mat-checkbox>
+        </mat-cell>
+      </ng-container>
 
-    <ng-container matColumnDef="website">
-      <mat-header-cell *matHeaderCellDef>Digital Presence</mat-header-cell>
-      <mat-cell *matCellDef="let lead">
-        <a [href]="lead.website" target="_blank" class="website-link" *ngIf="lead.website">
-          <mat-icon>open_in_new</mat-icon>
-          Visit Site
-        </a>
-        <span class="no-website" *ngIf="!lead.website">—</span>
-      </mat-cell>
-    </ng-container>
+      <ng-container matColumnDef="email">
+        <mat-header-cell *matHeaderCellDef>Contact Info</mat-header-cell>
+        <mat-cell *matCellDef="let lead">
+          <div class="email-cell">
+            <span class="email">{{ lead.email }}</span>
+          </div>
+        </mat-cell>
+      </ng-container>
 
-    <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
-    <mat-row *matRowDef="let row; columns: displayedColumns;" class="animate-fade-in"></mat-row>
-  </mat-table>
+      <ng-container matColumnDef="institution">
+        <mat-header-cell *matHeaderCellDef>Organization</mat-header-cell>
+        <mat-cell *matCellDef="let lead">
+          <span class="institution-name">{{ lead.institutionName }}</span>
+        </mat-cell>
+      </ng-container>
 
-  <mat-paginator
-    class="glass-paginator"
-    [length]="totalElements"
-    [pageSize]="pageSize"
-    [pageSizeOptions]="[10, 25, 50, 100]"
-    (page)="onPageChange($event)">
-  </mat-paginator>
+      <ng-container matColumnDef="city">
+        <mat-header-cell *matHeaderCellDef>Location</mat-header-cell>
+        <mat-cell *matCellDef="let lead">
+          <div class="location-badge">
+            {{ lead.city }}
+          </div>
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="phone">
+        <mat-header-cell *matHeaderCellDef>Phone</mat-header-cell>
+        <mat-cell *matCellDef="let lead">
+          {{ lead.phone || '—' }}
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="coordinates">
+        <mat-header-cell *matHeaderCellDef>Coordinates</mat-header-cell>
+        <mat-cell *matCellDef="let lead">
+          {{ (lead.latitude !== undefined && lead.longitude !== undefined) ? ((lead.latitude | number:'1.4-6') + ', ' + (lead.longitude | number:'1.4-6')) : '—' }}
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="address">
+        <mat-header-cell *matHeaderCellDef>Address</mat-header-cell>
+        <mat-cell *matCellDef="let lead">
+          {{ lead.address || '—' }}
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <mat-header-cell *matHeaderCellDef>Status</mat-header-cell>
+        <mat-cell *matCellDef="let lead">
+          <span class="status-badge" [class]="(lead.status || 'NEW').toLowerCase()">
+            {{ lead.status || 'NEW' }}
+          </span>
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="website">
+        <mat-header-cell *matHeaderCellDef>Website</mat-header-cell>
+        <mat-cell *matCellDef="let lead">
+          <a [href]="lead.website" target="_blank" class="web-link" *ngIf="lead.website">
+            <mat-icon>link</mat-icon>
+            {{ lead.website | slice:0:30 }}{{ lead.website.length > 30 ? '...' : '' }}
+          </a>
+          <span *ngIf="!lead.website" class="dim">—</span>
+        </mat-cell>
+      </ng-container>
+
+      <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: displayedColumns;" class="animate-fade-in"></mat-row>
+    </mat-table>
+
+    <mat-paginator
+      [length]="totalElements"
+      [pageSize]="pageSize"
+      [pageSizeOptions]="[50, 100, 200]"
+      (page)="onPageChange($event)"
+      *ngIf="leads.length > 0 && !isLoadingLeads"
+      class="glass-paginator">
+    </mat-paginator>
+  </ng-container>
 </mat-card>

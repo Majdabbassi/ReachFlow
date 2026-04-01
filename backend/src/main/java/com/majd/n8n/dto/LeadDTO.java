@@ -22,6 +22,7 @@ public class LeadDTO {
 
     private String institutionName;
     private String city;
+    private String phone;
     private String address;
     private Double latitude;
     private Double longitude;

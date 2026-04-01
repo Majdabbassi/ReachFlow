@@ -10,6 +10,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class LeadService {
@@ -41,7 +43,17 @@ public class LeadService {
     @Transactional
     public LeadDTO createOrSkipLead(LeadDTO leadDTO) {
         return leadRepository.findByEmail(leadDTO.getEmail())
-                .map(leadMapper::toDTO)
+                .map(existing -> {
+                    existing.setInstitutionName(leadDTO.getInstitutionName());
+                    existing.setCity(leadDTO.getCity());
+                    existing.setPhone(leadDTO.getPhone());
+                    existing.setAddress(leadDTO.getAddress());
+                    existing.setLatitude(leadDTO.getLatitude());
+                    existing.setLongitude(leadDTO.getLongitude());
+                    existing.setWebsite(leadDTO.getWebsite());
+                    existing.setSource(leadDTO.getSource());
+                    return leadMapper.toDTO(leadRepository.save(existing));
+                })
                 .orElseGet(() -> createLead(leadDTO));
     }
 
@@ -53,6 +65,7 @@ public class LeadService {
         lead.setEmail(leadDTO.getEmail());
         lead.setInstitutionName(leadDTO.getInstitutionName());
         lead.setCity(leadDTO.getCity());
+        lead.setPhone(leadDTO.getPhone());
         lead.setAddress(leadDTO.getAddress());
         lead.setLatitude(leadDTO.getLatitude());
         lead.setLongitude(leadDTO.getLongitude());
@@ -67,5 +80,11 @@ public class LeadService {
         Lead lead = leadRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Lead not found with id: " + id));
         return leadMapper.toDTO(lead);
+    }
+
+    @Transactional(readOnly = true)
+    public String getAllEmailsAsTextFile() {
+        List<String> emails = leadRepository.findAllEmails();
+        return String.join(System.lineSeparator(), emails);
     }
 }

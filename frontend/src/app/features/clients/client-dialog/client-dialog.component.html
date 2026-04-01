@@ -1,34 +1,79 @@
-<h2 mat-dialog-title>{{ data.id ? 'Edit Client' : 'Add Client' }}</h2>
+<div class="dialog-header">
+  <div class="header-content">
+    <div class="icon-badge">
+      <mat-icon>{{ data.id ? 'edit' : 'person_add' }}</mat-icon>
+    </div>
+    <div class="title-info">
+      <h2 mat-dialog-title>{{ data.id ? 'Edit Client' : 'Add New Client' }}</h2>
+      <p class="subtitle">{{ data.id ? 'Update client information and credentials' : 'Enter the details to register a new client' }}</p>
+    </div>
+  </div>
+  <button mat-icon-button class="close-btn" (click)="onCancel()">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+
 <form [formGroup]="clientForm" (ngSubmit)="onSubmit()">
-  <mat-dialog-content>
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Name</mat-label>
-      <input matInput formControlName="name" placeholder="Client Name">
-      <mat-error *ngIf="clientForm.get('name')?.hasError('required')">Name is required</mat-error>
-    </mat-form-field>
+  <mat-dialog-content class="custom-content">
+    <div class="form-section">
+      <div class="section-header">
+        <mat-icon>account_circle</mat-icon>
+        <span>Basic Information</span>
+      </div>
+      
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Client Name</mat-label>
+          <input matInput formControlName="name" placeholder="e.g. John Doe">
+          <mat-icon matPrefix>person</mat-icon>
+          <mat-error *ngIf="clientForm.get('name')?.hasError('required')">Name is required</mat-error>
+        </mat-form-field>
+      </div>
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Email</mat-label>
-      <input matInput formControlName="email" placeholder="Email">
-      <mat-error *ngIf="clientForm.get('email')?.hasError('required')">Email is required</mat-error>
-      <mat-error *ngIf="clientForm.get('email')?.hasError('email')">Invalid email format</mat-error>
-    </mat-form-field>
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Email Address</mat-label>
+          <input matInput formControlName="email" placeholder="e.g. john@example.com">
+          <mat-icon matPrefix>email</mat-icon>
+          <mat-error *ngIf="clientForm.get('email')?.hasError('required')">Email is required</mat-error>
+          <mat-error *ngIf="clientForm.get('email')?.hasError('email')">Invalid email format</mat-error>
+        </mat-form-field>
+      </div>
+    </div>
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>App Password</mat-label>
-      <input matInput formControlName="appPassword" placeholder="Gmail App Password" type="password">
-      <mat-error *ngIf="clientForm.get('appPassword')?.hasError('required')">App Password is required</mat-error>
-    </mat-form-field>
+    <div class="form-section">
+      <div class="section-header">
+        <mat-icon>security</mat-icon>
+        <span>Credentials & Contact</span>
+      </div>
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Phone</mat-label>
-      <input matInput formControlName="phone" placeholder="Phone">
-    </mat-form-field>
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Gmail App Password</mat-label>
+          <input matInput formControlName="appPassword" placeholder="16-character code" type="password">
+          <mat-icon matPrefix>key</mat-icon>
+          <mat-hint>Used for sending outreach emails via SMTP</mat-hint>
+          <mat-error *ngIf="clientForm.get('appPassword')?.hasError('required')">App Password is required</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Phone Number</mat-label>
+          <input matInput formControlName="phone" placeholder="e.g. +49 123 456789">
+          <mat-icon matPrefix>phone</mat-icon>
+        </mat-form-field>
+      </div>
+    </div>
   </mat-dialog-content>
-  <mat-dialog-actions align="end">
-    <button mat-button (click)="onCancel()">Cancel</button>
-    <button mat-raised-button color="primary" type="submit" [disabled]="clientForm.invalid">
-      {{ data.id ? 'Update' : 'Create' }}
+
+  <mat-dialog-actions align="end" class="custom-actions">
+    <button mat-button type="button" (click)="onCancel()" class="cancel-btn">
+      Cancel
+    </button>
+    <button mat-raised-button color="primary" type="submit" [disabled]="clientForm.invalid" class="submit-btn">
+      <mat-icon>{{ data.id ? 'save' : 'add' }}</mat-icon>
+      {{ data.id ? 'Save Changes' : 'Create Client' }}
     </button>
   </mat-dialog-actions>
 </form>

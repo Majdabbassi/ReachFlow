@@ -1,0 +1,140 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\nconst cities = Array.isArray(body.cities) ? body.cities : [];\nconst keywords = Array.isArray(body.keywords) ? body.keywords : [];\nconst maxResults = parseInt(body.maxResults) || 10;\n\n// Generate all combinations: \"Keyword City\"\nconst searchStrings = [];\n\nfor (const city of cities) {\n  for (const keyword of keywords) {\n    if (keyword && city) {\n      searchStrings.push(`${keyword} ${city}`);\n    }\n  }\n}\n\nif (searchStrings.length === 0) {\n  throw new Error('No valid search combinations generated. Check cities and keywords.');\n}\n\n// Return a single object (not wrapped in an array)\nreturn {\n  json: {\n    searchStringsArray: searchStrings,\n    maxCrawledPlacesPerSearch: maxResults\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        128
+      ],
+      "id": "3f5f4911-ba75-410d-83cc-e59d756e8008",
+      "name": "parse apify input"
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorId": {
+          "__rl": true,
+          "value": "nwua9Gu5YrADL7ZDj",
+          "mode": "list",
+          "cachedResultName": "Google Maps Scraper (compass/crawler-google-places)",
+          "cachedResultUrl": "https://console.apify.com/actors/nwua9Gu5YrADL7ZDj/input"
+        },
+        "customBody": "={\n  \"searchStringsArray\": {{ JSON.stringify($json[\"searchStringsArray\"]) }},\n  \"maxCrawledPlacesPerSearch\": {{$json[\"maxCrawledPlacesPerSearch\"]}}\n}"
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        928,
+        128
+      ],
+      "id": "34ae4e65-4387-4da5-a3b7-7b22a6c6028d",
+      "name": "Run an Actor and get dataset",
+      "credentials": {
+        "apifyApi": {
+          "id": "BkUf2Ql2mmd4sCPg",
+          "name": "Apify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\nfor (const item of $input.all()) {\n  const website = item.json.website;\n  if (!website) {\n    results.push({\n      json: {\n        title: item.json.title || '',\n        city: item.json.city || '',\n        phone: item.json.phone || '',\n        website: '',\n        address: item.json.address || '',\n        email: null,\n        allEmails: []\n      }\n    });\n    continue;\n  }\n  const base = website.replace(/\\/$/, '');\n  const urls = [\n    base + '/impressum',\n    base,\n    base + '/kontakt',\n    base + '/contact'\n  ];\n  let allEmails = [];\n  for (const url of urls) {\n    try {\n      const response = await this.helpers.httpRequest({\n        method: 'GET',\n        url,\n        timeout: 5000,\n        headers: {\n          'User-Agent': 'Mozilla/5.0'\n        }\n      });\n      const html = typeof response === 'string' ? response : JSON.stringify(response);\n      const found = html.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi) || [];\n      allEmails.push(...found);\n    } catch (e) {}\n  }\n\n  // Just deduplicate, no filtering\n  const uniqueEmails = [...new Set(allEmails)].filter(email =>\n    !email.includes('.png') &&\n    !email.includes('.jpg') &&\n    !email.includes('.svg') &&\n    !email.includes('.gif') &&\n    !email.includes('.css') &&\n    !email.includes('.js') &&\n    email.length < 80\n  );\n\n  results.push({\n    json: {\n      title: item.json.title || '',\n      city: item.json.city || '',\n      phone: item.json.phone || '',\n      website: website,\n      address: item.json.address || '',\n      email: uniqueEmails[0] || null,\n      allEmails: uniqueEmails\n    }\n  });\n}\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        128
+      ],
+      "id": "a78fd07b-07b6-4a71-b35d-b3129308b35d",
+      "name": "scrape website pages"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { results: $input.all().map(i => i.json) } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1360,
+        128
+      ],
+      "id": "42823c1c-59e3-48be-9edd-45ca54f43a33",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "3dd78525-b1e6-4775-98bc-1c88aeb0e313",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        512,
+        128
+      ],
+      "id": "b362d016-56b1-4529-8f87-0c9c80afebaa",
+      "name": "Webhook",
+      "webhookId": "3dd78525-b1e6-4775-98bc-1c88aeb0e313"
+    }
+  ],
+  "connections": {
+    "parse apify input": {
+      "main": [
+        [
+          {
+            "node": "Run an Actor and get dataset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run an Actor and get dataset": {
+      "main": [
+        [
+          {
+            "node": "scrape website pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "scrape website pages": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "parse apify input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0bdab5e3c91fc2b08abb590109ee7e556d552720ab13b2d7d157e485cc4cebfb"
+  }
+}

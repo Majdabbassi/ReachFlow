@@ -8,6 +8,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
 import { ClientService } from '../../../core/services/client.service';
 import { Client } from '../../../core/models/models';
+import { Observable, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import { MatIconModule } from '@angular/material/icon';
+import { FilterByIdPipe } from '../../../shared/pipes/filter-by-id.pipe';
 
 @Component({
   selector: 'app-campaign-dialog',
@@ -19,7 +23,9 @@ import { Client } from '../../../core/models/models';
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
-    MatSelectModule
+    MatSelectModule,
+    MatIconModule,
+    FilterByIdPipe
   ],
   templateUrl: './campaign-dialog.component.html',
   styleUrl: './campaign-dialog.component.scss'
@@ -29,14 +35,16 @@ export class CampaignDialogComponent implements OnInit {
   private clientService = inject(ClientService);
   private dialogRef = inject(MatDialogRef<CampaignDialogComponent>);
 
-  clients: Client[] = [];
+  clients$: Observable<Client[]> = of([]);
   campaignForm: FormGroup = this.fb.group({
     name: ['', Validators.required],
     clientId: ['', Validators.required]
   });
 
   ngOnInit() {
-    this.clientService.getClients().subscribe(clients => this.clients = clients);
+    this.clients$ = this.clientService.getClients().pipe(
+      catchError(() => of([]))
+    );
   }
 
   onSubmit() {

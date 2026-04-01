@@ -1,11 +1,14 @@
 package com.majd.n8n.controller;
 
 import com.majd.n8n.dto.CampaignDTO;
+import com.majd.n8n.dto.CampaignSendDTO;
 import com.majd.n8n.dto.CampaignStatsDTO;
 import com.majd.n8n.dto.CampaignStartRequestDTO;
 import com.majd.n8n.service.CampaignService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,11 +31,6 @@ public class CampaignController {
         return ResponseEntity.ok(campaignService.getCampaignById(id));
     }
 
-    @PostMapping
-    public ResponseEntity<CampaignDTO> createCampaign(@Valid @RequestBody CampaignDTO campaignDTO) {
-        return ResponseEntity.ok(campaignService.createCampaign(campaignDTO));
-    }
-
     @PutMapping("/{id}")
     public ResponseEntity<CampaignDTO> updateCampaign(@PathVariable Long id, @Valid @RequestBody CampaignDTO campaignDTO) {
         return ResponseEntity.ok(campaignService.updateCampaign(id, campaignDTO));
@@ -47,11 +45,19 @@ public class CampaignController {
     @PostMapping("/{id}/start")
     public ResponseEntity<Void> startCampaign(@PathVariable Long id, @RequestBody CampaignStartRequestDTO request) {
         campaignService.startCampaign(id, request);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.accepted().build(); // 202 - returns immediately
     }
 
     @GetMapping("/{id}/stats")
     public ResponseEntity<CampaignStatsDTO> getCampaignStats(@PathVariable Long id) {
         return ResponseEntity.ok(campaignService.getCampaignStats(id));
+    }
+
+    @GetMapping("/{id}/sends")
+    public ResponseEntity<Page<CampaignSendDTO>> getCampaignSends(
+            @PathVariable Long id,
+            @RequestParam(required = false) String status,
+            Pageable pageable) {
+        return ResponseEntity.ok(campaignService.getCampaignSends(id, status, pageable));
     }
 }

@@ -5,15 +5,34 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { FormsModule } from '@angular/forms';
 import { ClientService } from '../../../core/services/client.service';
 import { Client } from '../../../core/models/models';
 import { ClientDialogComponent } from '../client-dialog/client-dialog.component';
 import { ToastrService } from 'ngx-toastr';
+import { Observable, of, BehaviorSubject } from 'rxjs';
+import { catchError, finalize, map, switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-client-list',
   standalone: true,
-  imports: [CommonModule, MatTableModule, MatButtonModule, MatIconModule, MatDialogModule, MatCardModule],
+  imports: [
+    CommonModule, 
+    FormsModule,
+    MatTableModule, 
+    MatButtonModule, 
+    MatIconModule, 
+    MatDialogModule, 
+    MatCardModule, 
+    MatTooltipModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatProgressSpinnerModule
+  ],
   templateUrl: './client-list.component.html',
   styleUrl: './client-list.component.scss'
 })
@@ -22,16 +41,48 @@ export class ClientListComponent implements OnInit {
   private dialog = inject(MatDialog);
   private toastr = inject(ToastrService);
 
-  clients: Client[] = [];
+  private clientsSubject = new BehaviorSubject<Client[]>([]);
+  clients$ = this.clientsSubject.asObservable();
+  
   displayedColumns: string[] = ['name', 'email', 'phone', 'actions'];
   selectedClientId?: number;
+  isLoading = false;
+  loadError: string | null = null;
+  searchTerm = '';
 
   ngOnInit() {
     this.loadClients();
   }
 
   loadClients() {
-    this.clientService.getClients().subscribe(clients => this.clients = clients);
+    this.isLoading = true;
+    this.loadError = null;
+    this.clientService.loadClients().pipe(
+      catchError((err) => {
+        this.loadError = err?.message || 'Failed to load clients';
+        this.toastr.error('Failed to load clients');
+        return of([]);
+      }),
+      finalize(() => {
+        this.isLoading = false;
+      })
+    ).subscribe(clients => {
+      this.clientsSubject.next(clients);
+    });
+  }
+
+  get filteredClients$() {
+    return this.clients$.pipe(
+      map(clients => {
+        if (!this.searchTerm) return clients;
+        const s = this.searchTerm.toLowerCase();
+        return clients.filter(c => 
+          c.name.toLowerCase().includes(s) || 
+          c.email.toLowerCase().includes(s) || 
+          (c.phone && c.phone.includes(s))
+        );
+      })
+    );
   }
 
   openClientDialog(client?: Client) {
@@ -40,19 +91,22 @@ export class ClientListComponent implements OnInit {
       data: client || {}
     });
 
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        if (client?.id) {
-          this.clientService.updateClient(client.id, result).subscribe(() => {
-            this.toastr.success('Client updated successfully');
-            this.loadClients();
-          });
-        } else {
-          this.clientService.createClient(result).subscribe(() => {
-            this.toastr.success('Client created successfully');
-            this.loadClients();
-          });
+    dialogRef.afterClosed().pipe(
+      switchMap((result) => {
+        if (!result) {
+          return of(null);
         }
+
+        if (client?.id) {
+          return this.clientService.updateClient(client.id, result);
+        }
+
+        return this.clientService.createClient(result);
+      })
+    ).subscribe((saved) => {
+      if (saved) {
+        this.toastr.success(client?.id ? 'Client updated successfully' : 'Client created successfully');
+        this.loadClients();
       }
     });
   }
@@ -68,6 +122,12 @@ export class ClientListComponent implements OnInit {
       this.clientService.uploadDocument(this.selectedClientId, file).subscribe(() => {
         this.toastr.success('Document uploaded successfully');
       });
+    }
+  }
+
+  deleteClient(client: Client) {
+    if (confirm(`Are you sure you want to delete ${client.name}?`)) {
+      this.toastr.info('Delete feature coming soon');
     }
   }
 }

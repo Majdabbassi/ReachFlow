@@ -1,12 +1,22 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
-import { catchError, throwError } from 'rxjs';
+import { catchError, tap, throwError } from 'rxjs';
 
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const toastr = inject(ToastrService);
+  const token = localStorage.getItem('auth_token');
+  const startedAt = performance.now();
 
-  return next(req).pipe(
+  const request = token
+    ? req.clone({
+        setHeaders: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+    : req;
+
+  return next(request).pipe(
     catchError((error: HttpErrorResponse) => {
       let errorMessage = 'An unknown error occurred';
       

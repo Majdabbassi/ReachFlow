@@ -1,8 +1,11 @@
 package com.majd.n8n.service;
 
 import com.majd.n8n.dto.ClientDTO;
+import com.majd.n8n.entity.Campaign;
 import com.majd.n8n.entity.Client;
+import com.majd.n8n.entity.enums.CampaignStatus;
 import com.majd.n8n.mapper.ClientMapper;
+import com.majd.n8n.repository.CampaignRepository;
 import com.majd.n8n.repository.ClientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +21,7 @@ import java.util.stream.Collectors;
 public class ClientService {
 
     private final ClientRepository clientRepository;
+    private final CampaignRepository campaignRepository;
     private final ClientMapper clientMapper;
 
     @Transactional(readOnly = true)
@@ -37,7 +41,16 @@ public class ClientService {
     @Transactional
     public ClientDTO createClient(ClientDTO clientDTO) {
         Client client = clientMapper.toEntity(clientDTO);
-        return clientMapper.toDTO(clientRepository.save(client));
+        Client savedClient = clientRepository.save(client);
+
+        Campaign defaultCampaign = Campaign.builder()
+                .name(savedClient.getName() + " Campaign")
+                .status(CampaignStatus.DRAFT)
+                .client(savedClient)
+                .build();
+        campaignRepository.save(defaultCampaign);
+
+        return clientMapper.toDTO(savedClient);
     }
 
     @Transactional
@@ -58,6 +71,8 @@ public class ClientService {
         Client client = clientRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Client not found with id: " + id));
         client.setDocument(file.getBytes());
+        client.setDocumentName(file.getOriginalFilename());
+        client.setDocumentContentType(file.getContentType());
         clientRepository.save(client);
     }
 }

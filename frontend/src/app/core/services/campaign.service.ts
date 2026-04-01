@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { Campaign, CampaignStats } from '../models/models';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { Campaign, CampaignSend, CampaignStats, CampaignSendStatus, PageResponse } from '../models/models';
 
 @Injectable({
   providedIn: 'root'
@@ -9,17 +9,19 @@ import { Campaign, CampaignStats } from '../models/models';
 export class CampaignService {
   private http = inject(HttpClient);
   private apiUrl = 'http://localhost:8080/api/campaigns';
+  private campaignsSubject = new BehaviorSubject<Campaign[]>([]);
+  readonly campaigns$ = this.campaignsSubject.asObservable();
 
   getCampaigns(): Observable<Campaign[]> {
     return this.http.get<Campaign[]>(this.apiUrl);
   }
 
-  getCampaign(id: number): Observable<Campaign> {
-    return this.http.get<Campaign>(`${this.apiUrl}/${id}`);
+  loadCampaigns(): Observable<Campaign[]> {
+    return this.getCampaigns().pipe(tap((campaigns) => this.campaignsSubject.next(campaigns)));
   }
 
-  createCampaign(campaign: Partial<Campaign>): Observable<Campaign> {
-    return this.http.post<Campaign>(this.apiUrl, campaign);
+  getCampaign(id: number): Observable<Campaign> {
+    return this.http.get<Campaign>(`${this.apiUrl}/${id}`);
   }
 
   updateCampaign(id: number, campaign: Partial<Campaign>): Observable<Campaign> {
@@ -30,8 +32,20 @@ export class CampaignService {
     return this.http.post<void>(`${this.apiUrl}/${id}/generate`, {});
   }
 
-  startCampaign(id: number, request: { webhookUrl: string, subject: string, body: string }): Observable<void> {
+  startCampaign(id: number, request: { subject: string, body: string, delaySeconds: number, htmlBody: boolean }): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/${id}/start`, request);
+  }
+
+  getCampaignSends(id: number, page = 0, size = 25, status?: CampaignSendStatus | 'ALL'): Observable<PageResponse<CampaignSend>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+
+    if (status && status !== 'ALL') {
+      params = params.set('status', status);
+    }
+
+    return this.http.get<PageResponse<CampaignSend>>(`${this.apiUrl}/${id}/sends`, { params });
   }
 
   getStats(id: number): Observable<CampaignStats> {

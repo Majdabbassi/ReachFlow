@@ -9,12 +9,15 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { CampaignService } from '../../../core/services/campaign.service';
 import { ClientService } from '../../../core/services/client.service';
-import { Campaign, CampaignStats, CampaignStatus, Client } from '../../../core/models/models';
+import { Campaign, CampaignLog, CampaignSend, CampaignSendStatus, CampaignStats, CampaignStatus, Client } from '../../../core/models/models';
 import { ToastrService } from 'ngx-toastr';
-import { interval, Subscription, switchMap, takeWhile, tap } from 'rxjs';
+import { forkJoin, interval, of, Subscription, switchMap, takeWhile, tap, finalize } from 'rxjs';
 
 @Component({
   selector: 'app-campaign-details',
@@ -29,6 +32,9 @@ import { interval, Subscription, switchMap, takeWhile, tap } from 'rxjs';
     MatChipsModule,
     MatFormFieldModule,
     MatInputModule,
+    MatPaginatorModule,
+    MatTooltipModule,
+    MatCheckboxModule,
     ReactiveFormsModule,
     RouterLink
   ],
@@ -43,16 +49,39 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
   private toastr = inject(ToastrService);
 
   CampaignStatus = CampaignStatus;
+  CampaignSendStatus = CampaignSendStatus;
   campaign?: Campaign;
   client?: Client;
   stats: CampaignStats = { total: 0, sent: 0, pending: 0, failed: 0 };
+  campaignSends: CampaignSend[] = [];
+  logs: CampaignLog[] = [];
+  sendColumns: string[] = ['leadEmail', 'institution', 'city', 'status', 'sentAt'];
+  selectedSendStatus: CampaignSendStatus | 'ALL' = 'ALL';
+  sendPageSize = 25;
+  sendPageIndex = 0;
+  sendTotalElements = 0;
   
   templateForm: FormGroup = this.fb.group({
     subject: ['Hello from {name}', Validators.required],
-    body: ['Hi,\n\nI am writing to you regarding {city}.\n\nBest regards.', Validators.required]
+    body: ['Hi,\n\nI am writing to you regarding {city}.\n\nBest regards.', Validators.required],
+    delaySeconds: [2, [Validators.required, Validators.min(0), Validators.max(120)]],
+    htmlBody: [false]
   });
 
-  previewVisible = false;
+  previewVisible = true;
+  showLogs = false;
+  isLoading = false;
+  loadError: string | null = null;
+  
+  // Tag helper
+  insertTag(tag: string) {
+    const bodyControl = this.templateForm.get('body');
+    if (bodyControl) {
+      const currentVal = bodyControl.value || '';
+      bodyControl.setValue(currentVal + `{${tag}}`);
+    }
+  }
+
   private statsSubscription?: Subscription;
   private pollCount = 0;
   private maxPollCount = 120; // 120 * 5s = 10 minutes max polling
@@ -61,6 +90,7 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     if (id) {
       this.loadCampaign(id);
+      this.addLog('info', 'Campaign details loaded');
     }
   }
 
@@ -68,68 +98,147 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
     this.statsSubscription?.unsubscribe();
   }
 
+  addLog(level: 'info' | 'success' | 'warning' | 'error', message: string, details?: string) {
+    this.logs.unshift({
+      id: Math.random().toString(36).substring(7),
+      timestamp: new Date(),
+      level,
+      message,
+      details
+    });
+    if (this.logs.length > 100) this.logs.pop();
+  }
+
   loadCampaign(id: number) {
-    this.campaignService.getCampaign(id).subscribe(campaign => {
-      this.campaign = campaign;
-      this.clientService.getClient(campaign.clientId).subscribe(client => this.client = client);
-      this.loadStats(id);
-      this.startStatsPolling(id);
+    this.isLoading = true;
+    this.loadError = null;
+
+    this.campaignService.getCampaign(id).pipe(
+      switchMap((campaign) =>
+        forkJoin({
+          campaign: of(campaign),
+          client: this.clientService.getClient(campaign.clientId),
+          stats: this.campaignService.getStats(id),
+          sendsPage: this.campaignService.getCampaignSends(id, this.sendPageIndex, this.sendPageSize, this.selectedSendStatus)
+        })
+      ),
+      finalize(() => {
+        this.isLoading = false;
+      })
+    ).subscribe({
+      next: ({ campaign, client, stats, sendsPage }) => {
+        this.campaign = campaign;
+        this.client = client;
+        this.stats = stats;
+        this.campaignSends = sendsPage.content;
+        this.sendTotalElements = sendsPage.totalElements;
+        this.startStatsPolling(id);
+        this.addLog('info', `Fetched stats for ${campaign.name}`);
+      },
+      error: (err) => {
+        this.loadError = err?.message || 'Failed to load campaign details';
+        this.addLog('error', 'Failed to load campaign details', err?.message);
+      }
     });
   }
 
   loadStats(id: number) {
-    this.campaignService.getStats(id).subscribe(stats => this.stats = stats);
+    this.campaignService.getStats(id).subscribe({
+      next: (stats) => {
+        this.stats = stats;
+        this.addLog('info', 'Refreshed campaign stats');
+      },
+      error: () => {
+        this.toastr.error('Failed to refresh campaign stats');
+        this.addLog('error', 'Failed to refresh campaign stats');
+      }
+    });
+  }
+
+  loadCampaignSends(id: number) {
+    this.campaignService
+      .getCampaignSends(id, this.sendPageIndex, this.sendPageSize, this.selectedSendStatus)
+      .subscribe({
+        next: (page) => {
+          this.campaignSends = page.content;
+          this.sendTotalElements = page.totalElements;
+        },
+        error: () => {
+          this.toastr.error('Failed to load campaign sends');
+          this.addLog('error', 'Failed to load campaign sends');
+        }
+      });
+  }
+
+  onSendStatusFilterChange(status: CampaignSendStatus | 'ALL') {
+    this.selectedSendStatus = status;
+    this.sendPageIndex = 0;
+    if (this.campaign?.id) this.loadCampaignSends(this.campaign.id);
+    this.addLog('info', `Filtered campaign sends by ${status}`);
+  }
+
+  onSendPageChange(event: PageEvent) {
+    this.sendPageIndex = event.pageIndex;
+    this.sendPageSize = event.pageSize;
+    if (this.campaign?.id) this.loadCampaignSends(this.campaign.id);
   }
 
   startStatsPolling(id: number) {
     this.pollCount = 0;
     this.statsSubscription?.unsubscribe();
-    
     this.statsSubscription = interval(5000).pipe(
       tap(() => this.pollCount++),
-      takeWhile(() => this.campaign?.status === CampaignStatus.RUNNING && this.pollCount < this.maxPollCount, true),
+      takeWhile(() => this.campaign?.status === CampaignStatus.RUNNING, true),
       switchMap(() => this.campaignService.getStats(id))
     ).subscribe(stats => {
+      const prevSent = this.stats.sent;
+      const prevFailed = this.stats.failed;
+      
       this.stats = stats;
-      if (this.pollCount >= this.maxPollCount) {
-        this.toastr.warning('Polling timed out. Check if n8n is processing.');
+      this.loadCampaignSends(id);
+      
+      if (stats.sent > prevSent) {
+        this.addLog('success', `${stats.sent - prevSent} new emails sent successfully`);
       }
+      if (stats.failed > prevFailed) {
+        this.addLog('error', `${stats.failed - prevFailed} emails failed to send`);
+      }
+
       if (stats.total > 0 && stats.pending === 0 && this.campaign?.status === CampaignStatus.RUNNING) {
         this.loadCampaign(id); // Reload to get completed status
+        this.addLog('success', 'Campaign completed!');
       }
     });
   }
 
   generateEmails() {
     if (this.campaign?.id) {
+      this.addLog('info', 'Starting email generation...');
       this.campaignService.generateSends(this.campaign.id).subscribe(() => {
         this.toastr.success('Emails generated successfully');
+        this.addLog('success', 'Email generation completed');
         this.loadStats(this.campaign!.id!);
+        this.loadCampaignSends(this.campaign!.id!);
       });
     }
   }
 
   startCampaign() {
     if (this.campaign?.id) {
-      const webhookUrl = localStorage.getItem('n8n_webhook_url');
-      if (!webhookUrl) {
-        this.toastr.error('Please configure the n8n webhook URL in Settings');
-        return;
-      }
-
       if (this.templateForm.invalid) {
         this.toastr.error('Please complete the email template');
         return;
       }
-
       const request = {
-        webhookUrl: webhookUrl,
         subject: this.templateForm.value.subject,
-        body: this.templateForm.value.body
+        body: this.templateForm.value.body,
+        delaySeconds: Number(this.templateForm.value.delaySeconds),
+        htmlBody: Boolean(this.templateForm.value.htmlBody)
       };
-
+      this.addLog('info', 'Launching outreach campaign...');
       this.campaignService.startCampaign(this.campaign.id, request).subscribe(() => {
         this.toastr.success('Campaign started successfully');
+        this.addLog('success', 'Campaign launched successfully');
         this.loadCampaign(this.campaign!.id!);
       });
     }
@@ -150,13 +259,41 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
   }
 
   previewEmail() {
-    this.previewVisible = true;
+    this.previewVisible = !this.previewVisible;
+  }
+
+  toggleLogs() {
+    this.showLogs = !this.showLogs;
+  }
+
+  getSendStatusColor(status: CampaignSendStatus): string {
+    switch (status) {
+      case CampaignSendStatus.SENT: return 'primary';
+      case CampaignSendStatus.FAILED: return 'warn';
+      default: return 'accent';
+    }
   }
 
   getPreviewBody(): string {
-    let body = this.templateForm.value.body;
+    let body = (this.templateForm.value.body || '') as string;
     body = body.replace(/{name}/g, 'John Doe');
     body = body.replace(/{city}/g, 'New York');
-    return body;
+    body = body.replace(/{institutionName}/g, 'Sample Institution');
+    body = body.replace(/{website}/g, 'https://example.com');
+
+    if (this.templateForm.value.htmlBody) {
+      return body;
+    }
+
+    return this.escapeHtml(body).replace(/\n/g, '<br>');
+  }
+
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 }

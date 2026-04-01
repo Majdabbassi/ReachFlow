@@ -1,62 +1,111 @@
 <div class="page-header">
   <div class="title-group">
+    <div class="breadcrumb">
+      <span>Intelligence / Outreach Operations</span>
+    </div>
     <h2>Client Directory</h2>
-    <p>Manage your clients and their outreach credentials.</p>
+    <p>Manage primary clients and their automated outreach credentials.</p>
   </div>
-  <button mat-raised-button color="primary" (click)="openClientDialog()">
-    <mat-icon>person_add</mat-icon> Add New Client
-  </button>
+  <div class="header-actions">
+    <button mat-flat-button color="primary" (click)="openClientDialog()" class="create-btn">
+      <mat-icon>person_add</mat-icon> Add New Client
+    </button>
+  </div>
+</div>
+
+<div class="glass-card filter-card">
+  <div class="filter-bar">
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>Search clients...</mat-label>
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput [(ngModel)]="searchTerm" placeholder="Filter by name, email or phone...">
+    </mat-form-field>
+    
+    <button mat-flat-button color="primary" class="update-btn" (click)="loadClients()" [disabled]="isLoading">
+      <mat-icon *ngIf="!isLoading">sync</mat-icon>
+      <mat-progress-spinner *ngIf="isLoading" diameter="20" mode="indeterminate" style="margin-right: 8px"></mat-progress-spinner>
+      Refresh
+    </button>
+  </div>
+</div>
+
+<div *ngIf="loadError" class="error-alert">
+  <mat-icon>error_outline</mat-icon>
+  <div>
+    <strong>Failed to load clients</strong>
+    <p>{{ loadError }}</p>
+  </div>
 </div>
 
 <mat-card class="glass-card table-card">
-  <mat-table [dataSource]="clients">
-    <ng-container matColumnDef="name">
-      <mat-header-cell *matHeaderCellDef>Client Name</mat-header-cell>
-      <mat-cell *matCellDef="let client">
-        <div class="name-cell">
-          <div class="avatar-mini">{{ client.name.charAt(0) }}</div>
-          <span>{{ client.name }}</span>
-        </div>
-      </mat-cell>
-    </ng-container>
-
-    <ng-container matColumnDef="email">
-      <mat-header-cell *matHeaderCellDef>Email Address</mat-header-cell>
-      <mat-cell *matCellDef="let client">
-        <div class="email-cell">
-          <mat-icon>mail_outline</mat-icon>
-          <span>{{ client.email }}</span>
-        </div>
-      </mat-cell>
-    </ng-container>
-
-    <ng-container matColumnDef="phone">
-      <mat-header-cell *matHeaderCellDef>Phone</mat-header-cell>
-      <mat-cell *matCellDef="let client">{{ client.phone || '—' }}</mat-cell>
-    </ng-container>
-
-    <ng-container matColumnDef="actions">
-      <mat-header-cell *matHeaderCellDef>Actions</mat-header-cell>
-      <mat-cell *matCellDef="let client">
-        <div class="action-buttons">
-          <button mat-icon-button color="primary" matTooltip="Edit Client" (click)="openClientDialog(client)">
-            <mat-icon>edit</mat-icon>
-          </button>
-          <button mat-icon-button color="accent" matTooltip="Upload Document" (click)="uploadDocument(client)">
-            <mat-icon>upload_file</mat-icon>
-          </button>
-        </div>
-      </mat-cell>
-    </ng-container>
-
-    <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
-    <mat-row *matRowDef="let row; columns: displayedColumns;" class="animate-fade-in"></mat-row>
-  </mat-table>
-  
-  <div class="empty-state" *ngIf="clients.length === 0">
-    <mat-icon>group_off</mat-icon>
-    <p>No clients found. Add your first client to get started.</p>
+  <div *ngIf="isLoading" class="skeleton-container">
+    <div class="skeleton-row" *ngFor="let i of [1,2,3,4,5]">
+      <div class="skeleton-item" style="width: 30%"></div>
+      <div class="skeleton-item" style="width: 35%"></div>
+      <div class="skeleton-item" style="width: 20%"></div>
+      <div class="skeleton-item" style="width: 15%"></div>
+    </div>
   </div>
+
+  <ng-container *ngIf="filteredClients$ | async as clients">
+    <div *ngIf="!isLoading && clients.length === 0" class="empty-state">
+      <mat-icon>group_off</mat-icon>
+      <h3>No clients identified</h3>
+      <p>Start by adding a new client to begin outreach operations.</p>
+    </div>
+
+    <mat-table [dataSource]="clients" *ngIf="clients.length > 0 && !isLoading">
+      <ng-container matColumnDef="name">
+        <mat-header-cell *matHeaderCellDef>Client Identity</mat-header-cell>
+        <mat-cell *matCellDef="let client">
+          <div class="name-cell">
+            <div class="avatar-mini">{{ client.name.charAt(0).toUpperCase() }}</div>
+            <div class="name-info">
+              <span class="name">{{ client.name }}</span>
+              <span class="id">ID: #{{ client.id }}</span>
+            </div>
+          </div>
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="email">
+        <mat-header-cell *matHeaderCellDef>Email Address</mat-header-cell>
+        <mat-cell *matCellDef="let client">
+          <div class="email-cell">
+            <mat-icon>mail_outline</mat-icon>
+            <span>{{ client.email }}</span>
+          </div>
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="phone">
+        <mat-header-cell *matHeaderCellDef>Contact Phone</mat-header-cell>
+        <mat-cell *matCellDef="let client">
+          <span class="phone-badge">{{ client.phone || 'Not provided' }}</span>
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <mat-header-cell *matHeaderCellDef>Actions</mat-header-cell>
+        <mat-cell *matCellDef="let client">
+          <div class="action-buttons">
+            <button mat-icon-button class="action-btn edit" matTooltip="Edit Client Profile" (click)="openClientDialog(client)">
+              <mat-icon>edit_note</mat-icon>
+            </button>
+            <button mat-icon-button class="action-btn upload" matTooltip="Upload Credentials" (click)="uploadDocument(client)">
+              <mat-icon>cloud_upload</mat-icon>
+            </button>
+            <button mat-icon-button class="action-btn delete" matTooltip="Archive Client" (click)="deleteClient(client)">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </div>
+        </mat-cell>
+      </ng-container>
+
+      <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: displayedColumns;" class="animate-fade-in"></mat-row>
+    </mat-table>
+  </ng-container>
 </mat-card>
 
 <input type="file" #fileInput style="display: none" (change)="onFileSelected($event)">

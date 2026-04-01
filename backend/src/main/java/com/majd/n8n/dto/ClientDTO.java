@@ -27,5 +27,6 @@ public class ClientDTO {
     private String appPassword;
 
     private String phone;
+    private String documentName;
     private LocalDateTime createdAt;
 }
