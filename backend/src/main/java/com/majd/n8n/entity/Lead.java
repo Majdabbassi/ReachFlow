@@ -5,6 +5,8 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "leads")
@@ -21,10 +23,6 @@ public class Lead {
 
     @Column(nullable = false, unique = true)
     private String email;
-
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
-    private String allEmails;
 
     private String institutionName;
 
@@ -45,4 +43,8 @@ public class Lead {
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "lead", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<LeadEmail> leadEmails = new ArrayList<>();
 }

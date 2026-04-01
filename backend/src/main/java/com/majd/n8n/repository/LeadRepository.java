@@ -10,7 +10,6 @@ import java.util.Optional;
 
 @Repository
 public interface LeadRepository extends JpaRepository<Lead, Long> {
-    Optional<Lead> findByEmail(String email);
     Optional<Lead> findFirstByWebsiteIgnoreCase(String website);
     Optional<Lead> findFirstByInstitutionNameIgnoreCaseAndCityIgnoreCase(String institutionName, String city);
     Page<Lead> findByCityContainingIgnoreCaseAndSourceContainingIgnoreCase(String city, String source, Pageable pageable);

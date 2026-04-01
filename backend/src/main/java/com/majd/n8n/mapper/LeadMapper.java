@@ -2,13 +2,36 @@ package com.majd.n8n.mapper;
 
 import com.majd.n8n.dto.LeadDTO;
 import com.majd.n8n.entity.Lead;
+import com.majd.n8n.entity.LeadEmail;
 import org.mapstruct.Mapper;
-import org.mapstruct.factory.Mappers;
+import org.mapstruct.Mapping;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring")
 public interface LeadMapper {
-    LeadMapper INSTANCE = Mappers.getMapper(LeadMapper.class);
-
+    @Mapping(target = "primaryEmail", source = "email")
+    @Mapping(target = "emails", expression = "java(toEmailList(lead))")
     LeadDTO toDTO(Lead lead);
+
+    @Mapping(target = "leadEmails", ignore = true)
+    @Mapping(target = "email", ignore = true)
     Lead toEntity(LeadDTO leadDTO);
+
+    default List<String> toEmailList(Lead lead) {
+        if (lead == null || lead.getLeadEmails() == null) {
+            return List.of();
+        }
+
+        return lead.getLeadEmails().stream()
+                .sorted(
+                        Comparator.comparing(LeadEmail::isPrimary).reversed()
+                                .thenComparing(LeadEmail::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                                .thenComparing(LeadEmail::getId, Comparator.nullsLast(Comparator.naturalOrder()))
+                )
+                .map(LeadEmail::getEmail)
+                .collect(Collectors.toList());
+    }
 }

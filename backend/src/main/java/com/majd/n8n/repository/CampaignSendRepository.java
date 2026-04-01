@@ -15,14 +15,14 @@ import java.util.Set;
 @Repository
 public interface CampaignSendRepository extends JpaRepository<CampaignSend, Long> {
 
-    @Query("SELECT cs.lead.id FROM CampaignSend cs WHERE cs.campaign.client.id = :clientId")
-    Set<Long> findLeadIdsAlreadySentByClient(@Param("clientId") Long clientId);
+    @Query("SELECT cs.leadEmail.id FROM CampaignSend cs WHERE cs.campaign.id = :campaignId")
+    Set<Long> findLeadEmailIdsByCampaignId(@Param("campaignId") Long campaignId);
 
-    @Query("SELECT cs.lead.id FROM CampaignSend cs WHERE cs.campaign.id = :campaignId")
-    Set<Long> findLeadIdsByCampaignId(@Param("campaignId") Long campaignId);
+    @Query("SELECT cs.campaign.id FROM CampaignSend cs WHERE cs.leadEmail.lead.id = :leadId")
+    Set<Long> findCampaignIdsByLeadEmailLeadId(@Param("leadId") Long leadId);
 
-    @Query("SELECT cs.campaign.id FROM CampaignSend cs WHERE cs.lead.id = :leadId")
-    Set<Long> findCampaignIdsByLeadId(@Param("leadId") Long leadId);
+    @Query("SELECT cs.campaign.id FROM CampaignSend cs WHERE cs.leadEmail.id = :leadEmailId")
+    Set<Long> findCampaignIdsByLeadEmailId(@Param("leadEmailId") Long leadEmailId);
 
     List<CampaignSend> findByCampaignIdAndStatus(Long campaignId, CampaignSendStatus status);
 
@@ -31,6 +31,12 @@ public interface CampaignSendRepository extends JpaRepository<CampaignSend, Long
     Page<CampaignSend> findByCampaignIdAndStatus(Long campaignId, CampaignSendStatus status, Pageable pageable);
 
     Page<CampaignSend> findByCampaignId(Long campaignId, Pageable pageable);
+
+    List<CampaignSend> findByCampaignId(Long campaignId);
+
+    List<CampaignSend> findByCampaignIdIn(List<Long> campaignIds);
+
+    void deleteByCampaignIdIn(List<Long> campaignIds);
 
     @Query("SELECT COUNT(cs) FROM CampaignSend cs WHERE cs.campaign.id = :campaignId")
     long countByCampaignId(@Param("campaignId") Long campaignId);

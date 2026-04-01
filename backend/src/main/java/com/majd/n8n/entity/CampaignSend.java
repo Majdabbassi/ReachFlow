@@ -24,8 +24,8 @@ public class CampaignSend {
     private Campaign campaign;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lead_id", nullable = false)
-    private Lead lead;
+    @JoinColumn(name = "lead_email_id", nullable = false)
+    private LeadEmail leadEmail;
 
     @Enumerated(EnumType.STRING)
     @Builder.Default

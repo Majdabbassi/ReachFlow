@@ -1,8 +1,9 @@
 package com.majd.n8n.service;
 
 import com.majd.n8n.entity.Client;
-import com.majd.n8n.entity.CampaignSend;
 import com.majd.n8n.entity.Lead;
+import com.majd.n8n.entity.CampaignSend;
+import com.majd.n8n.entity.LeadEmail;
 import com.majd.n8n.entity.enums.CampaignSendStatus;
 import com.majd.n8n.repository.CampaignSendRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,14 +42,14 @@ public class MailService {
         for (int i = 0; i < sends.size(); i++) {
             CampaignSend send = sends.get(i);
             try {
-                Lead lead = send.getLead();
-                String personalizedSubject = applyTemplate(subject, lead);
-                String personalizedBody = applyTemplate(body, lead);
+                LeadEmail leadEmail = send.getLeadEmail();
+                String personalizedSubject = applyTemplate(subject, leadEmail);
+                String personalizedBody = applyTemplate(body, leadEmail);
 
                 MimeMessage message = mailSender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(message, true);
                 helper.setFrom(client.getEmail());
-                helper.setTo(lead.getEmail());
+                helper.setTo(leadEmail.getEmail());
                 helper.setSubject(personalizedSubject);
                 helper.setText(personalizedBody, htmlBody);
                 addClientAttachment(helper, client);
@@ -56,7 +57,7 @@ public class MailService {
                 send.setStatus(CampaignSendStatus.SENT);
                 send.setSentAt(LocalDateTime.now());
             } catch (MessagingException | RuntimeException e) {
-                log.error("Failed to send email to {}: {}", send.getLead().getEmail(), e.getMessage());
+                log.error("Failed to send email to {}: {}", send.getLeadEmail().getEmail(), e.getMessage());
                 send.setStatus(CampaignSendStatus.FAILED);
             }
 
@@ -72,10 +73,11 @@ public class MailService {
         campaignSendRepository.saveAll(sends);
     }
 
-    private String applyTemplate(String template, Lead lead) {
+    private String applyTemplate(String template, LeadEmail leadEmail) {
         String safeTemplate = template == null ? "" : template;
+        Lead lead = leadEmail.getLead();
         String institution = lead.getInstitutionName() == null || lead.getInstitutionName().isBlank()
-                ? lead.getEmail()
+                ? leadEmail.getEmail()
                 : lead.getInstitutionName();
 
         return safeTemplate
@@ -83,7 +85,7 @@ public class MailService {
                 .replace("{institutionName}", institution)
                 .replace("{city}", valueOrEmpty(lead.getCity()))
                 .replace("{website}", valueOrEmpty(lead.getWebsite()))
-                .replace("{email}", valueOrEmpty(lead.getEmail()));
+                .replace("{email}", valueOrEmpty(leadEmail.getEmail()));
     }
 
     private String valueOrEmpty(String value) {

@@ -2,7 +2,9 @@ package com.majd.n8n.service;
 
 import com.majd.n8n.dto.LeadDTO;
 import com.majd.n8n.entity.Lead;
+import com.majd.n8n.entity.LeadEmail;
 import com.majd.n8n.mapper.LeadMapper;
+import com.majd.n8n.repository.LeadEmailRepository;
 import com.majd.n8n.repository.LeadRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -10,18 +12,22 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class LeadService {
 
     private final LeadRepository leadRepository;
+    private final LeadEmailRepository leadEmailRepository;
     private final LeadMapper leadMapper;
     private final CampaignService campaignService;
 
@@ -43,32 +49,34 @@ public class LeadService {
     @Transactional
     public LeadDTO createLead(LeadDTO leadDTO) {
         Lead lead = leadMapper.toEntity(leadDTO);
-        EmailMerge mergedEmails = mergeEmails(null, leadDTO);
-        lead.setEmail(mergedEmails.primaryEmail);
-        lead.setAllEmails(mergedEmails.allEmailsAsText);
+        List<String> normalizedEmails = normalizeIncomingEmails(leadDTO);
+        if (normalizedEmails.isEmpty()) {
+            throw new RuntimeException("At least one email is required");
+        }
+
+        lead.setEmail(normalizedEmails.get(0));
         Lead savedLead = leadRepository.save(lead);
+
+        mergeEmailsIntoLead(savedLead, normalizedEmails, false);
         campaignService.syncLeadAcrossAllCampaigns(savedLead);
-        return leadMapper.toDTO(savedLead);
+        Lead reloadedLead = leadRepository.findById(savedLead.getId())
+                .orElseThrow(() -> new RuntimeException("Lead not found with id: " + savedLead.getId()));
+        return leadMapper.toDTO(reloadedLead);
     }
 
     @Transactional
     public LeadDTO createOrSkipLead(LeadDTO leadDTO) {
         return findExistingLead(leadDTO)
                 .map(existing -> {
-                    EmailMerge mergedEmails = mergeEmails(existing, leadDTO);
-                    existing.setEmail(mergedEmails.primaryEmail);
-                    existing.setAllEmails(mergedEmails.allEmailsAsText);
-                    existing.setInstitutionName(leadDTO.getInstitutionName());
-                    existing.setCity(leadDTO.getCity());
-                    existing.setPhone(leadDTO.getPhone());
-                    existing.setAddress(leadDTO.getAddress());
-                    existing.setLatitude(leadDTO.getLatitude());
-                    existing.setLongitude(leadDTO.getLongitude());
-                    existing.setWebsite(leadDTO.getWebsite());
-                    existing.setSource(leadDTO.getSource());
+                    applyLeadFields(existing, leadDTO);
                     Lead savedLead = leadRepository.save(existing);
-                    campaignService.syncLeadAcrossAllCampaigns(savedLead);
-                    return leadMapper.toDTO(savedLead);
+
+                    List<LeadEmail> newLeadEmails = mergeEmailsIntoLead(savedLead, normalizeIncomingEmails(leadDTO), true);
+                    newLeadEmails.forEach(campaignService::syncLeadEmailAcrossAllCampaigns);
+
+                    Lead reloadedLead = leadRepository.findById(savedLead.getId())
+                            .orElseThrow(() -> new RuntimeException("Lead not found with id: " + savedLead.getId()));
+                    return leadMapper.toDTO(reloadedLead);
                 })
                 .orElseGet(() -> createLead(leadDTO));
     }
@@ -78,20 +86,15 @@ public class LeadService {
         Lead lead = leadRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Lead not found with id: " + id));
 
-        EmailMerge mergedEmails = mergeEmails(lead, leadDTO);
-        
-        lead.setEmail(mergedEmails.primaryEmail);
-        lead.setAllEmails(mergedEmails.allEmailsAsText);
-        lead.setInstitutionName(leadDTO.getInstitutionName());
-        lead.setCity(leadDTO.getCity());
-        lead.setPhone(leadDTO.getPhone());
-        lead.setAddress(leadDTO.getAddress());
-        lead.setLatitude(leadDTO.getLatitude());
-        lead.setLongitude(leadDTO.getLongitude());
-        lead.setWebsite(leadDTO.getWebsite());
-        lead.setSource(leadDTO.getSource());
+        applyLeadFields(lead, leadDTO);
+        Lead savedLead = leadRepository.save(lead);
 
-        return leadMapper.toDTO(leadRepository.save(lead));
+        List<LeadEmail> newLeadEmails = mergeEmailsIntoLead(savedLead, normalizeIncomingEmails(leadDTO), true);
+        newLeadEmails.forEach(campaignService::syncLeadEmailAcrossAllCampaigns);
+
+        Lead reloadedLead = leadRepository.findById(savedLead.getId())
+            .orElseThrow(() -> new RuntimeException("Lead not found with id: " + savedLead.getId()));
+        return leadMapper.toDTO(reloadedLead);
     }
 
     @Transactional(readOnly = true)
@@ -103,14 +106,13 @@ public class LeadService {
 
     @Transactional(readOnly = true)
     public String getAllEmailsAsTextFile() {
-        Set<String> emails = new TreeSet<>();
-        for (Lead lead : leadRepository.findAll()) {
-            addEmail(emails, lead.getEmail());
-            for (String email : splitEmails(lead.getAllEmails())) {
-                addEmail(emails, email);
-            }
-        }
-        return String.join(System.lineSeparator(), emails);
+        return leadEmailRepository.findAll().stream()
+                .map(LeadEmail::getEmail)
+                .filter(this::hasText)
+                .map(email -> email.trim().toLowerCase())
+                .collect(Collectors.toCollection(TreeSet::new))
+                .stream()
+                .collect(Collectors.joining(System.lineSeparator()));
     }
 
     private Optional<Lead> findExistingLead(LeadDTO leadDTO) {
@@ -131,42 +133,99 @@ public class LeadService {
             }
         }
 
-        if (hasText(leadDTO.getEmail())) {
-            return leadRepository.findByEmail(leadDTO.getEmail().trim().toLowerCase());
+        for (String email : normalizeIncomingEmails(leadDTO)) {
+            Optional<LeadEmail> byEmail = leadEmailRepository.findByEmail(email);
+            if (byEmail.isPresent()) {
+                return Optional.of(byEmail.get().getLead());
+            }
         }
 
         return Optional.empty();
     }
 
-    private EmailMerge mergeEmails(Lead existing, LeadDTO incoming) {
-        LinkedHashSet<String> all = new LinkedHashSet<>();
-
-        if (existing != null) {
-            addEmail(all, existing.getEmail());
-            splitEmails(existing.getAllEmails()).forEach(email -> addEmail(all, email));
+    private List<LeadEmail> mergeEmailsIntoLead(Lead lead, List<String> incomingEmails, boolean keepExistingPrimary) {
+        List<LeadEmail> existingEmails = leadEmailRepository.findByLeadId(lead.getId());
+        Map<String, LeadEmail> byEmail = new HashMap<>();
+        for (LeadEmail leadEmail : existingEmails) {
+            byEmail.put(leadEmail.getEmail().trim().toLowerCase(), leadEmail);
         }
 
-        addEmail(all, incoming.getEmail());
-        splitEmails(incoming.getAllEmails()).forEach(email -> addEmail(all, email));
+        List<LeadEmail> newLeadEmails = new java.util.ArrayList<>();
+        for (String incomingEmail : incomingEmails) {
+            String key = incomingEmail.trim().toLowerCase();
+            if (byEmail.containsKey(key)) {
+                continue;
+            }
+            LeadEmail leadEmail = leadEmailRepository.save(LeadEmail.builder()
+                    .lead(lead)
+                    .email(key)
+                    .isPrimary(false)
+                    .build());
+            byEmail.put(key, leadEmail);
+            newLeadEmails.add(leadEmail);
+            existingEmails.add(leadEmail);
+        }
 
-        String primary = all.stream().findFirst().orElseThrow(() -> new RuntimeException("At least one email is required"));
-        String allAsText = String.join(System.lineSeparator(), all);
-        return new EmailMerge(primary, allAsText);
+        Optional<LeadEmail> existingPrimary = existingEmails.stream().filter(LeadEmail::isPrimary).findFirst();
+        LeadEmail targetPrimary = null;
+
+        if (keepExistingPrimary && existingPrimary.isPresent()) {
+            targetPrimary = existingPrimary.get();
+        } else if (!incomingEmails.isEmpty()) {
+            targetPrimary = byEmail.get(incomingEmails.get(0));
+        } else if (existingPrimary.isPresent()) {
+            targetPrimary = existingPrimary.get();
+        } else if (!existingEmails.isEmpty()) {
+            targetPrimary = existingEmails.stream()
+                    .sorted(Comparator.comparing(LeadEmail::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        if (targetPrimary == null) {
+            throw new RuntimeException("At least one email is required");
+        }
+
+        for (LeadEmail leadEmail : existingEmails) {
+            boolean shouldBePrimary = leadEmail.getId().equals(targetPrimary.getId());
+            if (leadEmail.isPrimary() != shouldBePrimary) {
+                leadEmail.setPrimary(shouldBePrimary);
+                leadEmailRepository.save(leadEmail);
+            }
+        }
+
+        lead.setEmail(targetPrimary.getEmail());
+        leadRepository.save(lead);
+        return newLeadEmails;
     }
 
-    private List<String> splitEmails(String emailsText) {
-        if (!hasText(emailsText)) {
+    private List<String> normalizeIncomingEmails(LeadDTO incoming) {
+        LinkedHashSet<String> emails = new LinkedHashSet<>();
+        if (incoming == null) {
             return List.of();
         }
 
-        String[] parts = emailsText.split("[\\n,;]");
-        List<String> emails = new ArrayList<>();
-        for (String part : parts) {
-            if (hasText(part)) {
-                emails.add(part.trim().toLowerCase());
+        addEmail(emails, incoming.getPrimaryEmail());
+        addEmail(emails, incoming.getEmail());
+
+        if (incoming.getEmails() != null) {
+            for (String email : incoming.getEmails()) {
+                addEmail(emails, email);
             }
         }
-        return emails;
+
+        return List.copyOf(emails);
+    }
+
+    private void applyLeadFields(Lead lead, LeadDTO leadDTO) {
+        lead.setInstitutionName(leadDTO.getInstitutionName());
+        lead.setCity(leadDTO.getCity());
+        lead.setPhone(leadDTO.getPhone());
+        lead.setAddress(leadDTO.getAddress());
+        lead.setLatitude(leadDTO.getLatitude());
+        lead.setLongitude(leadDTO.getLongitude());
+        lead.setWebsite(leadDTO.getWebsite());
+        lead.setSource(leadDTO.getSource());
     }
 
     private void addEmail(Set<String> set, String email) {
@@ -177,8 +236,5 @@ public class LeadService {
 
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
-    }
-
-    private record EmailMerge(String primaryEmail, String allEmailsAsText) {
     }
 }

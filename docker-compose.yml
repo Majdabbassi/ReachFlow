@@ -74,6 +74,7 @@ services:
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_NAME=n8n
+      - DB_ARCHIVE_NAME=n8n_archive
       - DB_USER=root
       - DB_PASSWORD=root
     depends_on:

@@ -1,6 +1,7 @@
 package com.majd.n8n.controller;
 
 import com.majd.n8n.dto.ClientDTO;
+import com.majd.n8n.archive.service.ArchiveService;
 import com.majd.n8n.entity.Client;
 import com.majd.n8n.service.ClientService;
 import jakarta.validation.Valid;
@@ -20,6 +21,7 @@ import java.util.List;
 public class ClientController {
 
     private final ClientService clientService;
+    private final ArchiveService archiveService;
 
     @GetMapping
     public ResponseEntity<List<ClientDTO>> getAllClients() {
@@ -67,6 +69,12 @@ public class ClientController {
     @PutMapping("/{id}/document")
     public ResponseEntity<Void> updateClientDocument(@PathVariable Long id, @RequestParam("file") MultipartFile file) throws IOException {
         clientService.updateClientDocument(id, file);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/archive")
+    public ResponseEntity<Void> archiveClient(@PathVariable Long id) {
+        archiveService.archiveClient(id);
         return ResponseEntity.noContent().build();
     }
 }

@@ -1,4 +1,4 @@
-package com.majd.n8n.dto;
+package com.majd.n8n.archive.dto;
 
 import com.majd.n8n.entity.enums.CampaignSendStatus;
 import lombok.AllArgsConstructor;
@@ -12,14 +12,11 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CampaignSendDTO {
-    private Long id;
-    private Long campaignId;
-    private Long leadEmailId;
+public class ArchivedCampaignSendDTO {
     private String email;
-    private Long leadId;
     private String leadInstitutionName;
     private String leadCity;
     private CampaignSendStatus status;
     private LocalDateTime sentAt;
+    private Long archivedCampaignId;
 }

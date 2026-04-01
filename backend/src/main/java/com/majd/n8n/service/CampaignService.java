@@ -8,13 +8,14 @@ import com.majd.n8n.entity.Campaign;
 import com.majd.n8n.entity.CampaignSend;
 import com.majd.n8n.entity.Client;
 import com.majd.n8n.entity.Lead;
+import com.majd.n8n.entity.LeadEmail;
 import com.majd.n8n.entity.enums.CampaignSendStatus;
 import com.majd.n8n.entity.enums.CampaignStatus;
 import com.majd.n8n.mapper.CampaignMapper;
 import com.majd.n8n.repository.CampaignRepository;
 import com.majd.n8n.repository.CampaignSendRepository;
 import com.majd.n8n.repository.ClientRepository;
-import com.majd.n8n.repository.LeadRepository;
+import com.majd.n8n.repository.LeadEmailRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -39,11 +40,11 @@ public class CampaignService {
     private final CampaignRepository campaignRepository;
     private final CampaignSendRepository campaignSendRepository;
     private final ClientRepository clientRepository;
-    private final LeadRepository leadRepository;
+    private final LeadEmailRepository leadEmailRepository;
     private final CampaignMapper campaignMapper;
     private final MailService mailService;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<CampaignDTO> getAllCampaigns() {
         ensureCampaignForEachClient();
         reconcileCampaignStatuses();
@@ -75,25 +76,25 @@ public class CampaignService {
     public void generateCampaignSends(Long id) {
         Campaign campaign = campaignRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Campaign not found with id: " + id));
-        Set<Long> campaignLeadIds = campaignSendRepository.findLeadIdsByCampaignId(id);
+        Set<Long> campaignLeadEmailIds = campaignSendRepository.findLeadEmailIdsByCampaignId(id);
         int pageSize = 500;
         int pageNumber = 0;
-        Page<Lead> leadPage;
+        Page<LeadEmail> leadEmailPage;
         do {
-            leadPage = leadRepository.findAll(PageRequest.of(pageNumber, pageSize));
-            List<CampaignSend> newSends = leadPage.getContent().stream()
-                .filter(lead -> !campaignLeadIds.contains(lead.getId()))
-                    .map(lead -> CampaignSend.builder()
+            leadEmailPage = leadEmailRepository.findAll(PageRequest.of(pageNumber, pageSize));
+            List<CampaignSend> newSends = leadEmailPage.getContent().stream()
+                    .filter(leadEmail -> !campaignLeadEmailIds.contains(leadEmail.getId()))
+                    .map(leadEmail -> CampaignSend.builder()
                             .campaign(campaign)
-                            .lead(lead)
+                            .leadEmail(leadEmail)
                             .status(CampaignSendStatus.PENDING)
                             .build())
                     .collect(Collectors.toList());
             campaignSendRepository.saveAll(newSends);
-            newSends.forEach(send -> campaignLeadIds.add(send.getLead().getId()));
+            newSends.forEach(send -> campaignLeadEmailIds.add(send.getLeadEmail().getId()));
             log.info("Generated {} campaign sends for campaign {} (Page {})", newSends.size(), id, pageNumber);
             pageNumber++;
-        } while (leadPage.hasNext());
+        } while (leadEmailPage.hasNext());
     }
 
     @Async
@@ -175,10 +176,11 @@ public class CampaignService {
         return sendPage.map(send -> CampaignSendDTO.builder()
                 .id(send.getId())
                 .campaignId(send.getCampaign().getId())
-                .leadId(send.getLead().getId())
-                .leadEmail(send.getLead().getEmail())
-                .leadInstitutionName(send.getLead().getInstitutionName())
-                .leadCity(send.getLead().getCity())
+            .leadEmailId(send.getLeadEmail().getId())
+            .email(send.getLeadEmail().getEmail())
+            .leadId(send.getLeadEmail().getLead().getId())
+            .leadInstitutionName(send.getLeadEmail().getLead().getInstitutionName())
+            .leadCity(send.getLeadEmail().getLead().getCity())
                 .status(send.getStatus())
                 .sentAt(send.getSentAt())
                 .build());
@@ -208,28 +210,28 @@ public class CampaignService {
         Campaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new RuntimeException("Campaign not found with id: " + campaignId));
 
-        Set<Long> existingLeadIds = campaignSendRepository.findLeadIdsByCampaignId(campaignId);
+        Set<Long> existingLeadEmailIds = campaignSendRepository.findLeadEmailIdsByCampaignId(campaignId);
         int pageSize = 500;
         int pageNumber = 0;
-        Page<Lead> leadPage;
+        Page<LeadEmail> leadEmailPage;
 
         do {
-            leadPage = leadRepository.findAll(PageRequest.of(pageNumber, pageSize));
-            List<CampaignSend> newSends = leadPage.getContent().stream()
-                    .filter(lead -> !existingLeadIds.contains(lead.getId()))
-                    .map(lead -> CampaignSend.builder()
+            leadEmailPage = leadEmailRepository.findAll(PageRequest.of(pageNumber, pageSize));
+            List<CampaignSend> newSends = leadEmailPage.getContent().stream()
+                .filter(leadEmail -> !existingLeadEmailIds.contains(leadEmail.getId()))
+                .map(leadEmail -> CampaignSend.builder()
                             .campaign(campaign)
-                            .lead(lead)
+                    .leadEmail(leadEmail)
                             .status(CampaignSendStatus.PENDING)
                             .build())
                     .collect(Collectors.toList());
 
             if (!newSends.isEmpty()) {
                 campaignSendRepository.saveAll(newSends);
-                newSends.forEach(send -> existingLeadIds.add(send.getLead().getId()));
+            newSends.forEach(send -> existingLeadEmailIds.add(send.getLeadEmail().getId()));
             }
             pageNumber++;
-        } while (leadPage.hasNext());
+        } while (leadEmailPage.hasNext());
     }
 
     @Transactional
@@ -253,27 +255,40 @@ public class CampaignService {
             return;
         }
 
+        List<LeadEmail> leadEmails = leadEmailRepository.findByLeadId(lead.getId());
+        for (LeadEmail leadEmail : leadEmails) {
+            syncLeadEmailAcrossAllCampaigns(leadEmail);
+        }
+    }
+
+    @Transactional
+    public void syncLeadEmailAcrossAllCampaigns(LeadEmail leadEmail) {
+        if (leadEmail == null || leadEmail.getId() == null) {
+            return;
+        }
+
         ensureCampaignForEachClient();
 
-        Set<Long> linkedCampaignIds = campaignSendRepository.findCampaignIdsByLeadId(lead.getId());
+        Set<Long> linkedCampaignIds = campaignSendRepository.findCampaignIdsByLeadEmailId(leadEmail.getId());
         List<CampaignSend> missingSends = campaignRepository.findAll().stream()
                 .filter(campaign -> !linkedCampaignIds.contains(campaign.getId()))
                 .map(campaign -> CampaignSend.builder()
                         .campaign(campaign)
-                        .lead(lead)
+                        .leadEmail(leadEmail)
                         .status(CampaignSendStatus.PENDING)
                         .build())
                 .collect(Collectors.toList());
 
-        if (!missingSends.isEmpty()) {
-            campaignSendRepository.saveAll(missingSends);
+        if (missingSends.isEmpty()) {
+            return;
+        }
 
-            for (CampaignSend send : missingSends) {
-                Campaign campaign = send.getCampaign();
-                if (campaign.getStatus() != CampaignStatus.RUNNING) {
-                    campaign.setStatus(CampaignStatus.DRAFT);
-                    campaignRepository.save(campaign);
-                }
+        campaignSendRepository.saveAll(missingSends);
+        for (CampaignSend send : missingSends) {
+            Campaign campaign = send.getCampaign();
+            if (campaign.getStatus() != CampaignStatus.RUNNING) {
+                campaign.setStatus(CampaignStatus.DRAFT);
+                campaignRepository.save(campaign);
             }
         }
     }
