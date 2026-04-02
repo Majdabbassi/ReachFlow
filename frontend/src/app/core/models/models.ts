@@ -4,8 +4,49 @@ export interface Client {
   email: string;
   appPassword?: string;
   phone?: string;
-  documentName?: string;
+  categories?: ClientCategoryDTO[];
   createdAt?: string;
+}
+
+export interface Category {
+  id?: number;
+  name: string;
+  color?: string;
+  active?: boolean;
+  keywordCount?: number;
+  createdAt?: string;
+}
+
+export interface Keyword {
+  id?: number;
+  nameEn: string;
+  nameDe: string;
+  categoryId?: number;
+  categoryName?: string;
+  active?: boolean;
+}
+
+export interface CategoryWithKeywords {
+  id?: number;
+  name: string;
+  color?: string;
+  active?: boolean;
+  keywords: Keyword[];
+}
+
+export interface ClientCategoryDTO {
+  categoryId: number;
+  categoryName: string;
+  color?: string;
+  hasDocument: boolean;
+}
+
+export interface ClientCategoryDocument {
+  id?: number;
+  clientId: number;
+  categoryId: number;
+  documentName?: string;
+  documentContentType?: string;
 }
 
 export interface Lead {
@@ -21,6 +62,8 @@ export interface Lead {
   longitude?: number;
   website?: string;
   source?: string;
+  categoryIds?: number[];
+  categoryNames?: string[];
   status?: 'NEW' | 'CONTACTED' | 'INTERESTED' | 'INVALID';
   createdAt?: string;
 }
@@ -111,4 +154,9 @@ export interface CampaignLog {
   level: 'info' | 'success' | 'warning' | 'error';
   message: string;
   details?: string;
+}
+
+export interface GmailScanResult {
+  scannedCount: number;
+  markedAsSentCount: number;
 }

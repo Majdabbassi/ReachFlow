@@ -267,6 +267,19 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
     return this.escapeHtml(body).replace(/\n/g, '<br>');
   }
 
+  getClientDocumentSummary(): string {
+    if (!this.client?.categories?.length) {
+      return 'No categories assigned';
+    }
+
+    const uploadedCategories = this.client.categories.filter((category) => category.hasDocument);
+    if (!uploadedCategories.length) {
+      return 'No category documents uploaded';
+    }
+
+    return uploadedCategories.map((category) => category.categoryName).join(', ');
+  }
+
   private escapeHtml(text: string): string {
     return text
       .replace(/&/g, '&amp;')

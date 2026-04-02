@@ -32,14 +32,6 @@ public class Client {
 
     private String phone;
 
-    @Lob
-    @Column(columnDefinition = "LONGBLOB")
-    private byte[] document;
-
-    private String documentName;
-
-    private String documentContentType;
-
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -47,4 +39,12 @@ public class Client {
     @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Campaign> campaigns = new ArrayList<>();
+
+    @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ClientCategory> clientCategories = new ArrayList<>();
+
+    @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ClientCategoryDocument> clientCategoryDocuments = new ArrayList<>();
 }

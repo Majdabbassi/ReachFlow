@@ -47,4 +47,8 @@ public class Lead {
     @OneToMany(mappedBy = "lead", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<LeadEmail> leadEmails = new ArrayList<>();
+
+    @OneToMany(mappedBy = "lead", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<LeadCategory> leadCategories = new ArrayList<>();
 }

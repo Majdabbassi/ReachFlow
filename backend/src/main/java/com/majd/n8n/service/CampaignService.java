@@ -14,12 +14,13 @@ import com.majd.n8n.entity.enums.CampaignStatus;
 import com.majd.n8n.mapper.CampaignMapper;
 import com.majd.n8n.repository.CampaignRepository;
 import com.majd.n8n.repository.CampaignSendRepository;
+import com.majd.n8n.repository.ClientCategoryRepository;
 import com.majd.n8n.repository.ClientRepository;
+import com.majd.n8n.repository.LeadCategoryRepository;
 import com.majd.n8n.repository.LeadEmailRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.List;
 import java.util.Set;
@@ -41,6 +44,9 @@ public class CampaignService {
     private final CampaignSendRepository campaignSendRepository;
     private final ClientRepository clientRepository;
     private final LeadEmailRepository leadEmailRepository;
+    private final ClientCategoryRepository clientCategoryRepository;
+    private final LeadCategoryRepository leadCategoryRepository;
+    private final ClientService clientService;
     private final CampaignMapper campaignMapper;
     private final MailService mailService;
 
@@ -77,24 +83,16 @@ public class CampaignService {
         Campaign campaign = campaignRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Campaign not found with id: " + id));
         Set<Long> campaignLeadEmailIds = campaignSendRepository.findLeadEmailIdsByCampaignId(id);
-        int pageSize = 500;
-        int pageNumber = 0;
-        Page<LeadEmail> leadEmailPage;
-        do {
-            leadEmailPage = leadEmailRepository.findAll(PageRequest.of(pageNumber, pageSize));
-            List<CampaignSend> newSends = leadEmailPage.getContent().stream()
-                    .filter(leadEmail -> !campaignLeadEmailIds.contains(leadEmail.getId()))
-                    .map(leadEmail -> CampaignSend.builder()
-                            .campaign(campaign)
-                            .leadEmail(leadEmail)
-                            .status(CampaignSendStatus.PENDING)
-                            .build())
-                    .collect(Collectors.toList());
-            campaignSendRepository.saveAll(newSends);
-            newSends.forEach(send -> campaignLeadEmailIds.add(send.getLeadEmail().getId()));
-            log.info("Generated {} campaign sends for campaign {} (Page {})", newSends.size(), id, pageNumber);
-            pageNumber++;
-        } while (leadEmailPage.hasNext());
+        List<LeadEmail> eligibleLeadEmails = findEligibleLeadEmails(campaign);
+        List<CampaignSend> newSends = eligibleLeadEmails.stream()
+            .filter(leadEmail -> !campaignLeadEmailIds.contains(leadEmail.getId()))
+            .map(leadEmail -> CampaignSend.builder()
+                .campaign(campaign)
+                .leadEmail(leadEmail)
+                .status(CampaignSendStatus.PENDING)
+                .build())
+            .collect(Collectors.toList());
+        campaignSendRepository.saveAll(newSends);
     }
 
     @Async
@@ -103,6 +101,7 @@ public class CampaignService {
         syncCampaignSendsWithAllLeads(id);
         Campaign campaign = campaignRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Campaign not found with id: " + id));
+        clientService.validateClientReadyToSend(campaign.getClient().getId());
         if (campaign.getStatus() == CampaignStatus.RUNNING) {
             throw new RuntimeException("Campaign is already running");
         }
@@ -211,27 +210,19 @@ public class CampaignService {
                 .orElseThrow(() -> new RuntimeException("Campaign not found with id: " + campaignId));
 
         Set<Long> existingLeadEmailIds = campaignSendRepository.findLeadEmailIdsByCampaignId(campaignId);
-        int pageSize = 500;
-        int pageNumber = 0;
-        Page<LeadEmail> leadEmailPage;
+        List<LeadEmail> eligibleLeadEmails = findEligibleLeadEmails(campaign);
+        List<CampaignSend> newSends = eligibleLeadEmails.stream()
+            .filter(leadEmail -> !existingLeadEmailIds.contains(leadEmail.getId()))
+            .map(leadEmail -> CampaignSend.builder()
+                .campaign(campaign)
+                .leadEmail(leadEmail)
+                .status(CampaignSendStatus.PENDING)
+                .build())
+            .collect(Collectors.toList());
 
-        do {
-            leadEmailPage = leadEmailRepository.findAll(PageRequest.of(pageNumber, pageSize));
-            List<CampaignSend> newSends = leadEmailPage.getContent().stream()
-                .filter(leadEmail -> !existingLeadEmailIds.contains(leadEmail.getId()))
-                .map(leadEmail -> CampaignSend.builder()
-                            .campaign(campaign)
-                    .leadEmail(leadEmail)
-                            .status(CampaignSendStatus.PENDING)
-                            .build())
-                    .collect(Collectors.toList());
-
-            if (!newSends.isEmpty()) {
-                campaignSendRepository.saveAll(newSends);
-            newSends.forEach(send -> existingLeadEmailIds.add(send.getLeadEmail().getId()));
-            }
-            pageNumber++;
-        } while (leadEmailPage.hasNext());
+        if (!newSends.isEmpty()) {
+            campaignSendRepository.saveAll(newSends);
+        }
     }
 
     @Transactional
@@ -270,8 +261,10 @@ public class CampaignService {
         ensureCampaignForEachClient();
 
         Set<Long> linkedCampaignIds = campaignSendRepository.findCampaignIdsByLeadEmailId(leadEmail.getId());
+        List<Long> leadCategoryIds = getActiveLeadCategoryIds(leadEmail.getLead().getId());
         List<CampaignSend> missingSends = campaignRepository.findAll().stream()
-                .filter(campaign -> !linkedCampaignIds.contains(campaign.getId()))
+            .filter(campaign -> sharesCategory(leadCategoryIds, clientCategoryRepository.findCategoryIdsByClientId(campaign.getClient().getId())))
+            .filter(campaign -> !linkedCampaignIds.contains(campaign.getId()))
                 .map(campaign -> CampaignSend.builder()
                         .campaign(campaign)
                         .leadEmail(leadEmail)
@@ -314,5 +307,35 @@ public class CampaignService {
                 campaignRepository.save(campaign);
             }
         }
+    }
+
+    private List<LeadEmail> findEligibleLeadEmails(Campaign campaign) {
+        List<Long> clientCategoryIds = clientCategoryRepository.findCategoryIdsByClientId(campaign.getClient().getId());
+        if (clientCategoryIds.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> eligibleLeadIds = leadCategoryRepository.findLeadIdsByCategoryIdIn(clientCategoryIds);
+        if (eligibleLeadIds.isEmpty()) {
+            return List.of();
+        }
+
+        return leadEmailRepository.findByLeadIdIn(new ArrayList<>(eligibleLeadIds));
+    }
+
+    private List<Long> getActiveLeadCategoryIds(Long leadId) {
+        return leadCategoryRepository.findByLeadId(leadId).stream()
+                .filter(leadCategory -> leadCategory.getCategory() != null && leadCategory.getCategory().isActive())
+                .map(leadCategory -> leadCategory.getCategory().getId())
+                .collect(Collectors.toList());
+    }
+
+    private boolean sharesCategory(List<Long> left, List<Long> right) {
+        if (left.isEmpty() || right.isEmpty()) {
+            return false;
+        }
+
+        Set<Long> rightSet = new HashSet<>(right);
+        return left.stream().anyMatch(rightSet::contains);
     }
 }

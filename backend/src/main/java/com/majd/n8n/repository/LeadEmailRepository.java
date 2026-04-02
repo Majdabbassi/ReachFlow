@@ -10,6 +10,9 @@ import java.util.Optional;
 @Repository
 public interface LeadEmailRepository extends JpaRepository<LeadEmail, Long> {
     List<LeadEmail> findByLeadId(Long leadId);
+
+    List<LeadEmail> findByLeadIdIn(List<Long> leadIds);
+
     Optional<LeadEmail> findByLeadIdAndIsPrimaryTrue(Long leadId);
     boolean existsByLeadIdAndEmail(Long leadId, String email);
     Optional<LeadEmail> findByEmail(String email);

@@ -10,7 +10,7 @@ public interface ClientMapper {
     ClientDTO toDTO(Client client);
 
     @Mapping(target = "campaigns", ignore = true)
-    @Mapping(target = "document", ignore = true)
-    @Mapping(target = "documentContentType", ignore = true)
+    @Mapping(target = "clientCategories", ignore = true)
+    @Mapping(target = "clientCategoryDocuments", ignore = true)
     Client toEntity(ClientDTO clientDTO);
 }

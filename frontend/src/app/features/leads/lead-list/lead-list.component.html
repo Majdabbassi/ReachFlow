@@ -109,7 +109,8 @@
             
             <div class="keyword-grid">
               <mat-checkbox *ngFor="let keyword of domain.keywords; trackBy: trackByKeyword" [(ngModel)]="keyword.selected" color="primary">
-                {{ keyword.label }}
+                <span class="keyword-label">{{ keyword.nameEn }}</span>
+                <span class="keyword-query">{{ keyword.nameDe }}</span>
               </mat-checkbox>
             </div>
           </mat-expansion-panel>

@@ -2,8 +2,11 @@ package com.majd.n8n.service;
 
 import com.majd.n8n.dto.LeadDTO;
 import com.majd.n8n.entity.Lead;
+import com.majd.n8n.entity.LeadCategory;
 import com.majd.n8n.entity.LeadEmail;
 import com.majd.n8n.mapper.LeadMapper;
+import com.majd.n8n.repository.CategoryRepository;
+import com.majd.n8n.repository.LeadCategoryRepository;
 import com.majd.n8n.repository.LeadEmailRepository;
 import com.majd.n8n.repository.LeadRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -28,6 +32,8 @@ public class LeadService {
 
     private final LeadRepository leadRepository;
     private final LeadEmailRepository leadEmailRepository;
+    private final LeadCategoryRepository leadCategoryRepository;
+    private final CategoryRepository categoryRepository;
     private final LeadMapper leadMapper;
     private final CampaignService campaignService;
 
@@ -43,7 +49,7 @@ public class LeadService {
         } else {
             leads = leadRepository.findAll(pageable);
         }
-        return leads.map(leadMapper::toDTO);
+        return leads.map(this::toLeadDTO);
     }
 
     @Transactional
@@ -57,11 +63,13 @@ public class LeadService {
         lead.setEmail(normalizedEmails.get(0));
         Lead savedLead = leadRepository.save(lead);
 
+        linkLeadCategories(savedLead, leadDTO.getCategoryIds());
         mergeEmailsIntoLead(savedLead, normalizedEmails, false);
         campaignService.syncLeadAcrossAllCampaigns(savedLead);
+
         Lead reloadedLead = leadRepository.findById(savedLead.getId())
                 .orElseThrow(() -> new RuntimeException("Lead not found with id: " + savedLead.getId()));
-        return leadMapper.toDTO(reloadedLead);
+        return toLeadDTO(reloadedLead);
     }
 
     @Transactional
@@ -71,12 +79,14 @@ public class LeadService {
                     applyLeadFields(existing, leadDTO);
                     Lead savedLead = leadRepository.save(existing);
 
+                    linkLeadCategories(savedLead, leadDTO.getCategoryIds());
                     List<LeadEmail> newLeadEmails = mergeEmailsIntoLead(savedLead, normalizeIncomingEmails(leadDTO), true);
+                    campaignService.syncLeadAcrossAllCampaigns(savedLead);
                     newLeadEmails.forEach(campaignService::syncLeadEmailAcrossAllCampaigns);
 
                     Lead reloadedLead = leadRepository.findById(savedLead.getId())
                             .orElseThrow(() -> new RuntimeException("Lead not found with id: " + savedLead.getId()));
-                    return leadMapper.toDTO(reloadedLead);
+                    return toLeadDTO(reloadedLead);
                 })
                 .orElseGet(() -> createLead(leadDTO));
     }
@@ -89,19 +99,21 @@ public class LeadService {
         applyLeadFields(lead, leadDTO);
         Lead savedLead = leadRepository.save(lead);
 
+        linkLeadCategories(savedLead, leadDTO.getCategoryIds());
         List<LeadEmail> newLeadEmails = mergeEmailsIntoLead(savedLead, normalizeIncomingEmails(leadDTO), true);
+        campaignService.syncLeadAcrossAllCampaigns(savedLead);
         newLeadEmails.forEach(campaignService::syncLeadEmailAcrossAllCampaigns);
 
         Lead reloadedLead = leadRepository.findById(savedLead.getId())
-            .orElseThrow(() -> new RuntimeException("Lead not found with id: " + savedLead.getId()));
-        return leadMapper.toDTO(reloadedLead);
+                .orElseThrow(() -> new RuntimeException("Lead not found with id: " + savedLead.getId()));
+        return toLeadDTO(reloadedLead);
     }
 
     @Transactional(readOnly = true)
     public LeadDTO getLeadById(Long id) {
         Lead lead = leadRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Lead not found with id: " + id));
-        return leadMapper.toDTO(lead);
+        return toLeadDTO(lead);
     }
 
     @Transactional(readOnly = true)
@@ -150,7 +162,7 @@ public class LeadService {
             byEmail.put(leadEmail.getEmail().trim().toLowerCase(), leadEmail);
         }
 
-        List<LeadEmail> newLeadEmails = new java.util.ArrayList<>();
+        List<LeadEmail> newLeadEmails = new ArrayList<>();
         for (String incomingEmail : incomingEmails) {
             String key = incomingEmail.trim().toLowerCase();
             if (byEmail.containsKey(key)) {
@@ -226,6 +238,49 @@ public class LeadService {
         lead.setLongitude(leadDTO.getLongitude());
         lead.setWebsite(leadDTO.getWebsite());
         lead.setSource(leadDTO.getSource());
+    }
+
+    private void linkLeadCategories(Lead lead, List<Long> categoryIds) {
+        if (lead == null || lead.getId() == null || categoryIds == null) {
+            return;
+        }
+
+        Set<Long> uniqueCategoryIds = new LinkedHashSet<>(categoryIds);
+        for (Long categoryId : uniqueCategoryIds) {
+            if (categoryId == null || leadCategoryRepository.existsByLeadIdAndCategoryId(lead.getId(), categoryId)) {
+                continue;
+            }
+
+            categoryRepository.findByIdAndActiveTrue(categoryId).ifPresent(category ->
+                    leadCategoryRepository.save(LeadCategory.builder()
+                            .lead(lead)
+                            .category(category)
+                            .build())
+            );
+        }
+    }
+
+    private LeadDTO toLeadDTO(Lead lead) {
+        LeadDTO dto = leadMapper.toDTO(lead);
+        if (lead == null || lead.getId() == null) {
+            dto.setCategoryIds(List.of());
+            dto.setCategoryNames(List.of());
+            return dto;
+        }
+
+        List<LeadCategory> leadCategories = leadCategoryRepository.findByLeadId(lead.getId());
+        List<Long> categoryIds = leadCategories.stream()
+                .filter(leadCategory -> leadCategory.getCategory() != null && leadCategory.getCategory().isActive())
+                .map(leadCategory -> leadCategory.getCategory().getId())
+                .collect(Collectors.toList());
+        List<String> categoryNames = leadCategories.stream()
+                .filter(leadCategory -> leadCategory.getCategory() != null && leadCategory.getCategory().isActive())
+                .map(leadCategory -> leadCategory.getCategory().getName())
+                .collect(Collectors.toList());
+
+        dto.setCategoryIds(categoryIds);
+        dto.setCategoryNames(categoryNames);
+        return dto;
     }
 
     private void addEmail(Set<String> set, String email) {

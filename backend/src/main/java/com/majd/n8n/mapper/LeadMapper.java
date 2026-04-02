@@ -17,6 +17,7 @@ public interface LeadMapper {
     LeadDTO toDTO(Lead lead);
 
     @Mapping(target = "leadEmails", ignore = true)
+    @Mapping(target = "leadCategories", ignore = true)
     @Mapping(target = "email", ignore = true)
     Lead toEntity(LeadDTO leadDTO);
 

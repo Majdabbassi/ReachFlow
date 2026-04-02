@@ -4,6 +4,7 @@ import com.majd.n8n.entity.CampaignSend;
 import com.majd.n8n.entity.enums.CampaignSendStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -36,7 +37,11 @@ public interface CampaignSendRepository extends JpaRepository<CampaignSend, Long
 
     List<CampaignSend> findByCampaignIdIn(List<Long> campaignIds);
 
-    void deleteByCampaignIdIn(List<Long> campaignIds);
+    List<CampaignSend> findByLeadEmailId(Long leadEmailId);
+
+    @Modifying
+    @Query("DELETE FROM CampaignSend cs WHERE cs.campaign.id IN :campaignIds")
+    int bulkDeleteByCampaignIdIn(@Param("campaignIds") List<Long> campaignIds);
 
     @Query("SELECT COUNT(cs) FROM CampaignSend cs WHERE cs.campaign.id = :campaignId")
     long countByCampaignId(@Param("campaignId") Long campaignId);

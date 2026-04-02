@@ -33,6 +33,11 @@ export const routes: Routes = [
         data: { animation: 'CampaignDetails' }
       },
       {
+        path: 'categories',
+        loadComponent: () => import('./features/categories/categories.component').then((m) => m.CategoriesComponent),
+        data: { animation: 'Categories' }
+      },
+      {
         path: 'archive',
         loadComponent: () => import('./features/archive/archive.component').then((m) => m.ArchiveComponent),
         data: { animation: 'Archive' }

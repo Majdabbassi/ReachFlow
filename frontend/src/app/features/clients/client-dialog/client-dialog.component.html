@@ -64,6 +64,39 @@
           <mat-icon matPrefix>phone</mat-icon>
         </mat-form-field>
       </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Categories</mat-label>
+          <mat-select formControlName="categoryIds" multiple>
+            <mat-option *ngFor="let category of categoryOptions" [value]="category.id">
+              <span class="category-option">
+                <span class="color-dot" [style.background]="category.color || '#64748b'"></span>
+                {{ category.name }}
+              </span>
+            </mat-option>
+          </mat-select>
+          <mat-hint>Select the categories this client can send documents for</mat-hint>
+          <mat-error *ngIf="clientForm.get('categoryIds')?.hasError('required')">At least one category is required</mat-error>
+          <mat-error *ngIf="clientForm.get('categoryIds')?.hasError('missingDocuments')">Upload a document for every selected category</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="category-document-list" *ngIf="selectedCategories.length">
+        <div class="category-document-row" *ngFor="let category of selectedCategories">
+          <div class="category-document-label">
+            <span class="color-dot" [style.background]="category.color || '#64748b'"></span>
+            <div>
+              <strong>{{ category.name }}</strong>
+              <p>{{ hasDocumentFor(category.id!) ? 'Document ready' : 'Missing document' }}</p>
+            </div>
+          </div>
+          <label class="file-upload">
+            <input type="file" (change)="onFileChange(category.id!, $event)">
+            <span>{{ uploadedFiles.get(category.id!)?.name || 'Choose file' }}</span>
+          </label>
+        </div>
+      </div>
     </div>
   </mat-dialog-content>
 

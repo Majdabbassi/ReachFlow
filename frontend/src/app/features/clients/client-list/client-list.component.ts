@@ -9,13 +9,14 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatChipsModule } from '@angular/material/chips';
 import { FormsModule } from '@angular/forms';
 import { ClientService } from '../../../core/services/client.service';
 import { ArchiveService } from '../../../core/services/archive.service';
 import { Client } from '../../../core/models/models';
 import { ClientDialogComponent } from '../client-dialog/client-dialog.component';
 import { ToastrService } from 'ngx-toastr';
-import { Observable, of, BehaviorSubject } from 'rxjs';
+import { Observable, of, BehaviorSubject, forkJoin } from 'rxjs';
 import { catchError, finalize, map, switchMap } from 'rxjs/operators';
 
 @Component({
@@ -29,6 +30,7 @@ import { catchError, finalize, map, switchMap } from 'rxjs/operators';
     MatIconModule, 
     MatDialogModule, 
     MatCardModule, 
+    MatChipsModule,
     MatTooltipModule,
     MatFormFieldModule,
     MatInputModule,
@@ -46,7 +48,7 @@ export class ClientListComponent implements OnInit {
   private clientsSubject = new BehaviorSubject<Client[]>([]);
   clients$ = this.clientsSubject.asObservable();
   
-  displayedColumns: string[] = ['name', 'email', 'phone', 'actions'];
+  displayedColumns: string[] = ['name', 'email', 'categories', 'phone', 'actions'];
   selectedClientId?: number;
   isLoading = false;
   loadError: string | null = null;
@@ -99,11 +101,23 @@ export class ClientListComponent implements OnInit {
           return of(null);
         }
 
-        if (client?.id) {
-          return this.clientService.updateClient(client.id, result);
-        }
+        const saveRequest = client?.id
+          ? this.clientService.updateClient(client.id, result.client)
+          : this.clientService.createClient(result.client);
 
-        return this.clientService.createClient(result);
+        return saveRequest.pipe(
+          switchMap((savedClient) => {
+            const uploads = (result.categoryDocuments || []).map((document: { categoryId: number; file: File }) =>
+              this.clientService.uploadCategoryDocument(savedClient.id!, document.categoryId, document.file)
+            );
+
+            if (!uploads.length) {
+              return of(savedClient);
+            }
+
+            return forkJoin(uploads).pipe(map(() => savedClient));
+          })
+        );
       })
     ).subscribe((saved) => {
       if (saved) {
@@ -113,37 +127,17 @@ export class ClientListComponent implements OnInit {
     });
   }
 
-  uploadDocument(client: Client) {
-    this.selectedClientId = client.id;
-    document.querySelector<HTMLInputElement>('input[type="file"]')?.click();
-  }
-
-  onFileSelected(event: any) {
-    const file: File = event.target.files[0];
-    if (file && this.selectedClientId) {
-      this.clientService.uploadDocument(this.selectedClientId, file).subscribe(() => {
-        this.toastr.success('Document uploaded successfully');
-      });
-    }
-  }
-
-  downloadDocument(client: Client) {
+  scanSentEmails(client: Client) {
     if (!client.id) {
       return;
     }
 
-    this.clientService.downloadDocument(client.id).subscribe({
-      next: (blob) => {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = client.documentName || `client-${client.id}-document`;
-        link.click();
-        URL.revokeObjectURL(url);
-        this.toastr.success('Document downloaded successfully');
+    this.clientService.scanSentEmails(client.id).subscribe({
+      next: (result) => {
+        this.toastr.success(`Scanned ${result.scannedCount} addresses, marked ${result.markedAsSentCount} as sent`);
       },
       error: () => {
-        this.toastr.error('No document found for this client');
+        this.toastr.error('Failed to scan sent emails');
       }
     });
   }

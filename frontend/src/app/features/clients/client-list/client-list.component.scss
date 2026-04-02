@@ -132,6 +132,28 @@
     mat-icon { font-size: 18px; width: 18px; height: 18px; color: #64748b; }
   }
 
+  .category-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    mat-chip {
+      background: rgba(255, 255, 255, 0.04);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+  }
+
   .phone-badge {
     background: rgba(255, 255, 255, 0.05);
     padding: 6px 14px;

@@ -18,7 +18,7 @@ export class LeadService {
     return this.http.get<PageResponse<Lead>>(this.apiUrl, { params });
   }
 
-  collectFromWebhook(webhookUrl: string, payload: { cities: string[]; keywords: string[]; maxResults: number }): Observable<HttpResponse<string>> {
+  collectFromWebhook(webhookUrl: string, payload: { cities: string[]; keywords: Array<{ name: string; categoryId: number }>; maxResults: number }): Observable<HttpResponse<string>> {
     return this.http.post(webhookUrl, payload, {
       observe: 'response',
       responseType: 'text'

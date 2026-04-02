@@ -32,5 +32,7 @@ public class LeadDTO {
     private Double longitude;
     private String website;
     private String source;
+    private List<Long> categoryIds;
+    private List<String> categoryNames;
     private LocalDateTime createdAt;
 }

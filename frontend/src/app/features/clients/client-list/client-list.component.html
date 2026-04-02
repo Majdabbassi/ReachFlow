@@ -78,6 +78,23 @@
         </mat-cell>
       </ng-container>
 
+      <ng-container matColumnDef="categories">
+        <mat-header-cell *matHeaderCellDef>Categories</mat-header-cell>
+        <mat-cell *matCellDef="let client">
+          <div class="category-cell" *ngIf="client.categories?.length; else noCategories">
+            <mat-chip-set>
+              <mat-chip *ngFor="let category of client.categories" [style.borderColor]="category.color || '#64748b'">
+                <span class="chip-dot" [style.background]="category.color || '#64748b'"></span>
+                {{ category.categoryName }}
+              </mat-chip>
+            </mat-chip-set>
+          </div>
+          <ng-template #noCategories>
+            <span class="phone-badge">None</span>
+          </ng-template>
+        </mat-cell>
+      </ng-container>
+
       <ng-container matColumnDef="phone">
         <mat-header-cell *matHeaderCellDef>Contact Phone</mat-header-cell>
         <mat-cell *matCellDef="let client">
@@ -92,11 +109,8 @@
             <button mat-icon-button class="action-btn edit" matTooltip="Edit Client Profile" (click)="openClientDialog(client)">
               <mat-icon>edit_note</mat-icon>
             </button>
-            <button mat-icon-button class="action-btn upload" matTooltip="Upload Credentials" (click)="uploadDocument(client)">
-              <mat-icon>cloud_upload</mat-icon>
-            </button>
-            <button mat-icon-button class="action-btn upload" matTooltip="Download Document" (click)="downloadDocument(client)">
-              <mat-icon>cloud_download</mat-icon>
+            <button mat-icon-button class="action-btn upload" matTooltip="Scan Sent Emails" (click)="scanSentEmails(client)">
+              <mat-icon>mark_email_read</mat-icon>
             </button>
             <button mat-icon-button class="action-btn delete" matTooltip="Archive Client" (click)="archiveClient(client)">
               <mat-icon>inventory_2</mat-icon>
@@ -111,4 +125,4 @@
   </ng-container>
 </mat-card>
 
-<input type="file" #fileInput style="display: none" (change)="onFileSelected($event)">
+

@@ -1,9 +1,11 @@
 package com.majd.n8n.controller;
 
-import com.majd.n8n.dto.ClientDTO;
 import com.majd.n8n.archive.service.ArchiveService;
-import com.majd.n8n.entity.Client;
+import com.majd.n8n.dto.ClientDTO;
+import com.majd.n8n.dto.GmailScanResultDTO;
+import com.majd.n8n.entity.ClientCategoryDocument;
 import com.majd.n8n.service.ClientService;
+import com.majd.n8n.service.GmailScannerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -22,6 +24,7 @@ public class ClientController {
 
     private final ClientService clientService;
     private final ArchiveService archiveService;
+    private final GmailScannerService gmailScannerService;
 
     @GetMapping
     public ResponseEntity<List<ClientDTO>> getAllClients() {
@@ -33,19 +36,19 @@ public class ClientController {
         return ResponseEntity.ok(clientService.getClientById(id));
     }
 
-    @GetMapping("/{id}/document")
-    public ResponseEntity<byte[]> downloadClientDocument(@PathVariable Long id) {
-        Client client = clientService.getClientDocument(id);
+    @GetMapping("/{id}/categories/{categoryId}/document")
+    public ResponseEntity<byte[]> downloadClientCategoryDocument(@PathVariable Long id, @PathVariable Long categoryId) {
+        ClientCategoryDocument document = clientService.getClientCategoryDocument(id, categoryId);
 
-        String fileName = client.getDocumentName() == null || client.getDocumentName().isBlank()
+        String fileName = document.getDocumentName() == null || document.getDocumentName().isBlank()
                 ? "client-document"
-                : client.getDocumentName();
+                : document.getDocumentName();
 
         MediaType mediaType;
         try {
-            mediaType = client.getDocumentContentType() == null || client.getDocumentContentType().isBlank()
+            mediaType = document.getDocumentContentType() == null || document.getDocumentContentType().isBlank()
                     ? MediaType.APPLICATION_OCTET_STREAM
-                    : MediaType.parseMediaType(client.getDocumentContentType());
+                    : MediaType.parseMediaType(document.getDocumentContentType());
         } catch (Exception ex) {
             mediaType = MediaType.APPLICATION_OCTET_STREAM;
         }
@@ -53,7 +56,7 @@ public class ClientController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
                 .contentType(mediaType)
-                .body(client.getDocument());
+                .body(document.getDocument());
     }
 
     @PostMapping
@@ -66,10 +69,15 @@ public class ClientController {
         return ResponseEntity.ok(clientService.updateClient(id, clientDTO));
     }
 
-    @PutMapping("/{id}/document")
-    public ResponseEntity<Void> updateClientDocument(@PathVariable Long id, @RequestParam("file") MultipartFile file) throws IOException {
-        clientService.updateClientDocument(id, file);
+    @PutMapping("/{id}/categories/{categoryId}/document")
+    public ResponseEntity<Void> updateClientCategoryDocument(@PathVariable Long id, @PathVariable Long categoryId, @RequestParam("file") MultipartFile file) throws IOException {
+        clientService.updateClientCategoryDocument(id, categoryId, file);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/scan-sent")
+    public ResponseEntity<GmailScanResultDTO> scanSentEmails(@PathVariable Long id) {
+        return ResponseEntity.ok(gmailScannerService.scanAndMarkSentEmails(id));
     }
 
     @DeleteMapping("/{id}/archive")

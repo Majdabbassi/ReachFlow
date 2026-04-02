@@ -1,7 +1,10 @@
 package com.majd.n8n.repository;
 
 import com.majd.n8n.entity.Campaign;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,4 +17,8 @@ public interface CampaignRepository extends JpaRepository<Campaign, Long> {
 	List<Campaign> findAllByClientId(Long clientId);
 
 	boolean existsByClientId(Long clientId);
+
+	@Modifying
+	@Query("DELETE FROM Campaign c WHERE c.id IN :campaignIds")
+	int bulkDeleteByIdIn(@Param("campaignIds") List<Long> campaignIds);
 }

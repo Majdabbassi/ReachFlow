@@ -63,9 +63,6 @@ public class ArchiveService {
                 .email(client.getEmail())
                 .appPassword(client.getAppPassword())
                 .phone(client.getPhone())
-                .document(client.getDocument())
-                .documentName(client.getDocumentName())
-                .documentContentType(client.getDocumentContentType())
                 .createdAt(client.getCreatedAt())
                 .archivedAt(LocalDateTime.now())
                 .originalId(client.getId())
@@ -103,10 +100,10 @@ public class ArchiveService {
         }
 
         if (!campaignIds.isEmpty()) {
-            campaignSendRepository.deleteByCampaignIdIn(campaignIds);
-            campaignRepository.deleteAllByIdInBatch(campaignIds);
+            campaignSendRepository.bulkDeleteByCampaignIdIn(campaignIds);
+            campaignRepository.bulkDeleteByIdIn(campaignIds);
         }
-        clientRepository.delete(client);
+        clientRepository.deleteById(clientId);
     }
 
     @Transactional("transactionManager")
@@ -121,9 +118,6 @@ public class ArchiveService {
                 .email(archivedClient.getEmail())
                 .appPassword(archivedClient.getAppPassword())
                 .phone(archivedClient.getPhone())
-                .document(archivedClient.getDocument())
-                .documentName(archivedClient.getDocumentName())
-                .documentContentType(archivedClient.getDocumentContentType())
                 .build());
 
         for (ArchivedCampaign archivedCampaign : archivedCampaigns) {

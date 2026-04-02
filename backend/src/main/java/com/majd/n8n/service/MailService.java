@@ -1,11 +1,18 @@
 package com.majd.n8n.service;
 
-import com.majd.n8n.entity.Client;
-import com.majd.n8n.entity.Lead;
 import com.majd.n8n.entity.CampaignSend;
+import com.majd.n8n.entity.Client;
+import com.majd.n8n.entity.ClientCategoryDocument;
+import com.majd.n8n.entity.Lead;
+import com.majd.n8n.entity.LeadCategory;
 import com.majd.n8n.entity.LeadEmail;
 import com.majd.n8n.entity.enums.CampaignSendStatus;
 import com.majd.n8n.repository.CampaignSendRepository;
+import com.majd.n8n.repository.ClientCategoryDocumentRepository;
+import com.majd.n8n.repository.ClientCategoryRepository;
+import com.majd.n8n.repository.LeadCategoryRepository;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
@@ -16,15 +23,16 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Properties;
-
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MailService {
     private final CampaignSendRepository campaignSendRepository;
+    private final LeadCategoryRepository leadCategoryRepository;
+    private final ClientCategoryRepository clientCategoryRepository;
+    private final ClientCategoryDocumentRepository clientCategoryDocumentRepository;
 
     public void sendEmails(Client client, String subject, String body, boolean htmlBody, List<CampaignSend> sends, int delaySeconds) {
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
@@ -52,7 +60,7 @@ public class MailService {
                 helper.setTo(leadEmail.getEmail());
                 helper.setSubject(personalizedSubject);
                 helper.setText(personalizedBody, htmlBody);
-                addClientAttachment(helper, client);
+                addCategoryAttachment(helper, client, leadEmail);
                 mailSender.send(message);
                 send.setStatus(CampaignSendStatus.SENT);
                 send.setSentAt(LocalDateTime.now());
@@ -92,22 +100,49 @@ public class MailService {
         return value == null ? "" : value;
     }
 
-    private void addClientAttachment(MimeMessageHelper helper, Client client) throws MessagingException {
-        byte[] document = client.getDocument();
-        if (document == null || document.length == 0) {
+    private void addCategoryAttachment(MimeMessageHelper helper, Client client, LeadEmail leadEmail) throws MessagingException {
+        if (leadEmail == null || leadEmail.getLead() == null) {
             return;
         }
 
-        String fileName = client.getDocumentName();
-        if (fileName == null || fileName.isBlank()) {
-            fileName = "client-document";
+        List<LeadCategory> leadCategories = leadCategoryRepository.findByLeadId(leadEmail.getLead().getId());
+        if (leadCategories.isEmpty()) {
+            return;
         }
 
-        String contentType = client.getDocumentContentType();
-        if (contentType == null || contentType.isBlank()) {
-            contentType = "application/octet-stream";
+        Set<Long> clientCategoryIds = Set.copyOf(clientCategoryRepository.findCategoryIdsByClientId(client.getId()));
+        if (clientCategoryIds.isEmpty()) {
+            return;
         }
 
-        helper.addAttachment(fileName, new ByteArrayResource(document), contentType);
+        for (LeadCategory leadCategory : leadCategories) {
+            if (leadCategory.getCategory() == null || !leadCategory.getCategory().isActive()) {
+                continue;
+            }
+
+            Long categoryId = leadCategory.getCategory().getId();
+            if (!clientCategoryIds.contains(categoryId)) {
+                continue;
+            }
+
+            ClientCategoryDocument document = clientCategoryDocumentRepository.findByClientIdAndCategoryId(client.getId(), categoryId)
+                    .orElse(null);
+            if (document == null || document.getDocument() == null || document.getDocument().length == 0) {
+                return;
+            }
+
+            String fileName = document.getDocumentName();
+            if (fileName == null || fileName.isBlank()) {
+                fileName = "client-category-document";
+            }
+
+            String contentType = document.getDocumentContentType();
+            if (contentType == null || contentType.isBlank()) {
+                contentType = "application/octet-stream";
+            }
+
+            helper.addAttachment(fileName, new ByteArrayResource(document.getDocument()), contentType);
+            return;
+        }
     }
 }

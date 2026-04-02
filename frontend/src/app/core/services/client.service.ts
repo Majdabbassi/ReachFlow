@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
-import { Client } from '../models/models';
+import { Client, GmailScanResult } from '../models/models';
 
 @Injectable({
   providedIn: 'root'
@@ -32,15 +32,19 @@ export class ClientService {
     return this.http.put<Client>(`${this.apiUrl}/${id}`, client);
   }
 
-  uploadDocument(id: number, file: File): Observable<void> {
+  uploadCategoryDocument(clientId: number, categoryId: number, file: File): Observable<void> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.put<void>(`${this.apiUrl}/${id}/document`, formData);
+    return this.http.put<void>(`${this.apiUrl}/${clientId}/categories/${categoryId}/document`, formData);
   }
 
-  downloadDocument(id: number): Observable<Blob> {
-    return this.http.get(`${this.apiUrl}/${id}/document`, {
+  downloadCategoryDocument(clientId: number, categoryId: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${clientId}/categories/${categoryId}/document`, {
       responseType: 'blob'
     });
+  }
+
+  scanSentEmails(clientId: number): Observable<GmailScanResult> {
+    return this.http.post<GmailScanResult>(`${this.apiUrl}/${clientId}/scan-sent`, {});
   }
 }

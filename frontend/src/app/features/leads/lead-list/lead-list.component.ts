@@ -15,8 +15,9 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, finalize, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
+import { CategoryService } from '../../../core/services/category.service';
 import { LeadService } from '../../../core/services/lead.service';
-import { Lead } from '../../../core/models/models';
+import { CategoryWithKeywords, Lead } from '../../../core/models/models';
 
 type DebugLevel = 'info' | 'success' | 'warn' | 'error';
 
@@ -43,6 +44,21 @@ interface WebhookLeadResult {
   lng?: number;
  }
 
+interface CollectorKeyword {
+  nameEn: string;
+  nameDe: string;
+  categoryId: number;
+  categoryName: string;
+  selected: boolean;
+}
+
+interface CollectorCategory {
+  id: number;
+  name: string;
+  color?: string;
+  keywords: CollectorKeyword[];
+}
+
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { SelectionModel } from '@angular/cdk/collections';
@@ -63,6 +79,7 @@ import { SelectionModel } from '@angular/cdk/collections';
 })
 export class LeadListComponent implements OnInit {
   private leadService = inject(LeadService);
+  private categoryService = inject(CategoryService);
   private toastr = inject(ToastrService);
   private fb = inject(FormBuilder);
 
@@ -80,6 +97,8 @@ export class LeadListComponent implements OnInit {
   private collectedResultsSubject = new BehaviorSubject<WebhookLeadResult[]>([]);
   collectedResults$ = this.collectedResultsSubject.asObservable();
   isSaving = false;
+  private lastSelectedCategoryIds: number[] = [];
+  private lastSelectedCategoryNames: string[] = [];
   
   // Selection
   isAllSelected(leads: Lead[]) {
@@ -157,44 +176,7 @@ export class LeadListComponent implements OnInit {
   filteredCities$: Observable<string[]> = of([]);
 
   // Keyword Domains
-  keywordDomains = [
-    {
-      name: 'Healthcare & Care / Gesundheit & Pflege',
-      keywords: [
-        { label: 'Nursing Home / Pflegeheim', value: 'Nursing Home OR Pflegeheim', selected: false },
-        { label: 'Retirement Home / Altenheim', value: 'Retirement Home OR Altenheim', selected: false },
-        { label: 'Home Care / Ambulante Pflege', value: 'Home Care OR Ambulante Pflege', selected: false },
-        { label: 'Senior Residence / Seniorenheim', value: 'Senior Residence OR Seniorenheim', selected: false },
-        { label: 'Care Service / Pflegedienst', value: 'Care Service OR Pflegedienst', selected: false }
-      ]
-    },
-    {
-      name: 'Education / Bildung',
-      keywords: [
-        { label: 'Primary School / Grundschule', value: 'Primary School OR Grundschule', selected: false },
-        { label: 'High School / Gymnasium', value: 'High School OR Gymnasium', selected: false },
-        { label: 'University / Universität', value: 'University OR Universität', selected: false },
-        { label: 'Kindergarten / Kindergarten', value: 'Kindergarten OR Kindergarten', selected: false }
-      ]
-    },
-    {
-      name: 'Business & Tech / Wirtschaft & Technik',
-      keywords: [
-        { label: 'IT Services / IT-Dienstleistungen', value: 'IT Services OR IT-Dienstleistungen', selected: false },
-        { label: 'Software Company / Softwarehaus', value: 'Software Company OR Softwarehaus', selected: false },
-        { label: 'Marketing Agency / Marketingagentur', value: 'Marketing Agency OR Marketingagentur', selected: false },
-        { label: 'Consulting / Unternehmensberatung', value: 'Consulting OR Unternehmensberatung', selected: false }
-      ]
-    },
-    {
-      name: 'Hospitality / Gastgewerbe',
-      keywords: [
-        { label: 'Hotel / Hotel', value: 'Hotel OR Hotel', selected: false },
-        { label: 'Restaurant / Restaurant', value: 'Restaurant OR Restaurant', selected: false },
-        { label: 'Cafe / Cafe', value: 'Cafe OR Cafe', selected: false }
-      ]
-    }
-  ];
+  keywordDomains: CollectorCategory[] = [];
 
   keywordSearch = '';
 
@@ -203,7 +185,19 @@ export class LeadListComponent implements OnInit {
   }
 
   get selectedKeywords() {
-    return this.allKeywords.filter(k => k.selected).map(k => k.value);
+    return this.allKeywords.filter(k => k.selected);
+  }
+
+  get selectedKeywordNames() {
+    return this.selectedKeywords.map((keyword) => keyword.nameEn);
+  }
+
+  get selectedCategoryIds() {
+    return Array.from(new Set(this.selectedKeywords.map((keyword) => keyword.categoryId)));
+  }
+
+  get selectedCategoryNames() {
+    return Array.from(new Set(this.selectedKeywords.map((keyword) => keyword.categoryName)));
   }
 
   get filteredKeywordDomains() {
@@ -212,8 +206,8 @@ export class LeadListComponent implements OnInit {
     return this.keywordDomains.map(domain => ({
       ...domain,
       keywords: domain.keywords.filter(k => 
-        k.label.toLowerCase().includes(search) || 
-        k.value.toLowerCase().includes(search)
+        k.nameEn.toLowerCase().includes(search) || 
+        k.nameDe.toLowerCase().includes(search)
       )
     })).filter(domain => domain.keywords.length > 0);
   }
@@ -239,7 +233,7 @@ export class LeadListComponent implements OnInit {
   }
 
   trackByKeyword(index: number, keyword: any): string {
-    return keyword.value;
+    return keyword.nameDe || keyword.nameEn;
   }
 
   get estimatedResults() { return this.cities.length * this.selectedKeywords.length * this.maxResults; }
@@ -271,8 +265,20 @@ export class LeadListComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.loadCategories();
     this.loadLeads();
     this.setupCityAutocomplete();
+  }
+
+  loadCategories() {
+    this.categoryService.getCategories().subscribe({
+      next: (categories) => {
+        this.keywordDomains = categories.map((category) => this.toCollectorCategory(category));
+      },
+      error: () => {
+        this.toastr.error('Failed to load categories');
+      }
+    });
   }
 
   setupCityAutocomplete() {
@@ -368,13 +374,18 @@ export class LeadListComponent implements OnInit {
       return;
     }
 
+    this.lastSelectedCategoryIds = this.selectedCategoryIds;
+    this.lastSelectedCategoryNames = this.selectedCategoryNames;
     this.isCollecting = true;
     this.collectedResultsSubject.next([]);
-    this.logDebug('info', 'Starting collection', `Cities: ${this.cities.join(', ')} | Keywords: ${this.selectedKeywords.join(', ')}`);
+    this.logDebug('info', 'Starting collection', `Cities: ${this.cities.join(', ')} | Keywords: ${this.selectedKeywordNames.join(', ')}`);
 
     this.leadService.collectFromWebhook(webhookUrl, {
       cities: this.cities,
-      keywords: this.selectedKeywords,
+      keywords: this.selectedKeywords.map((keyword) => ({
+        name: keyword.nameDe || keyword.nameEn,
+        categoryId: keyword.categoryId
+      })),
       maxResults: this.maxResults
     }).pipe(
       finalize(() => this.isCollecting = false)
@@ -403,7 +414,7 @@ export class LeadListComponent implements OnInit {
     if (!results.length) return;
 
     this.isSaving = true;
-    const leadsToSave: Lead[] = this.expandWebhookResultsToLeads(results);
+    const leadsToSave: Lead[] = this.expandWebhookResultsToLeads(results, this.lastSelectedCategoryIds, this.lastSelectedCategoryNames);
 
     if (leadsToSave.length === 0) {
       this.isSaving = false;
@@ -513,7 +524,7 @@ export class LeadListComponent implements OnInit {
     return [];
   }
 
-  private expandWebhookResultsToLeads(results: WebhookLeadResult[]): Lead[] {
+  private expandWebhookResultsToLeads(results: WebhookLeadResult[], categoryIds: number[], categoryNames: string[]): Lead[] {
     const byInstitution = new Map<string, { lead: Lead; emails: Set<string> }>();
 
     results.forEach((result) => {
@@ -548,7 +559,9 @@ export class LeadListComponent implements OnInit {
             latitude,
             longitude,
             website: result.website || '',
-            source: 'Webhook Collector'
+            source: 'Webhook Collector',
+            categoryIds,
+            categoryNames
           },
           emails: new Set(emails)
         });
@@ -567,6 +580,21 @@ export class LeadListComponent implements OnInit {
     });
 
     return Array.from(byInstitution.values()).map((entry) => entry.lead);
+  }
+
+  private toCollectorCategory(category: CategoryWithKeywords): CollectorCategory {
+    return {
+      id: category.id!,
+      name: category.name,
+      color: category.color,
+      keywords: (category.keywords || []).map((keyword) => ({
+        nameEn: keyword.nameEn,
+        nameDe: keyword.nameDe,
+        categoryId: keyword.categoryId || category.id!,
+        categoryName: keyword.categoryName || category.name,
+        selected: false
+      }))
+    };
   }
 
   private parseNumber(value: unknown): number | undefined {
