@@ -9,6 +9,9 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
         name = "lead_emails",
+    indexes = {
+        @Index(name = "idx_lead_email_email", columnList = "email")
+    },
         uniqueConstraints = @UniqueConstraint(name = "uk_lead_email", columnNames = {"lead_id", "email"})
 )
 @Getter
@@ -26,7 +29,7 @@ public class LeadEmail {
     @JoinColumn(name = "lead_id", nullable = false)
     private Lead lead;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String email;
 
     @Builder.Default

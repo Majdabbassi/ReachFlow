@@ -1,12 +1,15 @@
 package com.majd.n8n.service;
 
 import com.majd.n8n.entity.CampaignSend;
+import com.majd.n8n.entity.Campaign;
 import com.majd.n8n.entity.Client;
 import com.majd.n8n.entity.ClientCategoryDocument;
 import com.majd.n8n.entity.Lead;
 import com.majd.n8n.entity.LeadCategory;
 import com.majd.n8n.entity.LeadEmail;
 import com.majd.n8n.entity.enums.CampaignSendStatus;
+import com.majd.n8n.entity.enums.CampaignStatus;
+import com.majd.n8n.repository.CampaignRepository;
 import com.majd.n8n.repository.CampaignSendRepository;
 import com.majd.n8n.repository.ClientCategoryDocumentRepository;
 import com.majd.n8n.repository.ClientCategoryRepository;
@@ -29,12 +32,13 @@ import java.util.Set;
 @RequiredArgsConstructor
 @Slf4j
 public class MailService {
+    private final CampaignRepository campaignRepository;
     private final CampaignSendRepository campaignSendRepository;
     private final LeadCategoryRepository leadCategoryRepository;
     private final ClientCategoryRepository clientCategoryRepository;
     private final ClientCategoryDocumentRepository clientCategoryDocumentRepository;
 
-    public void sendEmails(Client client, String subject, String body, boolean htmlBody, List<CampaignSend> sends, int delaySeconds) {
+    public void sendEmails(Long campaignId, Client client, String subject, String body, boolean htmlBody, List<CampaignSend> sends, int delaySeconds) {
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
         mailSender.setHost("smtp.gmail.com");
         mailSender.setPort(465);
@@ -48,6 +52,19 @@ public class MailService {
         props.put("mail.smtp.ssl.trust", "smtp.gmail.com");
 
         for (int i = 0; i < sends.size(); i++) {
+            Campaign campaign = campaignRepository.findById(campaignId).orElse(null);
+            if (campaign == null) {
+                log.warn("Campaign {} no longer exists while sending emails", campaignId);
+                break;
+            }
+
+            if (campaign.getStatus() == CampaignStatus.STOP_REQUESTED) {
+                campaign.setStatus(CampaignStatus.DRAFT);
+                campaignRepository.save(campaign);
+                log.info("Stop requested for campaign {}, halting send loop", campaignId);
+                break;
+            }
+
             CampaignSend send = sends.get(i);
             try {
                 LeadEmail leadEmail = send.getLeadEmail();

@@ -4,12 +4,15 @@ import com.majd.n8n.dto.LeadDTO;
 import com.majd.n8n.entity.Lead;
 import com.majd.n8n.entity.LeadCategory;
 import com.majd.n8n.entity.LeadEmail;
+import com.majd.n8n.exception.BusinessException;
 import com.majd.n8n.mapper.LeadMapper;
+import com.majd.n8n.repository.CampaignSendRepository;
 import com.majd.n8n.repository.CategoryRepository;
 import com.majd.n8n.repository.LeadCategoryRepository;
 import com.majd.n8n.repository.LeadEmailRepository;
 import com.majd.n8n.repository.LeadRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -34,6 +37,7 @@ public class LeadService {
     private final LeadEmailRepository leadEmailRepository;
     private final LeadCategoryRepository leadCategoryRepository;
     private final CategoryRepository categoryRepository;
+    private final CampaignSendRepository campaignSendRepository;
     private final LeadMapper leadMapper;
     private final CampaignService campaignService;
 
@@ -57,18 +61,18 @@ public class LeadService {
         Lead lead = leadMapper.toEntity(leadDTO);
         List<String> normalizedEmails = normalizeIncomingEmails(leadDTO);
         if (normalizedEmails.isEmpty()) {
-            throw new RuntimeException("At least one email is required");
+            throw new BusinessException("At least one email is required", HttpStatus.BAD_REQUEST);
         }
 
         lead.setEmail(normalizedEmails.get(0));
         Lead savedLead = leadRepository.save(lead);
 
-        linkLeadCategories(savedLead, leadDTO.getCategoryIds());
+        linkLeadCategories(savedLead, leadDTO.getCategoryIds(), false);
         mergeEmailsIntoLead(savedLead, normalizedEmails, false);
         campaignService.syncLeadAcrossAllCampaigns(savedLead);
 
         Lead reloadedLead = leadRepository.findById(savedLead.getId())
-                .orElseThrow(() -> new RuntimeException("Lead not found with id: " + savedLead.getId()));
+            .orElseThrow(() -> new BusinessException("Lead not found with id: " + savedLead.getId(), HttpStatus.NOT_FOUND));
         return toLeadDTO(reloadedLead);
     }
 
@@ -79,13 +83,13 @@ public class LeadService {
                     applyLeadFields(existing, leadDTO);
                     Lead savedLead = leadRepository.save(existing);
 
-                    linkLeadCategories(savedLead, leadDTO.getCategoryIds());
+                    linkLeadCategories(savedLead, leadDTO.getCategoryIds(), false);
                     List<LeadEmail> newLeadEmails = mergeEmailsIntoLead(savedLead, normalizeIncomingEmails(leadDTO), true);
                     campaignService.syncLeadAcrossAllCampaigns(savedLead);
                     newLeadEmails.forEach(campaignService::syncLeadEmailAcrossAllCampaigns);
 
                     Lead reloadedLead = leadRepository.findById(savedLead.getId())
-                            .orElseThrow(() -> new RuntimeException("Lead not found with id: " + savedLead.getId()));
+                            .orElseThrow(() -> new BusinessException("Lead not found with id: " + savedLead.getId(), HttpStatus.NOT_FOUND));
                     return toLeadDTO(reloadedLead);
                 })
                 .orElseGet(() -> createLead(leadDTO));
@@ -94,25 +98,34 @@ public class LeadService {
     @Transactional
     public LeadDTO updateLead(Long id, LeadDTO leadDTO) {
         Lead lead = leadRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Lead not found with id: " + id));
+                .orElseThrow(() -> new BusinessException("Lead not found with id: " + id, HttpStatus.NOT_FOUND));
 
         applyLeadFields(lead, leadDTO);
         Lead savedLead = leadRepository.save(lead);
 
-        linkLeadCategories(savedLead, leadDTO.getCategoryIds());
+        linkLeadCategories(savedLead, leadDTO.getCategoryIds(), true);
         List<LeadEmail> newLeadEmails = mergeEmailsIntoLead(savedLead, normalizeIncomingEmails(leadDTO), true);
         campaignService.syncLeadAcrossAllCampaigns(savedLead);
         newLeadEmails.forEach(campaignService::syncLeadEmailAcrossAllCampaigns);
 
         Lead reloadedLead = leadRepository.findById(savedLead.getId())
-                .orElseThrow(() -> new RuntimeException("Lead not found with id: " + savedLead.getId()));
+                .orElseThrow(() -> new BusinessException("Lead not found with id: " + savedLead.getId(), HttpStatus.NOT_FOUND));
         return toLeadDTO(reloadedLead);
+    }
+
+    @Transactional
+    public void deleteLead(Long id) {
+        Lead lead = leadRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Lead not found with id: " + id, HttpStatus.NOT_FOUND));
+
+        campaignSendRepository.deleteByLeadEmailLeadId(id);
+        leadRepository.delete(lead);
     }
 
     @Transactional(readOnly = true)
     public LeadDTO getLeadById(Long id) {
         Lead lead = leadRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Lead not found with id: " + id));
+            .orElseThrow(() -> new BusinessException("Lead not found with id: " + id, HttpStatus.NOT_FOUND));
         return toLeadDTO(lead);
     }
 
@@ -195,7 +208,7 @@ public class LeadService {
         }
 
         if (targetPrimary == null) {
-            throw new RuntimeException("At least one email is required");
+            throw new BusinessException("At least one email is required", HttpStatus.BAD_REQUEST);
         }
 
         for (LeadEmail leadEmail : existingEmails) {
@@ -240,12 +253,14 @@ public class LeadService {
         lead.setSource(leadDTO.getSource());
     }
 
-    private void linkLeadCategories(Lead lead, List<Long> categoryIds) {
+    private void linkLeadCategories(Lead lead, List<Long> categoryIds, boolean replaceMissing) {
         if (lead == null || lead.getId() == null || categoryIds == null) {
             return;
         }
 
         Set<Long> uniqueCategoryIds = new LinkedHashSet<>(categoryIds);
+        List<LeadCategory> existingCategories = leadCategoryRepository.findByLeadId(lead.getId());
+
         for (Long categoryId : uniqueCategoryIds) {
             if (categoryId == null || leadCategoryRepository.existsByLeadIdAndCategoryId(lead.getId(), categoryId)) {
                 continue;
@@ -257,6 +272,17 @@ public class LeadService {
                             .category(category)
                             .build())
             );
+        }
+
+        if (!replaceMissing) {
+            return;
+        }
+
+        for (LeadCategory existingCategory : existingCategories) {
+            if (existingCategory.getCategory() == null || uniqueCategoryIds.contains(existingCategory.getCategory().getId())) {
+                continue;
+            }
+            leadCategoryRepository.delete(existingCategory);
         }
     }
 

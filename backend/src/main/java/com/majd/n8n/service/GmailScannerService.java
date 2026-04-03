@@ -4,6 +4,7 @@ import com.majd.n8n.dto.GmailScanResultDTO;
 import com.majd.n8n.entity.CampaignSend;
 import com.majd.n8n.entity.Client;
 import com.majd.n8n.entity.enums.CampaignSendStatus;
+import com.majd.n8n.exception.BusinessException;
 import com.majd.n8n.repository.CampaignSendRepository;
 import com.majd.n8n.repository.ClientRepository;
 import com.majd.n8n.repository.LeadEmailRepository;
@@ -14,10 +15,15 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.Store;
 import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.search.ComparisonTerm;
+import jakarta.mail.search.ReceivedDateTerm;
+import jakarta.mail.search.SearchTerm;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -36,7 +42,7 @@ public class GmailScannerService {
     @Transactional
     public GmailScanResultDTO scanAndMarkSentEmails(Long clientId) {
         Client client = clientRepository.findById(clientId)
-                .orElseThrow(() -> new RuntimeException("Client not found with id: " + clientId));
+                .orElseThrow(() -> new BusinessException("Client not found with id: " + clientId, HttpStatus.NOT_FOUND));
 
         Set<String> scannedAddresses = new LinkedHashSet<>();
         List<CampaignSend> sendsToUpdate = new ArrayList<>();
@@ -56,11 +62,13 @@ public class GmailScannerService {
             store.connect("imap.gmail.com", 993, client.getEmail(), client.getAppPassword());
             sentFolder = store.getFolder("[Gmail]/Sent Mail");
             if (!sentFolder.exists()) {
-                throw new RuntimeException("Sent Mail folder not found in Gmail account");
+                throw new BusinessException("Sent Mail folder not found in Gmail account", HttpStatus.NOT_FOUND);
             }
 
             sentFolder.open(Folder.READ_ONLY);
-            for (Message message : sentFolder.getMessages()) {
+            Date cutoffDate = new Date(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000);
+            SearchTerm searchTerm = new ReceivedDateTerm(ComparisonTerm.GE, cutoffDate);
+            for (Message message : sentFolder.search(searchTerm)) {
                 collectRecipients(message.getRecipients(Message.RecipientType.TO), scannedAddresses);
                 collectRecipients(message.getRecipients(Message.RecipientType.CC), scannedAddresses);
             }
@@ -90,7 +98,7 @@ public class GmailScannerService {
                     .markedAsSentCount(sendsToUpdate.size())
                     .build();
         } catch (MessagingException e) {
-            throw new RuntimeException("Failed to connect to Gmail: " + e.getMessage(), e);
+            throw new BusinessException("Failed to connect to Gmail: " + e.getMessage(), HttpStatus.BAD_REQUEST, e);
         } finally {
             try {
                 if (sentFolder != null && sentFolder.isOpen()) {

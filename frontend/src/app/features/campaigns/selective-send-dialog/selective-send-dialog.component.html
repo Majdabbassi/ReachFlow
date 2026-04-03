@@ -1,0 +1,29 @@
+<h2 mat-dialog-title>Send Selected</h2>
+
+<mat-dialog-content>
+  <p>You are about to send to {{ data.selectedCount }} selected recipient(s).</p>
+
+  <form [formGroup]="form" class="dialog-form">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Subject</mat-label>
+      <input matInput formControlName="subject" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Body</mat-label>
+      <textarea matInput formControlName="body" rows="8"></textarea>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Delay (seconds)</mat-label>
+      <input matInput type="number" min="0" max="120" formControlName="delaySeconds" />
+    </mat-form-field>
+
+    <mat-checkbox formControlName="htmlBody" color="primary">Send body as HTML</mat-checkbox>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Cancel</button>
+  <button mat-flat-button color="primary" type="button" (click)="submit()">Send</button>
+</mat-dialog-actions>

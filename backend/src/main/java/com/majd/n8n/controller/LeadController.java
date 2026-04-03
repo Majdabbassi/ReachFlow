@@ -1,6 +1,7 @@
 package com.majd.n8n.controller;
 
 import com.majd.n8n.dto.LeadDTO;
+import com.majd.n8n.dto.BulkLeadImportResponseDTO;
 import com.majd.n8n.dto.CollectRequestDTO;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.*;
@@ -13,10 +14,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpHeaders;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 
 @RestController
@@ -54,12 +54,24 @@ public class LeadController {
     }
 
     @PostMapping("/bulk")
-    @Transactional
-    public ResponseEntity<List<LeadDTO>> bulkImportLeads(@RequestBody List<LeadDTO> leadDTOs) {
-        List<LeadDTO> savedLeads = leadDTOs.stream()
-                .map(leadService::createOrSkipLead)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(savedLeads);
+    public ResponseEntity<BulkLeadImportResponseDTO> bulkImportLeads(@RequestBody List<LeadDTO> leadDTOs) {
+        List<LeadDTO> saved = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+
+        for (LeadDTO leadDTO : leadDTOs) {
+            try {
+                saved.add(leadService.createOrSkipLead(leadDTO));
+            } catch (Exception ex) {
+                String email = leadDTO.getEmail() != null ? leadDTO.getEmail() : leadDTO.getPrimaryEmail();
+                String prefix = email == null || email.isBlank() ? "Lead" : "Lead " + email;
+                errors.add(prefix + ": " + ex.getMessage());
+            }
+        }
+
+        return ResponseEntity.ok(BulkLeadImportResponseDTO.builder()
+                .saved(saved)
+                .errors(errors)
+                .build());
     }
 
     @PostMapping("/collect")
@@ -88,6 +100,12 @@ public class LeadController {
     @PutMapping("/{id}")
     public ResponseEntity<LeadDTO> updateLead(@PathVariable Long id, @Valid @RequestBody LeadDTO leadDTO) {
         return ResponseEntity.ok(leadService.updateLead(id, leadDTO));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteLead(@PathVariable Long id) {
+        leadService.deleteLead(id);
+        return ResponseEntity.noContent().build();
     }
 
 

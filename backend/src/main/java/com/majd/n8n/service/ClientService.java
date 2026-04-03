@@ -2,14 +2,12 @@ package com.majd.n8n.service;
 
 import com.majd.n8n.dto.ClientCategoryDTO;
 import com.majd.n8n.dto.ClientDTO;
-import com.majd.n8n.entity.Campaign;
 import com.majd.n8n.entity.Category;
 import com.majd.n8n.entity.Client;
 import com.majd.n8n.entity.ClientCategory;
 import com.majd.n8n.entity.ClientCategoryDocument;
-import com.majd.n8n.entity.enums.CampaignStatus;
+import com.majd.n8n.exception.BusinessException;
 import com.majd.n8n.mapper.ClientMapper;
-import com.majd.n8n.repository.CampaignRepository;
 import com.majd.n8n.repository.CategoryRepository;
 import com.majd.n8n.repository.ClientCategoryDocumentRepository;
 import com.majd.n8n.repository.ClientCategoryRepository;
@@ -18,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.util.LinkedHashSet;
@@ -31,11 +30,11 @@ import java.util.stream.Collectors;
 public class ClientService {
 
     private final ClientRepository clientRepository;
-    private final CampaignRepository campaignRepository;
     private final ClientMapper clientMapper;
     private final CategoryRepository categoryRepository;
     private final ClientCategoryRepository clientCategoryRepository;
     private final ClientCategoryDocumentRepository clientCategoryDocumentRepository;
+    private final CampaignService campaignService;
 
     @Transactional(readOnly = true)
     public List<ClientDTO> getAllClients() {
@@ -47,17 +46,17 @@ public class ClientService {
     @Transactional(readOnly = true)
     public ClientDTO getClientById(Long id) {
         Client client = clientRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Client not found with id: " + id));
+                .orElseThrow(() -> new BusinessException("Client not found with id: " + id, HttpStatus.NOT_FOUND));
         return toClientDTO(client);
     }
 
     @Transactional(readOnly = true)
     public ClientCategoryDocument getClientCategoryDocument(Long clientId, Long categoryId) {
         ClientCategoryDocument document = clientCategoryDocumentRepository.findByClientIdAndCategoryId(clientId, categoryId)
-                .orElseThrow(() -> new RuntimeException("No document found for client id: " + clientId + " and category id: " + categoryId));
+                .orElseThrow(() -> new BusinessException("No document found for client id: " + clientId + " and category id: " + categoryId, HttpStatus.NOT_FOUND));
 
         if (document.getDocument() == null || document.getDocument().length == 0) {
-            throw new RuntimeException("No document found for client id: " + clientId + " and category id: " + categoryId);
+            throw new BusinessException("No document found for client id: " + clientId + " and category id: " + categoryId, HttpStatus.NOT_FOUND);
         }
 
         return document;
@@ -67,24 +66,19 @@ public class ClientService {
     public ClientDTO createClient(ClientDTO clientDTO) {
         Client client = clientMapper.toEntity(clientDTO);
         Client savedClient = clientRepository.save(client);
+        campaignService.ensureCampaignForEachClient();
 
         syncClientCategories(savedClient, clientDTO.getCategories(), false);
-
-        Campaign defaultCampaign = Campaign.builder()
-                .name(savedClient.getName() + " Campaign")
-                .status(CampaignStatus.DRAFT)
-                .client(savedClient)
-                .build();
-        campaignRepository.save(defaultCampaign);
+        campaignService.syncCampaignsForClient(savedClient.getId());
 
         return toClientDTO(clientRepository.findById(savedClient.getId())
-                .orElseThrow(() -> new RuntimeException("Client not found with id: " + savedClient.getId())));
+            .orElseThrow(() -> new BusinessException("Client not found with id: " + savedClient.getId(), HttpStatus.NOT_FOUND)));
     }
 
     @Transactional
     public ClientDTO updateClient(Long id, ClientDTO clientDTO) {
         Client existingClient = clientRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Client not found with id: " + id));
+                .orElseThrow(() -> new BusinessException("Client not found with id: " + id, HttpStatus.NOT_FOUND));
 
         existingClient.setName(clientDTO.getName());
         existingClient.setEmail(clientDTO.getEmail());
@@ -93,17 +87,18 @@ public class ClientService {
 
         Client savedClient = clientRepository.save(existingClient);
         syncClientCategories(savedClient, clientDTO.getCategories(), true);
+        campaignService.syncCampaignsForClient(savedClient.getId());
 
         return toClientDTO(clientRepository.findById(savedClient.getId())
-                .orElseThrow(() -> new RuntimeException("Client not found with id: " + savedClient.getId())));
+            .orElseThrow(() -> new BusinessException("Client not found with id: " + savedClient.getId(), HttpStatus.NOT_FOUND)));
     }
 
     @Transactional
     public void updateClientCategoryDocument(Long clientId, Long categoryId, MultipartFile file) throws IOException {
         Client client = clientRepository.findById(clientId)
-                .orElseThrow(() -> new RuntimeException("Client not found with id: " + clientId));
+            .orElseThrow(() -> new BusinessException("Client not found with id: " + clientId, HttpStatus.NOT_FOUND));
         Category category = categoryRepository.findByIdAndActiveTrue(categoryId)
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + categoryId));
+            .orElseThrow(() -> new BusinessException("Category not found with id: " + categoryId, HttpStatus.NOT_FOUND));
 
         if (!clientCategoryRepository.existsByClientIdAndCategoryId(clientId, categoryId)) {
             clientCategoryRepository.save(ClientCategory.builder()
@@ -135,7 +130,7 @@ public class ClientService {
                 .collect(Collectors.toList());
 
         if (!missingCategories.isEmpty()) {
-            throw new RuntimeException("Client is missing documents for categories: " + String.join(", ", missingCategories));
+            throw new BusinessException("Client is missing documents for categories: " + String.join(", ", missingCategories), HttpStatus.BAD_REQUEST);
         }
     }
 

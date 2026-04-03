@@ -14,6 +14,7 @@ import com.majd.n8n.entity.CampaignSend;
 import com.majd.n8n.entity.Client;
 import com.majd.n8n.entity.LeadEmail;
 import com.majd.n8n.entity.enums.CampaignSendStatus;
+import com.majd.n8n.exception.BusinessException;
 import com.majd.n8n.repository.CampaignRepository;
 import com.majd.n8n.repository.CampaignSendRepository;
 import com.majd.n8n.repository.ClientRepository;
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,7 +50,7 @@ public class ArchiveService {
     @Transactional("transactionManager")
     public void archiveClient(Long clientId) {
         Client client = clientRepository.findById(clientId)
-                .orElseThrow(() -> new RuntimeException("Client not found with id: " + clientId));
+                .orElseThrow(() -> new BusinessException("Client not found with id: " + clientId, HttpStatus.NOT_FOUND));
 
         List<Campaign> campaigns = campaignRepository.findAllByClientId(clientId);
         List<Long> campaignIds = campaigns.stream().map(Campaign::getId).collect(Collectors.toList());
@@ -58,58 +60,74 @@ public class ArchiveService {
         Map<Long, List<CampaignSend>> sendsByCampaignId = allSends.stream()
             .collect(Collectors.groupingBy(send -> send.getCampaign().getId()));
 
-        ArchivedClient archivedClient = archivedClientRepository.save(ArchivedClient.builder()
-                .name(client.getName())
-                .email(client.getEmail())
-                .appPassword(client.getAppPassword())
-                .phone(client.getPhone())
-                .createdAt(client.getCreatedAt())
-                .archivedAt(LocalDateTime.now())
-                .originalId(client.getId())
-                .build());
+        ArchivedClient archivedClient = null;
 
-        for (Campaign campaign : campaigns) {
-            ArchivedCampaign archivedCampaign = archivedCampaignRepository.save(ArchivedCampaign.builder()
-                    .name(campaign.getName())
-                    .status(campaign.getStatus())
-                    .createdAt(campaign.getCreatedAt())
-                    .archivedClientId(archivedClient.getId())
-                    .originalId(campaign.getId())
+        try {
+            archivedClient = archivedClientRepository.save(ArchivedClient.builder()
+                    .name(client.getName())
+                    .email(client.getEmail())
+                    .appPassword(client.getAppPassword())
+                    .phone(client.getPhone())
+                    .createdAt(client.getCreatedAt())
+                    .archivedAt(LocalDateTime.now())
+                    .originalId(client.getId())
                     .build());
 
-            List<CampaignSend> sends = sendsByCampaignId.getOrDefault(campaign.getId(), List.of());
-            for (CampaignSend send : sends) {
-                LeadEmail leadEmail = send.getLeadEmail();
-                if (leadEmail == null || leadEmail.getEmail() == null || leadEmail.getEmail().isBlank()) {
-                    log.warn("Skipping campaign send {} during archive due to missing lead email reference", send.getId());
-                    continue;
-                }
-
-                String institutionName = leadEmail.getLead() != null ? leadEmail.getLead().getInstitutionName() : null;
-                String city = leadEmail.getLead() != null ? leadEmail.getLead().getCity() : null;
-                archivedCampaignSendRepository.save(ArchivedCampaignSend.builder()
-                        .email(leadEmail.getEmail())
-                        .leadInstitutionName(institutionName)
-                        .leadCity(city)
-                        .status(send.getStatus())
-                        .sentAt(send.getSentAt())
-                        .archivedCampaignId(archivedCampaign.getId())
-                        .originalId(send.getId())
+            for (Campaign campaign : campaigns) {
+                ArchivedCampaign archivedCampaign = archivedCampaignRepository.save(ArchivedCampaign.builder()
+                        .name(campaign.getName())
+                        .status(campaign.getStatus())
+                        .createdAt(campaign.getCreatedAt())
+                        .archivedClientId(archivedClient.getId())
+                        .originalId(campaign.getId())
                         .build());
-            }
-        }
 
-        if (!campaignIds.isEmpty()) {
-            campaignSendRepository.bulkDeleteByCampaignIdIn(campaignIds);
-            campaignRepository.bulkDeleteByIdIn(campaignIds);
+                List<CampaignSend> sends = sendsByCampaignId.getOrDefault(campaign.getId(), List.of());
+                for (CampaignSend send : sends) {
+                    LeadEmail leadEmail = send.getLeadEmail();
+                    if (leadEmail == null || leadEmail.getEmail() == null || leadEmail.getEmail().isBlank()) {
+                        log.warn("Skipping campaign send {} during archive due to missing lead email reference", send.getId());
+                        continue;
+                    }
+
+                    String institutionName = leadEmail.getLead() != null ? leadEmail.getLead().getInstitutionName() : null;
+                    String city = leadEmail.getLead() != null ? leadEmail.getLead().getCity() : null;
+                    archivedCampaignSendRepository.save(ArchivedCampaignSend.builder()
+                            .email(leadEmail.getEmail())
+                            .leadInstitutionName(institutionName)
+                            .leadCity(city)
+                            .status(send.getStatus())
+                            .sentAt(send.getSentAt())
+                            .archivedCampaignId(archivedCampaign.getId())
+                            .originalId(send.getId())
+                            .build());
+                }
+            }
+
+            if (!campaignIds.isEmpty()) {
+                campaignSendRepository.bulkDeleteByCampaignIdIn(campaignIds);
+                campaignRepository.bulkDeleteByIdIn(campaignIds);
+            }
+            clientRepository.deleteById(clientId);
+        } catch (Exception ex) {
+            if (archivedClient != null) {
+                List<ArchivedCampaign> archivedCampaigns = campaignIds.isEmpty()
+                        ? archivedCampaignRepository.findByArchivedClientId(archivedClient.getId())
+                        : archivedCampaignRepository.findByArchivedClientIdAndOriginalIdIn(archivedClient.getId(), campaignIds);
+                for (ArchivedCampaign archivedCampaign : archivedCampaigns) {
+                    archivedCampaignSendRepository.deleteAll(archivedCampaignSendRepository.findByArchivedCampaignId(archivedCampaign.getId()));
+                }
+                archivedCampaignRepository.deleteAll(archivedCampaigns);
+                archivedClientRepository.deleteById(archivedClient.getId());
+            }
+            throw ex;
         }
-        clientRepository.deleteById(clientId);
     }
 
     @Transactional("transactionManager")
     public void restoreClient(Long archivedClientId) {
         ArchivedClient archivedClient = archivedClientRepository.findById(archivedClientId)
-                .orElseThrow(() -> new RuntimeException("Archived client not found with id: " + archivedClientId));
+                .orElseThrow(() -> new BusinessException("Archived client not found with id: " + archivedClientId, HttpStatus.NOT_FOUND));
 
         List<ArchivedCampaign> archivedCampaigns = archivedCampaignRepository.findByArchivedClientId(archivedClientId);
 
@@ -159,7 +177,7 @@ public class ArchiveService {
     @Transactional(readOnly = true)
     public ArchivedClientDTO getArchivedClientById(Long id) {
         ArchivedClient archivedClient = archivedClientRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Archived client not found with id: " + id));
+                .orElseThrow(() -> new BusinessException("Archived client not found with id: " + id, HttpStatus.NOT_FOUND));
         return toArchivedClientDTO(archivedClient);
     }
 
@@ -172,9 +190,9 @@ public class ArchiveService {
     @Transactional(readOnly = true)
     public Page<ArchivedCampaignSendDTO> getArchivedCampaignSends(Long archivedClientId, Long archivedCampaignId, String status, Pageable pageable) {
         ArchivedCampaign archivedCampaign = archivedCampaignRepository.findById(archivedCampaignId)
-                .orElseThrow(() -> new RuntimeException("Archived campaign not found with id: " + archivedCampaignId));
+                .orElseThrow(() -> new BusinessException("Archived campaign not found with id: " + archivedCampaignId, HttpStatus.NOT_FOUND));
         if (!archivedCampaign.getArchivedClientId().equals(archivedClientId)) {
-            throw new RuntimeException("Archived campaign does not belong to archived client id: " + archivedClientId);
+            throw new BusinessException("Archived campaign does not belong to archived client id: " + archivedClientId, HttpStatus.BAD_REQUEST);
         }
 
         if (status == null || status.isBlank()) {
@@ -186,7 +204,7 @@ public class ArchiveService {
         try {
             sendStatus = CampaignSendStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
-            throw new RuntimeException("Invalid campaign send status: " + status);
+            throw new BusinessException("Invalid campaign send status: " + status, HttpStatus.BAD_REQUEST);
         }
 
         return archivedCampaignSendRepository.findByArchivedCampaignIdAndStatus(archivedCampaignId, sendStatus, pageable)

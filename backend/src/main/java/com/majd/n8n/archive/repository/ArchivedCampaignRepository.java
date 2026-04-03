@@ -12,4 +12,5 @@ import java.util.List;
 public interface ArchivedCampaignRepository extends JpaRepository<ArchivedCampaign, Long> {
     Page<ArchivedCampaign> findByArchivedClientId(Long archivedClientId, Pageable pageable);
     List<ArchivedCampaign> findByArchivedClientId(Long archivedClientId);
+    List<ArchivedCampaign> findByArchivedClientIdAndOriginalIdIn(Long archivedClientId, List<Long> originalIds);
 }

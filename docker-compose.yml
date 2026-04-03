@@ -53,8 +53,8 @@ services:
       - N8N_PROTOCOL=http
       - NODE_ENV=production
       - N8N_DISABLE_EXTERNAL_MODULES=false
-      - N8N_DEFAULT_TIMEOUT=3000
-      - N8N_TASK_RUNNER_TIMEOUT=3000
+      - N8N_DEFAULT_TIMEOUT=180000
+      - N8N_TASK_RUNNER_TIMEOUT=180000
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:

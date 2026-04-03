@@ -37,7 +37,13 @@ public interface CampaignSendRepository extends JpaRepository<CampaignSend, Long
 
     List<CampaignSend> findByCampaignIdIn(List<Long> campaignIds);
 
+    List<CampaignSend> findByCampaignIdAndIdIn(Long campaignId, List<Long> sendIds);
+
     List<CampaignSend> findByLeadEmailId(Long leadEmailId);
+
+    @Modifying
+    @Query("DELETE FROM CampaignSend cs WHERE cs.leadEmail.lead.id = :leadId")
+    int deleteByLeadEmailLeadId(@Param("leadId") Long leadId);
 
     @Modifying
     @Query("DELETE FROM CampaignSend cs WHERE cs.campaign.id IN :campaignIds")

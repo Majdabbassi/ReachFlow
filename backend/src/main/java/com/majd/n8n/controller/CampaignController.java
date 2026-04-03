@@ -4,6 +4,7 @@ import com.majd.n8n.dto.CampaignDTO;
 import com.majd.n8n.dto.CampaignSendDTO;
 import com.majd.n8n.dto.CampaignStatsDTO;
 import com.majd.n8n.dto.CampaignStartRequestDTO;
+import com.majd.n8n.dto.SelectiveSendRequestDTO;
 import com.majd.n8n.service.CampaignService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,18 @@ public class CampaignController {
     public ResponseEntity<Void> startCampaign(@PathVariable Long id, @RequestBody CampaignStartRequestDTO request) {
         campaignService.startCampaign(id, request);
         return ResponseEntity.accepted().build(); // 202 - returns immediately
+    }
+
+    @PostMapping("/{id}/stop")
+    public ResponseEntity<Void> stopCampaign(@PathVariable Long id) {
+        campaignService.stopCampaign(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/send-selected")
+    public ResponseEntity<Void> sendSelected(@PathVariable Long id, @RequestBody SelectiveSendRequestDTO request) {
+        campaignService.sendSelected(id, request);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{id}/stats")

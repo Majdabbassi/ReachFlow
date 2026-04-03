@@ -12,12 +12,14 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, finalize, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { CategoryService } from '../../../core/services/category.service';
 import { LeadService } from '../../../core/services/lead.service';
 import { CategoryWithKeywords, Lead } from '../../../core/models/models';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 
 type DebugLevel = 'info' | 'success' | 'warn' | 'error';
 
@@ -72,7 +74,7 @@ import { SelectionModel } from '@angular/cdk/collections';
     MatButtonModule, MatIconModule, MatCheckboxModule,
     MatChipsModule, MatProgressSpinnerModule, MatDividerModule,
     MatTableModule, MatPaginatorModule, MatAutocompleteModule,
-    MatExpansionModule
+    MatExpansionModule, MatDialogModule
   ],
   templateUrl: './lead-list.component.html',
   styleUrl: './lead-list.component.scss'
@@ -80,8 +82,10 @@ import { SelectionModel } from '@angular/cdk/collections';
 export class LeadListComponent implements OnInit {
   private leadService = inject(LeadService);
   private categoryService = inject(CategoryService);
+  private dialog = inject(MatDialog);
   private toastr = inject(ToastrService);
   private fb = inject(FormBuilder);
+  private currentLeads: Lead[] = [];
 
   // Selection model
   selection = new SelectionModel<Lead>(true, []);
@@ -317,7 +321,7 @@ export class LeadListComponent implements OnInit {
 
   // Existing Leads Table state
   leads$: Observable<Lead[]> = of([]);
-  displayedColumns: string[] = ['select', 'email', 'institution', 'city', 'phone', 'coordinates', 'address', 'status', 'website'];
+  displayedColumns: string[] = ['select', 'email', 'institution', 'city', 'phone', 'coordinates', 'address', 'status', 'website', 'actions'];
   collectedColumns: string[] = ['institution', 'city', 'phone', 'coordinates', 'emails', 'address', 'website'];
   totalElements = 0;
   pageSize = 100;
@@ -350,6 +354,8 @@ export class LeadListComponent implements OnInit {
             l.website?.toLowerCase().includes(s)
           );
         }
+
+        this.currentLeads = content;
         
         return content;
       }),
@@ -425,14 +431,51 @@ export class LeadListComponent implements OnInit {
     this.leadService.bulkImport(leadsToSave).pipe(
       finalize(() => this.isSaving = false)
     ).subscribe({
-      next: () => {
-        this.toastr.success(`${leadsToSave.length} emails saved to database successfully`);
+      next: (response) => {
+        this.toastr.success(`Saved ${response.saved.length} lead(s)`);
+        if (response.errors.length > 0) {
+          this.toastr.warning(`${response.errors.length} lead(s) failed during import`);
+        }
         this.collectedResultsSubject.next([]);
         this.loadLeads();
       },
       error: (err) => {
         this.toastr.error('Failed to save leads to database');
       }
+    });
+  }
+
+  confirmDeleteLead(lead: Lead) {
+    if (!lead.id) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      width: '420px',
+      data: {
+        title: 'Delete Lead',
+        message: `Are you sure you want to delete ${lead.email}?`,
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (!confirmed) {
+        return;
+      }
+
+      this.leadService.deleteLead(lead.id!).subscribe({
+        next: () => {
+          this.currentLeads = this.currentLeads.filter((item) => item.id !== lead.id);
+          this.leads$ = of(this.currentLeads);
+          this.selection.clear();
+          this.toastr.success('Lead deleted successfully');
+        },
+        error: () => {
+          this.toastr.error('Failed to delete lead');
+        }
+      });
     });
   }
 

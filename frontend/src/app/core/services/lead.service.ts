@@ -2,7 +2,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Lead, PageResponse } from '../models/models';
+import { BulkLeadImportResponse, Lead, PageResponse } from '../models/models';
 
 @Injectable({ providedIn: 'root' })
 export class LeadService {
@@ -25,8 +25,8 @@ export class LeadService {
     });
   }
 
-  bulkImport(leads: Partial<Lead>[]): Observable<Lead[]> {
-    return this.http.post<Lead[]>(`${this.apiUrl}/bulk`, leads);
+  bulkImport(leads: Partial<Lead>[]): Observable<BulkLeadImportResponse> {
+    return this.http.post<BulkLeadImportResponse>(`${this.apiUrl}/bulk`, leads);
   }
 
   downloadAllEmailsFile(): Observable<Blob> {
@@ -41,5 +41,9 @@ export class LeadService {
 
   updateLead(id: number, lead: Lead): Observable<Lead> {
     return this.http.put<Lead>(`${this.apiUrl}/${id}`, lead);
+  }
+
+  deleteLead(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 }

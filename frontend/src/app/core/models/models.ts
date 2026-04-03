@@ -71,6 +71,7 @@ export interface Lead {
 export enum CampaignStatus {
   DRAFT = 'DRAFT',
   RUNNING = 'RUNNING',
+  STOP_REQUESTED = 'STOP_REQUESTED',
   COMPLETED = 'COMPLETED'
 }
 
@@ -159,4 +160,17 @@ export interface CampaignLog {
 export interface GmailScanResult {
   scannedCount: number;
   markedAsSentCount: number;
+}
+
+export interface BulkLeadImportResponse {
+  saved: Lead[];
+  errors: string[];
+}
+
+export interface SelectiveSendRequest {
+  sendIds: number[];
+  subject: string;
+  body: string;
+  delaySeconds: number;
+  htmlBody: boolean;
 }

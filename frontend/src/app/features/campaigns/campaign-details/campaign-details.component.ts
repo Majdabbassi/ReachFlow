@@ -12,12 +12,14 @@ import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { CampaignService } from '../../../core/services/campaign.service';
 import { ClientService } from '../../../core/services/client.service';
 import { Campaign, CampaignLog, CampaignSend, CampaignSendStatus, CampaignStats, CampaignStatus, Client } from '../../../core/models/models';
 import { ToastrService } from 'ngx-toastr';
 import { forkJoin, interval, of, Subscription, switchMap, takeWhile, tap, finalize } from 'rxjs';
+import { SelectiveSendDialogComponent, SelectiveSendDialogResult } from '../selective-send-dialog/selective-send-dialog.component';
 
 @Component({
   selector: 'app-campaign-details',
@@ -35,6 +37,7 @@ import { forkJoin, interval, of, Subscription, switchMap, takeWhile, tap, finali
     MatPaginatorModule,
     MatTooltipModule,
     MatCheckboxModule,
+    MatDialogModule,
     ReactiveFormsModule,
     RouterLink
   ],
@@ -45,6 +48,7 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private campaignService = inject(CampaignService);
   private clientService = inject(ClientService);
+  private dialog = inject(MatDialog);
   private fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
 
@@ -55,7 +59,8 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
   stats: CampaignStats = { total: 0, sent: 0, pending: 0, failed: 0 };
   campaignSends: CampaignSend[] = [];
   logs: CampaignLog[] = [];
-  sendColumns: string[] = ['email', 'institution', 'city', 'status', 'sentAt'];
+  sendColumns: string[] = ['select', 'email', 'institution', 'city', 'status', 'sentAt'];
+  selectedSendIds = new Set<number>();
   selectedSendStatus: CampaignSendStatus | 'ALL' = 'ALL';
   sendPageSize = 25;
   sendPageIndex = 0;
@@ -122,6 +127,7 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
         this.client = client;
         this.stats = stats;
         this.campaignSends = sendsPage.content;
+        this.retainOnlyVisibleSelectedIds();
         this.sendTotalElements = sendsPage.totalElements;
         this.startStatsPolling(id);
         this.addLog('info', `Fetched stats for ${campaign.name}`);
@@ -152,6 +158,7 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (page) => {
           this.campaignSends = page.content;
+          this.retainOnlyVisibleSelectedIds();
           this.sendTotalElements = page.totalElements;
         },
         error: () => {
@@ -221,6 +228,100 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
         this.loadCampaign(this.campaign!.id!);
       });
     }
+  }
+
+  stopCampaign() {
+    if (!this.campaign?.id) {
+      return;
+    }
+
+    this.campaignService.stopCampaign(this.campaign.id).subscribe({
+      next: () => {
+        this.toastr.success('Stop requested successfully');
+        this.addLog('warning', 'Stop requested for running campaign');
+        this.loadCampaign(this.campaign!.id!);
+      },
+      error: () => {
+        this.toastr.error('Failed to stop campaign');
+      }
+    });
+  }
+
+  openSendSelectedDialog() {
+    if (!this.campaign?.id || !this.hasSelectableSelected()) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(SelectiveSendDialogComponent, {
+      width: '640px',
+      data: {
+        selectedCount: this.selectedSendIds.size,
+        subject: this.templateForm.value.subject,
+        body: this.templateForm.value.body,
+        delaySeconds: this.templateForm.value.delaySeconds,
+        htmlBody: this.templateForm.value.htmlBody
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((result?: SelectiveSendDialogResult) => {
+      if (!result || !this.campaign?.id) {
+        return;
+      }
+
+      this.campaignService.sendSelected(this.campaign.id, {
+        sendIds: Array.from(this.selectedSendIds),
+        subject: result.subject,
+        body: result.body,
+        delaySeconds: Number(result.delaySeconds),
+        htmlBody: Boolean(result.htmlBody)
+      }).subscribe({
+        next: () => {
+          this.toastr.success('Selected emails were sent');
+          this.addLog('success', `Sent ${this.selectedSendIds.size} selected email(s)`);
+          this.selectedSendIds.clear();
+          this.loadCampaign(this.campaign!.id!);
+        },
+        error: () => {
+          this.toastr.error('Failed to send selected emails');
+        }
+      });
+    });
+  }
+
+  toggleSendSelection(send: CampaignSend, checked: boolean) {
+    if (!send.id || !this.isSelectableSend(send)) {
+      return;
+    }
+
+    if (checked) {
+      this.selectedSendIds.add(send.id);
+    } else {
+      this.selectedSendIds.delete(send.id);
+    }
+  }
+
+  isSendSelected(send: CampaignSend): boolean {
+    return !!send.id && this.selectedSendIds.has(send.id);
+  }
+
+  isSelectableSend(send: CampaignSend): boolean {
+    return send.status === CampaignSendStatus.PENDING || send.status === CampaignSendStatus.FAILED;
+  }
+
+  hasSelectableSelected(): boolean {
+    return this.selectedSendIds.size > 0;
+  }
+
+  private retainOnlyVisibleSelectedIds() {
+    const visibleSelectableIds = new Set(
+      this.campaignSends
+        .filter((send) => this.isSelectableSend(send) && !!send.id)
+        .map((send) => send.id!)
+    );
+
+    this.selectedSendIds = new Set(
+      Array.from(this.selectedSendIds).filter((id) => visibleSelectableIds.has(id))
+    );
   }
 
   getStatusColor(status?: CampaignStatus): string {

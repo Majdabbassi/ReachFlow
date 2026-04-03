@@ -20,6 +20,14 @@
       <mat-icon>{{ showLogs ? 'terminal' : 'history' }}</mat-icon> 
       {{ showLogs ? 'Hide Console' : 'Execution Logs' }}
     </button>
+    <button
+      mat-flat-button
+      color="warn"
+      *ngIf="campaign?.status === CampaignStatus.RUNNING"
+      (click)="stopCampaign()"
+      class="action-btn">
+      <mat-icon>stop_circle</mat-icon> Stop
+    </button>
     <button mat-flat-button color="primary" 
           [disabled]="campaign?.status === CampaignStatus.RUNNING || (stats.pending + stats.failed) === 0"
             (click)="startCampaign()"
@@ -189,6 +197,15 @@
     <mat-icon>dataset</mat-icon>
     <mat-card-title>Queue Intelligence & Logs</mat-card-title>
     <span class="spacer"></span>
+    <button
+      mat-flat-button
+      color="primary"
+      [disabled]="!hasSelectableSelected()"
+      (click)="openSendSelectedDialog()"
+      class="action-btn">
+      <mat-icon>send</mat-icon>
+      Send Selected
+    </button>
     <div class="filter-pills">
       <button [class.active]="selectedSendStatus === 'ALL'" (click)="onSendStatusFilterChange('ALL')">All</button>
       <button [class.active]="selectedSendStatus === CampaignSendStatus.PENDING" (click)="onSendStatusFilterChange(CampaignSendStatus.PENDING)">Queued</button>
@@ -199,6 +216,18 @@
 
   <div class="table-wrap">
     <mat-table [dataSource]="campaignSends">
+      <ng-container matColumnDef="select">
+        <mat-header-cell *matHeaderCellDef>Select</mat-header-cell>
+        <mat-cell *matCellDef="let send">
+          <mat-checkbox
+            color="primary"
+            [disabled]="!isSelectableSend(send)"
+            [checked]="isSendSelected(send)"
+            (change)="toggleSendSelection(send, $event.checked)">
+          </mat-checkbox>
+        </mat-cell>
+      </ng-container>
+
       <ng-container matColumnDef="email">
         <mat-header-cell *matHeaderCellDef>Contact</mat-header-cell>
         <mat-cell *matCellDef="let send">

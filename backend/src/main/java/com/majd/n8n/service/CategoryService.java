@@ -5,11 +5,13 @@ import com.majd.n8n.dto.CategoryWithKeywordsDTO;
 import com.majd.n8n.dto.KeywordDTO;
 import com.majd.n8n.entity.Category;
 import com.majd.n8n.entity.Keyword;
+import com.majd.n8n.exception.BusinessException;
 import com.majd.n8n.repository.CategoryRepository;
 import com.majd.n8n.repository.ClientCategoryRepository;
 import com.majd.n8n.repository.KeywordRepository;
 import com.majd.n8n.repository.LeadCategoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +37,7 @@ public class CategoryService {
     @Transactional(readOnly = true)
     public CategoryWithKeywordsDTO getCategoryById(Long id) {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + id));
+                .orElseThrow(() -> new BusinessException("Category not found with id: " + id, HttpStatus.NOT_FOUND));
         return toCategoryWithKeywordsDTO(category);
     }
 
@@ -43,7 +45,7 @@ public class CategoryService {
     public CategoryDTO createCategory(CategoryDTO categoryDTO) {
         String name = normalizeName(categoryDTO.getName());
         if (categoryRepository.existsByNameIgnoreCase(name)) {
-            throw new RuntimeException("Category name already exists");
+            throw new BusinessException("Category name already exists", HttpStatus.CONFLICT);
         }
 
         Category category = Category.builder()
@@ -57,11 +59,11 @@ public class CategoryService {
     @Transactional
     public CategoryDTO updateCategory(Long id, CategoryDTO categoryDTO) {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + id));
+                .orElseThrow(() -> new BusinessException("Category not found with id: " + id, HttpStatus.NOT_FOUND));
 
         String name = normalizeName(categoryDTO.getName());
         if (!category.getName().equalsIgnoreCase(name) && categoryRepository.existsByNameIgnoreCase(name)) {
-            throw new RuntimeException("Category name already exists");
+            throw new BusinessException("Category name already exists", HttpStatus.CONFLICT);
         }
 
         category.setName(name);
@@ -72,10 +74,10 @@ public class CategoryService {
     @Transactional
     public void deactivateCategory(Long id) {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + id));
+                .orElseThrow(() -> new BusinessException("Category not found with id: " + id, HttpStatus.NOT_FOUND));
 
         if (leadCategoryRepository.existsByCategoryId(id) || clientCategoryRepository.existsByCategoryId(id)) {
-            throw new RuntimeException("Category is in use and cannot be deactivated");
+            throw new BusinessException("Category is in use and cannot be deactivated", HttpStatus.CONFLICT);
         }
 
         category.setActive(false);
@@ -88,12 +90,12 @@ public class CategoryService {
     @Transactional
     public KeywordDTO addKeyword(Long categoryId, KeywordDTO keywordDTO) {
         Category category = categoryRepository.findByIdAndActiveTrue(categoryId)
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + categoryId));
+                .orElseThrow(() -> new BusinessException("Category not found with id: " + categoryId, HttpStatus.NOT_FOUND));
 
         String nameEn = normalizeName(keywordDTO.getNameEn());
         String nameDe = normalizeName(keywordDTO.getNameDe());
         if (keywordRepository.existsByCategoryIdAndNameDeIgnoreCase(categoryId, nameDe)) {
-            throw new RuntimeException("Keyword already exists in this category");
+            throw new BusinessException("Keyword already exists in this category", HttpStatus.CONFLICT);
         }
 
         Keyword keyword = Keyword.builder()
@@ -108,14 +110,14 @@ public class CategoryService {
     @Transactional
     public KeywordDTO updateKeyword(Long keywordId, KeywordDTO keywordDTO) {
         Keyword keyword = keywordRepository.findById(keywordId)
-                .orElseThrow(() -> new RuntimeException("Keyword not found with id: " + keywordId));
+                .orElseThrow(() -> new BusinessException("Keyword not found with id: " + keywordId, HttpStatus.NOT_FOUND));
 
         String nameEn = normalizeName(keywordDTO.getNameEn());
         String nameDe = normalizeName(keywordDTO.getNameDe());
         Long categoryId = keyword.getCategory().getId();
         String currentNameDe = keyword.getNameDe() != null ? keyword.getNameDe() : keyword.getNameEn();
         if (!currentNameDe.equalsIgnoreCase(nameDe) && keywordRepository.existsByCategoryIdAndNameDeIgnoreCase(categoryId, nameDe)) {
-            throw new RuntimeException("Keyword already exists in this category");
+            throw new BusinessException("Keyword already exists in this category", HttpStatus.CONFLICT);
         }
 
         keyword.setNameEn(nameEn);
@@ -126,7 +128,7 @@ public class CategoryService {
     @Transactional
     public void deactivateKeyword(Long keywordId) {
         Keyword keyword = keywordRepository.findById(keywordId)
-                .orElseThrow(() -> new RuntimeException("Keyword not found with id: " + keywordId));
+                .orElseThrow(() -> new BusinessException("Keyword not found with id: " + keywordId, HttpStatus.NOT_FOUND));
         keyword.setActive(false);
         keywordRepository.save(keyword);
     }
@@ -177,7 +179,7 @@ public class CategoryService {
 
     private String normalizeName(String name) {
         if (name == null || name.trim().isEmpty()) {
-            throw new RuntimeException("Name is required");
+            throw new BusinessException("Name is required", HttpStatus.BAD_REQUEST);
         }
         return name.trim();
     }
