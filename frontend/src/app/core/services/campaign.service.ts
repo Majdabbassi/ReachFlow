@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
-import { Campaign, CampaignSend, CampaignStats, CampaignSendStatus, PageResponse, SelectiveSendRequest } from '../models/models';
+import { Campaign, CampaignScheduleRequest, CampaignSend, CampaignStats, CampaignSendStatus, PageResponse, SelectiveSendRequest } from '../models/models';
 
 @Injectable({
   providedIn: 'root'
@@ -34,6 +34,10 @@ export class CampaignService {
 
   startCampaign(id: number, request: { subject: string, body: string, delaySeconds: number, htmlBody: boolean }): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/${id}/start`, request);
+  }
+
+  scheduleCampaign(id: number, request: CampaignScheduleRequest): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/${id}/schedule`, request);
   }
 
   stopCampaign(id: number): Observable<void> {

@@ -12,4 +12,5 @@ import lombok.NoArgsConstructor;
 public class GmailScanResultDTO {
     private int scannedCount;
     private int markedAsSentCount;
+    private int markedAsRepliedCount;
 }

@@ -85,7 +85,13 @@
             <div class="campaign-icon">
               <mat-icon>auto_graph</mat-icon>
             </div>
-            <span class="campaign-name">{{ campaign.name }}</span>
+            <div class="campaign-meta">
+              <span class="campaign-name">{{ campaign.name }}</span>
+              <span class="scheduled-pill" *ngIf="campaign.scheduledAt && campaign.status === 'DRAFT'">
+                <mat-icon>schedule</mat-icon>
+                {{ campaign.scheduledAt | date:'medium' }}
+              </span>
+            </div>
           </div>
         </mat-cell>
       </ng-container>

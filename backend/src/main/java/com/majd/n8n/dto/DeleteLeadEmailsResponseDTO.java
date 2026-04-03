@@ -5,15 +5,14 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CampaignStatsDTO {
-    private long total;
-    private long sent;
-    private long replied;
-    private long pending;
-    private long failed;
-    private long bounced;
+public class DeleteLeadEmailsResponseDTO {
+    private int deletedCount;
+    private int skippedCount;
+    private List<Long> skippedEmailIds;
 }

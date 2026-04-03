@@ -33,6 +33,11 @@ public class Campaign {
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
+    private LocalDateTime scheduledAt;
+
+    @Embedded
+    private CampaignStartRequest startRequest;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

@@ -13,6 +13,8 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { CampaignService } from '../../../core/services/campaign.service';
 import { ClientService } from '../../../core/services/client.service';
@@ -38,6 +40,8 @@ import { SelectiveSendDialogComponent, SelectiveSendDialogResult } from '../sele
     MatTooltipModule,
     MatCheckboxModule,
     MatDialogModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
     ReactiveFormsModule,
     RouterLink
   ],
@@ -56,7 +60,7 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
   CampaignSendStatus = CampaignSendStatus;
   campaign?: Campaign;
   client?: Client;
-  stats: CampaignStats = { total: 0, sent: 0, pending: 0, failed: 0 };
+  stats: CampaignStats = { total: 0, sent: 0, replied: 0, pending: 0, failed: 0, bounced: 0 };
   campaignSends: CampaignSend[] = [];
   logs: CampaignLog[] = [];
   sendColumns: string[] = ['select', 'email', 'institution', 'city', 'status', 'sentAt'];
@@ -70,7 +74,10 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
     subject: ['Hello from {name}', Validators.required],
     body: ['Hi,\n\nI am writing to you regarding {city}.\n\nBest regards.', Validators.required],
     delaySeconds: [2, [Validators.required, Validators.min(0), Validators.max(120)]],
-    htmlBody: [false]
+    htmlBody: [false],
+    scheduleForLater: [false],
+    scheduledDate: [null],
+    scheduledTime: ['09:00']
   });
 
   previewVisible = true;
@@ -215,12 +222,38 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
         this.toastr.error('Please complete the email template');
         return;
       }
+
+      const scheduleForLater = Boolean(this.templateForm.value.scheduleForLater);
       const request = {
         subject: this.templateForm.value.subject,
         body: this.templateForm.value.body,
         delaySeconds: Number(this.templateForm.value.delaySeconds),
         htmlBody: Boolean(this.templateForm.value.htmlBody)
       };
+
+      if (scheduleForLater) {
+        const scheduledAt = this.buildScheduledAtIso();
+        if (!scheduledAt) {
+          this.toastr.error('Please choose a valid schedule date and time');
+          return;
+        }
+
+        this.campaignService.scheduleCampaign(this.campaign.id, {
+          ...request,
+          scheduledAt
+        }).subscribe({
+          next: () => {
+            this.toastr.success('Campaign scheduled successfully');
+            this.addLog('success', `Campaign scheduled for ${scheduledAt}`);
+            this.loadCampaign(this.campaign!.id!);
+          },
+          error: () => {
+            this.toastr.error('Failed to schedule campaign');
+          }
+        });
+        return;
+      }
+
       this.addLog('info', 'Launching outreach campaign...');
       this.campaignService.startCampaign(this.campaign.id, request).subscribe(() => {
         this.toastr.success('Campaign started successfully');
@@ -228,6 +261,44 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
         this.loadCampaign(this.campaign!.id!);
       });
     }
+  }
+
+  scanSentEmails() {
+    if (!this.client?.id) {
+      return;
+    }
+
+    this.clientService.scanSentEmails(this.client.id).subscribe({
+      next: (result) => {
+        this.toastr.success(`Scanned ${result.scannedCount}, marked SENT ${result.markedAsSentCount || 0}`);
+        this.addLog('info', 'Scan sent emails completed');
+        if (this.campaign?.id) {
+          this.loadCampaign(this.campaign.id);
+        }
+      },
+      error: () => {
+        this.toastr.error('Failed to scan sent emails');
+      }
+    });
+  }
+
+  scanReplies() {
+    if (!this.client?.id) {
+      return;
+    }
+
+    this.clientService.scanReplies(this.client.id).subscribe({
+      next: (result) => {
+        this.toastr.success(`Scanned ${result.scannedCount}, marked REPLIED ${result.markedAsRepliedCount || 0}`);
+        this.addLog('info', 'Scan replies completed');
+        if (this.campaign?.id) {
+          this.loadCampaign(this.campaign.id);
+        }
+      },
+      error: () => {
+        this.toastr.error('Failed to scan replies');
+      }
+    });
   }
 
   stopCampaign() {
@@ -335,7 +406,7 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
 
   getProgress(): number {
     if (this.stats.total === 0) return 0;
-    return ((this.stats.sent + this.stats.failed) / this.stats.total) * 100;
+    return ((this.stats.sent + this.stats.replied + this.stats.failed + this.stats.bounced) / this.stats.total) * 100;
   }
 
   previewEmail() {
@@ -349,9 +420,39 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
   getSendStatusColor(status: CampaignSendStatus): string {
     switch (status) {
       case CampaignSendStatus.SENT: return 'primary';
+      case CampaignSendStatus.REPLIED: return 'primary';
+      case CampaignSendStatus.BOUNCED: return 'warn';
       case CampaignSendStatus.FAILED: return 'warn';
       default: return 'accent';
     }
+  }
+
+  private buildScheduledAtIso(): string | null {
+    const dateValue = this.templateForm.value.scheduledDate;
+    const timeValue = (this.templateForm.value.scheduledTime || '').trim();
+    if (!dateValue || !timeValue || !timeValue.includes(':')) {
+      return null;
+    }
+
+    const [hourText, minuteText] = timeValue.split(':');
+    const hour = Number(hourText);
+    const minute = Number(minuteText);
+    if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      return null;
+    }
+
+    const date = new Date(dateValue);
+    date.setHours(hour, minute, 0, 0);
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hh}:${mm}:00`;
   }
 
   getPreviewBody(): string {

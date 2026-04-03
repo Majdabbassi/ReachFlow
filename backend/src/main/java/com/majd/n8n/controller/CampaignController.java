@@ -1,6 +1,7 @@
 package com.majd.n8n.controller;
 
 import com.majd.n8n.dto.CampaignDTO;
+import com.majd.n8n.dto.CampaignScheduleRequestDTO;
 import com.majd.n8n.dto.CampaignSendDTO;
 import com.majd.n8n.dto.CampaignStatsDTO;
 import com.majd.n8n.dto.CampaignStartRequestDTO;
@@ -47,6 +48,12 @@ public class CampaignController {
     public ResponseEntity<Void> startCampaign(@PathVariable Long id, @RequestBody CampaignStartRequestDTO request) {
         campaignService.startCampaign(id, request);
         return ResponseEntity.accepted().build(); // 202 - returns immediately
+    }
+
+    @PostMapping("/{id}/schedule")
+    public ResponseEntity<Void> scheduleCampaign(@PathVariable Long id, @RequestBody CampaignScheduleRequestDTO request) {
+        campaignService.scheduleCampaign(id, request);
+        return ResponseEntity.accepted().build();
     }
 
     @PostMapping("/{id}/stop")

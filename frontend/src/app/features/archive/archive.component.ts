@@ -28,7 +28,8 @@ import { ArchiveService } from '../../core/services/archive.service';
     MatPaginatorModule,
     MatChipsModule
   ],
-  templateUrl: './archive.component.html'
+  templateUrl: './archive.component.html',
+  styleUrl: './archive.component.scss'
 })
 export class ArchiveComponent implements OnInit {
   private archiveService = inject(ArchiveService);
@@ -191,5 +192,33 @@ export class ArchiveComponent implements OnInit {
     this.selectedStatus = status;
     this.sendsPageIndex = 0;
     this.loadArchivedSends();
+  }
+
+  getClientCampaignTotal(): number {
+    return this.archivedCampaigns.reduce((sum, campaign) => sum + (campaign.stats?.total || 0), 0);
+  }
+
+  getClientSentTotal(): number {
+    return this.archivedCampaigns.reduce((sum, campaign) => sum + (campaign.stats?.sent || 0), 0);
+  }
+
+  getDeliveryRate(campaign: ArchivedCampaign): number {
+    const sent = campaign.stats?.sent || 0;
+    const failed = campaign.stats?.failed || 0;
+    const attempted = sent + failed;
+    if (attempted <= 0) {
+      return 0;
+    }
+    return Math.round((sent / attempted) * 100);
+  }
+
+  getSendStatusClass(status: CampaignSendStatus): string {
+    if (status === CampaignSendStatus.SENT) {
+      return 'sent';
+    }
+    if (status === CampaignSendStatus.FAILED) {
+      return 'failed';
+    }
+    return 'pending';
   }
 }

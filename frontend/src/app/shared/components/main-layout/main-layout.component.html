@@ -24,6 +24,10 @@
         <mat-icon matListItemIcon>hub</mat-icon>
         <span matListItemTitle>Leads</span>
       </a>
+      <a mat-list-item routerLink="/leads/email-audit" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
+        <mat-icon matListItemIcon>mark_email_unread</mat-icon>
+        <span matListItemTitle>Email Audit</span>
+      </a>
       <a mat-list-item routerLink="/campaigns" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
         <mat-icon matListItemIcon>auto_graph</mat-icon>
         <span matListItemTitle>Campaigns</span>

@@ -253,6 +253,20 @@
   <button mat-flat-button color="primary" (click)="downloadAllEmailsFromDb()" class="bulk-btn">
     <mat-icon>file_download</mat-icon> Download All Emails
   </button>
+
+  <button mat-flat-button color="primary" (click)="downloadLeadsCsvFromDb()" class="bulk-btn">
+    <mat-icon>table_view</mat-icon> Export Leads CSV
+  </button>
+
+  <button mat-flat-button color="accent" (click)="openCsvImportPicker()" class="bulk-btn">
+    <mat-icon>upload_file</mat-icon> Import CSV
+  </button>
+
+  <button mat-stroked-button color="primary" (click)="downloadCsvTemplate()" class="bulk-btn">
+    <mat-icon>description</mat-icon> Download CSV Template
+  </button>
+
+  <input #csvImportInput type="file" accept=".csv,text/csv" hidden (change)="onCsvImportSelected($event)">
   
   <div class="bulk-actions-bar animate-fade-in" *ngIf="selection.hasValue()">
     <span class="selection-count">{{ selection.selected.length }} selected</span>

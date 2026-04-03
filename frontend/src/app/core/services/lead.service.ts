@@ -2,7 +2,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { BulkLeadImportResponse, Lead, PageResponse } from '../models/models';
+import { BulkImportResult, BulkLeadImportResponse, DeleteLeadEmailsResponse, EmailAuditItem, Lead, PageResponse } from '../models/models';
 
 @Injectable({ providedIn: 'root' })
 export class LeadService {
@@ -32,6 +32,32 @@ export class LeadService {
   downloadAllEmailsFile(): Observable<Blob> {
     return this.http.get(`${this.apiUrl}/emails/download`, {
       responseType: 'blob'
+    });
+  }
+
+  exportLeadsCsv(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/export/csv`, {
+      responseType: 'blob'
+    });
+  }
+
+  importLeadsCsv(file: File): Observable<BulkImportResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<BulkImportResult>(`${this.apiUrl}/import/csv`, formData);
+  }
+
+  getEmailAudit(mode: 'invalid' | 'duplicate', page = 0, size = 20): Observable<PageResponse<EmailAuditItem>> {
+    const params = new HttpParams()
+      .set('mode', mode)
+      .set('page', page.toString())
+      .set('size', size.toString());
+    return this.http.get<PageResponse<EmailAuditItem>>(`${this.apiUrl}/emails/audit`, { params });
+  }
+
+  deleteLeadEmails(emailIds: number[]): Observable<DeleteLeadEmailsResponse> {
+    return this.http.delete<DeleteLeadEmailsResponse>(`${this.apiUrl}/emails`, {
+      body: { emailIds }
     });
   }
 

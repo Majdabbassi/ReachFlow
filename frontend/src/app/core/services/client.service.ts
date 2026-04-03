@@ -47,4 +47,8 @@ export class ClientService {
   scanSentEmails(clientId: number): Observable<GmailScanResult> {
     return this.http.post<GmailScanResult>(`${this.apiUrl}/${clientId}/scan-sent`, {});
   }
+
+  scanReplies(clientId: number): Observable<GmailScanResult> {
+    return this.http.get<GmailScanResult>(`${this.apiUrl}/${clientId}/scan-replies`);
+  }
 }

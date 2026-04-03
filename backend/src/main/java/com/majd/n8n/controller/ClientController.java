@@ -80,6 +80,11 @@ public class ClientController {
         return ResponseEntity.ok(gmailScannerService.scanAndMarkSentEmails(id));
     }
 
+    @GetMapping("/{id}/scan-replies")
+    public ResponseEntity<GmailScanResultDTO> scanReplies(@PathVariable Long id) {
+        return ResponseEntity.ok(gmailScannerService.scanAndMarkRepliedEmails(id));
+    }
+
     @DeleteMapping("/{id}/archive")
     public ResponseEntity<Void> archiveClient(@PathVariable Long id) {
         archiveService.archiveClient(id);

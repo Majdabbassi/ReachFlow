@@ -2,7 +2,14 @@
   <div class="title-group">
     <div class="breadcrumb">Overview</div>
     <h1>Outreach Dashboard</h1>
-    <p>Monitor your outreach performance and lead discovery status.</p>
+    <p>Live operational view for campaign delivery, email quality, and archive pressure.</p>
+  </div>
+  <div class="range-switch-wrap">
+    <mat-button-toggle-group [value]="dateRange" (change)="onDateRangeChange($event.value)">
+      <mat-button-toggle value="7d">7D</mat-button-toggle>
+      <mat-button-toggle value="30d">30D</mat-button-toggle>
+      <mat-button-toggle value="90d">90D</mat-button-toggle>
+    </mat-button-toggle-group>
   </div>
 </div>
 
@@ -19,7 +26,6 @@
 
 <ng-container *ngIf="stats$ | async as stats">
   <div class="stats-grid">
-    <!-- Total Clients -->
     <mat-card class="glass-card stat-card clickable" *ngIf="!isLoading; else statSkeleton" (click)="navigateToClients()">
       <div class="card-glow clients"></div>
       <div class="card-inner">
@@ -29,15 +35,20 @@
         <div class="card-data">
           <span class="label">Total Clients</span>
           <h2 class="value">{{ stats.clients | number }}</h2>
-          <div class="trend up">
-            <mat-icon>trending_up</mat-icon>
-            <span>+12.5%</span>
+          <div class="trend neutral">
+            <mat-icon>shield</mat-icon>
+            <span>{{ getRangeLabel() }}: {{ stats.clientsInRange }}</span>
+          </div>
+          <div class="sparkline">
+            <svg viewBox="0 0 100 24" preserveAspectRatio="none">
+              <path [attr.d]="getSparklinePath(stats.clientsTrend)"></path>
+            </svg>
+            <span class="delta" [class.down]="getTrendDelta(stats.clientsTrend) < 0">{{ getTrendDelta(stats.clientsTrend) }}%</span>
           </div>
         </div>
       </div>
     </mat-card>
 
-    <!-- Verified Leads -->
     <mat-card class="glass-card stat-card clickable" *ngIf="!isLoading; else statSkeleton" (click)="navigateToLeads()">
       <div class="card-glow leads"></div>
       <div class="card-inner">
@@ -47,15 +58,20 @@
         <div class="card-data">
           <span class="label">Total Leads</span>
           <h2 class="value">{{ stats.leads | number }}</h2>
-          <div class="trend up">
-            <mat-icon>trending_up</mat-icon>
-            <span>+24.8%</span>
+          <div class="trend neutral">
+            <mat-icon>mark_email_unread</mat-icon>
+            <span>{{ getRangeLabel() }}: {{ stats.leadsInRange }}</span>
+          </div>
+          <div class="sparkline">
+            <svg viewBox="0 0 100 24" preserveAspectRatio="none">
+              <path [attr.d]="getSparklinePath(stats.leadsTrend)"></path>
+            </svg>
+            <span class="delta" [class.down]="getTrendDelta(stats.leadsTrend) < 0">{{ getTrendDelta(stats.leadsTrend) }}%</span>
           </div>
         </div>
       </div>
     </mat-card>
 
-    <!-- Active Campaigns -->
     <mat-card class="glass-card stat-card clickable" *ngIf="!isLoading; else statSkeleton" (click)="navigateToCampaigns()">
       <div class="card-glow campaigns"></div>
       <div class="card-inner">
@@ -65,15 +81,26 @@
         <div class="card-data">
           <span class="label">Campaigns</span>
           <h2 class="value">{{ stats.campaigns | number }}</h2>
-          <div class="trend neutral">
-            <mat-icon>trending_flat</mat-icon>
-            <span>Stable</span>
+          <div class="trend up" *ngIf="stats.runningCampaigns > 0; else noRunning">
+            <mat-icon>bolt</mat-icon>
+            <span>{{ getRangeLabel() }}: {{ stats.campaignsInRange }}</span>
+          </div>
+          <ng-template #noRunning>
+            <div class="trend neutral">
+              <mat-icon>pause_circle</mat-icon>
+              <span>No running campaigns</span>
+            </div>
+          </ng-template>
+          <div class="sparkline">
+            <svg viewBox="0 0 100 24" preserveAspectRatio="none">
+              <path [attr.d]="getSparklinePath(stats.campaignsTrend)"></path>
+            </svg>
+            <span class="delta" [class.down]="getTrendDelta(stats.campaignsTrend) < 0">{{ getTrendDelta(stats.campaignsTrend) }}%</span>
           </div>
         </div>
       </div>
     </mat-card>
 
-    <!-- Emails Sent -->
     <mat-card class="glass-card stat-card" *ngIf="!isLoading; else statSkeleton">
       <div class="card-glow sent"></div>
       <div class="card-inner">
@@ -83,9 +110,15 @@
         <div class="card-data">
           <span class="label">Emails Sent</span>
           <h2 class="value">{{ stats.emailsSent | number }}</h2>
-          <div class="trend up">
-            <mat-icon>trending_up</mat-icon>
-            <span>+5.2%</span>
+          <div class="trend" [class.up]="stats.deliveryRate >= 90" [class.warn]="stats.deliveryRate < 90">
+            <mat-icon>percent</mat-icon>
+            <span>{{ getRangeLabel() }}: {{ stats.emailsSentInRange }} sent</span>
+          </div>
+          <div class="sparkline">
+            <svg viewBox="0 0 100 24" preserveAspectRatio="none">
+              <path [attr.d]="getSparklinePath(stats.emailsSentTrend)"></path>
+            </svg>
+            <span class="delta" [class.down]="getTrendDelta(stats.emailsSentTrend) < 0">{{ getTrendDelta(stats.emailsSentTrend) }}%</span>
           </div>
         </div>
       </div>
@@ -105,48 +138,61 @@
   </div>
 
   <div class="main-content-grid">
-    <!-- Performance Analytics -->
     <mat-card class="glass-card analytics-card">
       <div class="card-header">
         <div class="title-info">
           <mat-icon>insights</mat-icon>
-          <h3>Outreach Performance</h3>
-        </div>
-        <div class="header-actions">
-          <button mat-icon-button><mat-icon>more_vert</mat-icon></button>
+          <h3>Delivery Health</h3>
         </div>
       </div>
-      
+
       <div class="analytics-content">
         <div class="chart-container">
           <div class="circular-progress-wrapper">
             <svg viewBox="0 0 36 36" class="circular-chart">
               <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-              <path class="circle-progress" stroke-dasharray="85, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-              <text x="18" y="20.35" class="percentage">85%</text>
+              <path class="circle-progress" [attr.stroke-dasharray]="stats.deliveryRate + ', 100'" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+              <text x="18" y="20.35" class="percentage">{{ stats.deliveryRate }}%</text>
             </svg>
           </div>
           <div class="analytics-stats">
             <div class="stat-item">
               <span class="dot delivered"></span>
               <div class="info">
-                <span class="name">Delivered</span>
-                <span class="count">{{ (stats.emailsSent * 0.85) | number:'1.0-0' }}</span>
+                <span class="name">Sent</span>
+                <span class="count">{{ stats.emailsSent | number }}</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <span class="dot pending"></span>
+              <div class="info">
+                <span class="name">Pending</span>
+                <span class="count">{{ stats.pendingEmails | number }}</span>
               </div>
             </div>
             <div class="stat-item">
               <span class="dot bounced"></span>
               <div class="info">
-                <span class="name">Bounced</span>
-                <span class="count">{{ (stats.emailsSent * 0.15) | number:'1.0-0' }}</span>
+                <span class="name">Failed</span>
+                <span class="count">{{ stats.failedEmails | number }}</span>
               </div>
             </div>
           </div>
         </div>
+
+        <div class="quality-strip">
+          <button mat-stroked-button class="quick quality" (click)="navigateToEmailAudit()">
+            <mat-icon>mark_email_unread</mat-icon>
+            Invalid: {{ stats.invalidEmails }} | Duplicates: {{ stats.duplicateEmails }}
+          </button>
+          <button mat-stroked-button class="quick archive" (click)="navigateToArchive()">
+            <mat-icon>inventory_2</mat-icon>
+            Archived Clients: {{ stats.archivedClients }}
+          </button>
+        </div>
       </div>
     </mat-card>
 
-    <!-- Recent Discovery Leads -->
     <mat-card class="glass-card recent-leads-card">
       <div class="card-header">
         <div class="title-info">
@@ -186,6 +232,17 @@
             <p>No discovery leads found yet.</p>
           </div>
         </ng-container>
+      </div>
+
+      <div class="ops-ribbon">
+        <div class="ops-chip">
+          <mat-icon>bolt</mat-icon>
+          Running: {{ stats.runningCampaigns }}
+        </div>
+        <div class="ops-chip warning" *ngIf="stats.stopRequestedCampaigns > 0">
+          <mat-icon>report_problem</mat-icon>
+          Stop requested: {{ stats.stopRequestedCampaigns }}
+        </div>
       </div>
     </mat-card>
   </div>

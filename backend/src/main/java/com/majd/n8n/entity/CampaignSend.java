@@ -32,4 +32,6 @@ public class CampaignSend {
     private CampaignSendStatus status = CampaignSendStatus.PENDING;
 
     private LocalDateTime sentAt;
+
+    private LocalDateTime repliedAt;
 }

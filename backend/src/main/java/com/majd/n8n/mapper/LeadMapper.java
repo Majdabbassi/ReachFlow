@@ -14,6 +14,8 @@ import java.util.stream.Collectors;
 public interface LeadMapper {
     @Mapping(target = "primaryEmail", source = "email")
     @Mapping(target = "emails", expression = "java(toEmailList(lead))")
+    @Mapping(target = "categoryIds", ignore = true)
+    @Mapping(target = "categoryNames", ignore = true)
     LeadDTO toDTO(Lead lead);
 
     @Mapping(target = "leadEmails", ignore = true)

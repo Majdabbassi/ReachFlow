@@ -81,7 +81,10 @@ public class MailService {
                 mailSender.send(message);
                 send.setStatus(CampaignSendStatus.SENT);
                 send.setSentAt(LocalDateTime.now());
-            } catch (MessagingException | RuntimeException e) {
+            } catch (MessagingException e) {
+                log.error("Failed to send email to {}: {}", send.getLeadEmail().getEmail(), e.getMessage());
+                send.setStatus(isBounceError(e) ? CampaignSendStatus.BOUNCED : CampaignSendStatus.FAILED);
+            } catch (RuntimeException e) {
                 log.error("Failed to send email to {}: {}", send.getLeadEmail().getEmail(), e.getMessage());
                 send.setStatus(CampaignSendStatus.FAILED);
             }
@@ -96,6 +99,34 @@ public class MailService {
             }
         }
         campaignSendRepository.saveAll(sends);
+    }
+
+    private boolean isBounceError(Throwable throwable) {
+        String fullMessage = buildThrowableMessage(throwable).toLowerCase();
+        List<String> bounceTokens = List.of(
+                "550", "551", "552", "553", "554",
+                "user unknown", "no such user", "address rejected",
+                "invalid address", "does not exist"
+        );
+
+        for (String token : bounceTokens) {
+            if (fullMessage.contains(token)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String buildThrowableMessage(Throwable throwable) {
+        StringBuilder builder = new StringBuilder();
+        Throwable current = throwable;
+        while (current != null) {
+            if (current.getMessage() != null) {
+                builder.append(' ').append(current.getMessage());
+            }
+            current = current.getCause();
+        }
+        return builder.toString();
     }
 
     private String applyTemplate(String template, LeadEmail leadEmail) {

@@ -46,6 +46,10 @@ public interface CampaignSendRepository extends JpaRepository<CampaignSend, Long
     int deleteByLeadEmailLeadId(@Param("leadId") Long leadId);
 
     @Modifying
+    @Query("DELETE FROM CampaignSend cs WHERE cs.leadEmail.id IN :leadEmailIds")
+    int deleteByLeadEmailIdIn(@Param("leadEmailIds") List<Long> leadEmailIds);
+
+    @Modifying
     @Query("DELETE FROM CampaignSend cs WHERE cs.campaign.id IN :campaignIds")
     int bulkDeleteByCampaignIdIn(@Param("campaignIds") List<Long> campaignIds);
 

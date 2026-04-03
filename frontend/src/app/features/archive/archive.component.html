@@ -1,7 +1,7 @@
 <div class="page-header">
   <div class="title-group">
     <h2>Archive</h2>
-    <p>Review archived clients, inspect historical campaigns, and restore records when needed.</p>
+    <p>Review archived records, inspect delivery outcomes, and restore entities when needed.</p>
   </div>
 </div>
 
@@ -9,9 +9,14 @@
   <div class="card-header">
     <mat-icon>inventory_2</mat-icon>
     <h3>Archived Clients</h3>
+    <span class="spacer"></span>
+    <span class="badge">Total: {{ clientsTotalElements }}</span>
   </div>
 
-  <mat-table [dataSource]="archivedClients">
+  <div class="loading-block" *ngIf="isLoadingClients">Loading archived clients...</div>
+  <div class="empty-block" *ngIf="!isLoadingClients && archivedClients.length === 0">No archived clients found.</div>
+
+  <mat-table [dataSource]="archivedClients" *ngIf="archivedClients.length > 0">
     <ng-container matColumnDef="name">
       <mat-header-cell *matHeaderCellDef>Name</mat-header-cell>
       <mat-cell *matCellDef="let client">{{ client.name }}</mat-cell>
@@ -30,8 +35,10 @@
     <ng-container matColumnDef="actions">
       <mat-header-cell *matHeaderCellDef>Actions</mat-header-cell>
       <mat-cell *matCellDef="let client">
-        <button mat-stroked-button color="primary" (click)="viewClient(client)">View</button>
-        <button mat-flat-button color="accent" (click)="restoreClient(client)">Restore</button>
+        <div class="row-actions">
+          <button mat-stroked-button color="primary" (click)="viewClient(client)">View</button>
+          <button mat-flat-button color="accent" (click)="restoreClient(client)">Restore</button>
+        </div>
       </mat-cell>
     </ng-container>
 
@@ -57,7 +64,25 @@
     <h3>Campaigns for {{ selectedClient.name }}</h3>
   </div>
 
-  <mat-table [dataSource]="archivedCampaigns">
+  <div class="summary-strip">
+    <div class="summary-item">
+      <span class="label">Campaign Sends</span>
+      <strong>{{ getClientCampaignTotal() }}</strong>
+    </div>
+    <div class="summary-item">
+      <span class="label">Sent</span>
+      <strong>{{ getClientSentTotal() }}</strong>
+    </div>
+    <div class="summary-item">
+      <span class="label">Campaigns</span>
+      <strong>{{ campaignsTotalElements }}</strong>
+    </div>
+  </div>
+
+  <div class="loading-block" *ngIf="isLoadingCampaigns">Loading archived campaigns...</div>
+  <div class="empty-block" *ngIf="!isLoadingCampaigns && archivedCampaigns.length === 0">No archived campaigns for this client.</div>
+
+  <mat-table [dataSource]="archivedCampaigns" *ngIf="archivedCampaigns.length > 0">
     <ng-container matColumnDef="name">
       <mat-header-cell *matHeaderCellDef>Campaign</mat-header-cell>
       <mat-cell *matCellDef="let campaign">{{ campaign.name }}</mat-cell>
@@ -66,7 +91,7 @@
     <ng-container matColumnDef="status">
       <mat-header-cell *matHeaderCellDef>Status</mat-header-cell>
       <mat-cell *matCellDef="let campaign">
-        <mat-chip>{{ campaign.status }}</mat-chip>
+        <mat-chip class="status-chip">{{ campaign.status }}</mat-chip>
       </mat-cell>
     </ng-container>
 
@@ -93,7 +118,8 @@
     <ng-container matColumnDef="actions">
       <mat-header-cell *matHeaderCellDef>Actions</mat-header-cell>
       <mat-cell *matCellDef="let campaign">
-        <button mat-stroked-button color="primary" (click)="viewCampaign(campaign)">View</button>
+        <button mat-stroked-button color="primary" (click)="viewCampaign(campaign)">View Sends</button>
+        <span class="delivery-chip">Rate: {{ getDeliveryRate(campaign) }}%</span>
       </mat-cell>
     </ng-container>
 
@@ -123,7 +149,10 @@
     </div>
   </div>
 
-  <mat-table [dataSource]="archivedSends">
+  <div class="loading-block" *ngIf="isLoadingSends">Loading archived sends...</div>
+  <div class="empty-block" *ngIf="!isLoadingSends && archivedSends.length === 0">No sends found for this filter.</div>
+
+  <mat-table [dataSource]="archivedSends" *ngIf="archivedSends.length > 0">
     <ng-container matColumnDef="email">
       <mat-header-cell *matHeaderCellDef>Email</mat-header-cell>
       <mat-cell *matCellDef="let send">{{ send.email }}</mat-cell>
@@ -142,7 +171,7 @@
     <ng-container matColumnDef="status">
       <mat-header-cell *matHeaderCellDef>Status</mat-header-cell>
       <mat-cell *matCellDef="let send">
-        <mat-chip>{{ send.status }}</mat-chip>
+        <mat-chip class="status-chip" [ngClass]="getSendStatusClass(send.status)">{{ send.status }}</mat-chip>
       </mat-cell>
     </ng-container>
 

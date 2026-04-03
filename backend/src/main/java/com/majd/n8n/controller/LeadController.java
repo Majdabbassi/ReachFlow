@@ -1,8 +1,12 @@
 package com.majd.n8n.controller;
 
 import com.majd.n8n.dto.LeadDTO;
+import com.majd.n8n.dto.BulkImportResultDTO;
 import com.majd.n8n.dto.BulkLeadImportResponseDTO;
 import com.majd.n8n.dto.CollectRequestDTO;
+import com.majd.n8n.dto.DeleteLeadEmailsRequestDTO;
+import com.majd.n8n.dto.DeleteLeadEmailsResponseDTO;
+import com.majd.n8n.dto.EmailAuditItemDTO;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.*;
 import java.util.Map;
@@ -13,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import org.springframework.http.HttpHeaders;
 import java.util.List;
@@ -46,6 +51,32 @@ public class LeadController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=all-emails.txt")
                 .contentType(MediaType.TEXT_PLAIN)
                 .body(body);
+    }
+
+    @GetMapping("/export/csv")
+    public ResponseEntity<String> exportAllLeadsCsv() {
+        String body = leadService.getAllLeadsAsCsv();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=leads.csv")
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .body(body);
+    }
+
+    @PostMapping(value = "/import/csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<BulkImportResultDTO> importLeadsCsv(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(leadService.importFromCsv(file));
+    }
+
+    @GetMapping("/emails/audit")
+    public ResponseEntity<Page<EmailAuditItemDTO>> getEmailAudit(
+            @RequestParam(defaultValue = "invalid") String mode,
+            Pageable pageable) {
+        return ResponseEntity.ok(leadService.getEmailAudit(mode, pageable));
+    }
+
+    @DeleteMapping("/emails")
+    public ResponseEntity<DeleteLeadEmailsResponseDTO> deleteLeadEmails(@RequestBody DeleteLeadEmailsRequestDTO request) {
+        return ResponseEntity.ok(leadService.deleteLeadEmails(request.getEmailIds()));
     }
 
     @PostMapping

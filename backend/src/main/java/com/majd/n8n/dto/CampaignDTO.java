@@ -25,5 +25,7 @@ public class CampaignDTO {
     @NotNull(message = "Client ID is required")
     private Long clientId;
 
+    private LocalDateTime scheduledAt;
+
     private LocalDateTime createdAt;
 }

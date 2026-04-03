@@ -1,6 +1,10 @@
 package com.majd.n8n.service;
 
 import com.majd.n8n.dto.LeadDTO;
+import com.majd.n8n.dto.BulkImportResultDTO;
+import com.majd.n8n.dto.DeleteLeadEmailsResponseDTO;
+import com.majd.n8n.dto.EmailAuditItemDTO;
+import com.majd.n8n.entity.Category;
 import com.majd.n8n.entity.Lead;
 import com.majd.n8n.entity.LeadCategory;
 import com.majd.n8n.entity.LeadEmail;
@@ -11,18 +15,26 @@ import com.majd.n8n.repository.CategoryRepository;
 import com.majd.n8n.repository.LeadCategoryRepository;
 import com.majd.n8n.repository.LeadEmailRepository;
 import com.majd.n8n.repository.LeadRepository;
+import com.majd.n8n.repository.EmailAuditProjection;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -138,6 +150,241 @@ public class LeadService {
                 .collect(Collectors.toCollection(TreeSet::new))
                 .stream()
                 .collect(Collectors.joining(System.lineSeparator()));
+    }
+
+    @Transactional(readOnly = true)
+    public String getAllLeadsAsCsv() {
+        List<Lead> leads = leadRepository.findAll();
+        String header = "id,institutionName,city,phone,address,website,email,allEmails,categories,source,createdAt";
+        if (leads.isEmpty()) {
+            return header;
+        }
+
+        List<Long> leadIds = leads.stream().map(Lead::getId).toList();
+        Map<Long, List<LeadEmail>> emailsByLeadId = leadEmailRepository.findByLeadIdIn(leadIds).stream()
+                .collect(Collectors.groupingBy(leadEmail -> leadEmail.getLead().getId()));
+        Map<Long, List<String>> categoryNamesByLeadId = leadCategoryRepository.findByLeadIdIn(leadIds).stream()
+                .filter(leadCategory -> leadCategory.getCategory() != null && leadCategory.getCategory().isActive())
+                .collect(Collectors.groupingBy(
+                        leadCategory -> leadCategory.getLead().getId(),
+                        Collectors.mapping(leadCategory -> leadCategory.getCategory().getName(), Collectors.toList())
+                ));
+
+        List<String> lines = new ArrayList<>();
+        lines.add(header);
+
+        for (Lead lead : leads) {
+            List<String> allEmails = emailsByLeadId.getOrDefault(lead.getId(), List.of()).stream()
+                    .map(LeadEmail::getEmail)
+                    .filter(this::hasText)
+                    .map(value -> value.trim().toLowerCase())
+                    .distinct()
+                    .toList();
+            List<String> categories = categoryNamesByLeadId.getOrDefault(lead.getId(), List.of()).stream()
+                    .filter(this::hasText)
+                    .distinct()
+                    .toList();
+
+            lines.add(String.join(",",
+                    String.valueOf(lead.getId()),
+                    csvCell(lead.getInstitutionName()),
+                    csvCell(lead.getCity()),
+                    csvCell(lead.getPhone()),
+                    csvCell(lead.getAddress()),
+                    csvCell(lead.getWebsite()),
+                    csvCell(lead.getEmail()),
+                    csvCell(String.join("|", allEmails)),
+                    csvCell(String.join("|", categories)),
+                    csvCell(lead.getSource()),
+                    csvCell(lead.getCreatedAt() == null ? "" : lead.getCreatedAt().toString())
+            ));
+        }
+
+        return String.join(System.lineSeparator(), lines);
+    }
+
+    @Transactional
+    public BulkImportResultDTO importFromCsv(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("CSV file is empty", HttpStatus.BAD_REQUEST);
+        }
+
+        int imported = 0;
+        int skipped = 0;
+        int failed = 0;
+        List<String> errors = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            String headerLine = reader.readLine();
+            if (!hasText(headerLine)) {
+                throw new BusinessException("CSV header row is missing", HttpStatus.BAD_REQUEST);
+            }
+
+            Map<String, Integer> headerIndex = buildHeaderIndex(parseCsvLine(headerLine));
+            List<String> requiredHeaders = List.of("institutionname", "city", "phone", "address", "website", "email", "categories");
+            for (String required : requiredHeaders) {
+                if (!headerIndex.containsKey(required)) {
+                    throw new BusinessException("Missing required CSV header: " + required, HttpStatus.BAD_REQUEST);
+                }
+            }
+
+            String line;
+            int rowNumber = 1;
+            while ((line = reader.readLine()) != null) {
+                rowNumber++;
+                if (!hasText(line)) {
+                    continue;
+                }
+
+                try {
+                    List<String> values = parseCsvLine(line);
+                    String emailCell = getCsvValue(values, headerIndex, "email");
+                    List<String> emails = splitPipeValues(emailCell);
+                    if (emails.isEmpty()) {
+                        throw new BusinessException("email column is required", HttpStatus.BAD_REQUEST);
+                    }
+
+                    LeadDTO leadDTO = LeadDTO.builder()
+                            .institutionName(getCsvValue(values, headerIndex, "institutionname"))
+                            .city(getCsvValue(values, headerIndex, "city"))
+                            .phone(getCsvValue(values, headerIndex, "phone"))
+                            .address(getCsvValue(values, headerIndex, "address"))
+                            .website(getCsvValue(values, headerIndex, "website"))
+                            .email(emails.get(0))
+                            .primaryEmail(emails.get(0))
+                            .emails(emails)
+                            .source("CSV Import")
+                            .build();
+
+                    List<String> categoryNames = splitPipeValues(getCsvValue(values, headerIndex, "categories"));
+                    List<Long> categoryIds = new ArrayList<>();
+                    List<String> resolvedCategoryNames = new ArrayList<>();
+                    for (String categoryName : categoryNames) {
+                        Optional<Category> category = categoryRepository.findByNameIgnoreCaseAndActiveTrue(categoryName);
+                        if (category.isEmpty()) {
+                            continue;
+                        }
+                        categoryIds.add(category.get().getId());
+                        resolvedCategoryNames.add(category.get().getName());
+                    }
+                    leadDTO.setCategoryIds(categoryIds);
+                    leadDTO.setCategoryNames(resolvedCategoryNames);
+
+                    boolean existedBefore = findExistingLead(leadDTO).isPresent();
+                    createOrSkipLead(leadDTO);
+                    if (existedBefore) {
+                        skipped++;
+                    } else {
+                        imported++;
+                    }
+                } catch (Exception ex) {
+                    failed++;
+                    errors.add("Row " + rowNumber + ": " + ex.getMessage());
+                }
+            }
+        } catch (IOException ex) {
+            throw new BusinessException("Failed to read CSV file", HttpStatus.BAD_REQUEST, ex);
+        }
+
+        return BulkImportResultDTO.builder()
+                .imported(imported)
+                .skipped(skipped)
+                .failed(failed)
+                .errors(errors)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<EmailAuditItemDTO> getEmailAudit(String mode, Pageable pageable) {
+        String normalizedMode = mode == null ? "invalid" : mode.trim().toLowerCase();
+
+        if (!"invalid".equals(normalizedMode) && !"duplicate".equals(normalizedMode)) {
+            throw new BusinessException("Unsupported audit mode: " + mode, HttpStatus.BAD_REQUEST);
+        }
+
+        Page<EmailAuditProjection> page = "duplicate".equals(normalizedMode)
+                ? leadEmailRepository.findDuplicateEmails(pageable)
+                : leadEmailRepository.findInvalidEmails(pageable);
+
+        final String issueType = normalizedMode.toUpperCase();
+        return page.map(item -> EmailAuditItemDTO.builder()
+                .id(item.getId())
+                .leadId(item.getLeadId())
+                .institutionName(item.getInstitutionName())
+                .email(item.getEmail())
+                .primary(Boolean.TRUE.equals(item.getIsPrimary()))
+                .issueType(issueType)
+                .duplicateCount(item.getDuplicateCount() == null ? 0L : item.getDuplicateCount())
+                .build());
+    }
+
+    @Transactional
+    public DeleteLeadEmailsResponseDTO deleteLeadEmails(List<Long> emailIds) {
+        if (emailIds == null || emailIds.isEmpty()) {
+            return DeleteLeadEmailsResponseDTO.builder()
+                    .deletedCount(0)
+                    .skippedCount(0)
+                    .skippedEmailIds(List.of())
+                    .build();
+        }
+
+        List<Long> uniqueIds = emailIds.stream()
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+        if (uniqueIds.isEmpty()) {
+            return DeleteLeadEmailsResponseDTO.builder()
+                    .deletedCount(0)
+                    .skippedCount(0)
+                    .skippedEmailIds(List.of())
+                    .build();
+        }
+
+        List<LeadEmail> selectedEmails = leadEmailRepository.findAllById(uniqueIds);
+        if (selectedEmails.isEmpty()) {
+            return DeleteLeadEmailsResponseDTO.builder()
+                    .deletedCount(0)
+                    .skippedCount(0)
+                    .skippedEmailIds(List.of())
+                    .build();
+        }
+
+        Map<Long, List<LeadEmail>> byLeadId = selectedEmails.stream()
+                .filter(item -> item.getLead() != null && item.getLead().getId() != null)
+                .collect(Collectors.groupingBy(item -> item.getLead().getId()));
+
+        List<Long> deletableIds = new ArrayList<>();
+        List<Long> skippedIds = new ArrayList<>();
+
+        for (Map.Entry<Long, List<LeadEmail>> entry : byLeadId.entrySet()) {
+            Long leadId = entry.getKey();
+            int selectedForLead = entry.getValue().size();
+            long totalForLead = leadEmailRepository.countByLeadId(leadId);
+
+            if (totalForLead - selectedForLead <= 0) {
+                skippedIds.addAll(entry.getValue().stream().map(LeadEmail::getId).toList());
+                continue;
+            }
+
+            deletableIds.addAll(entry.getValue().stream().map(LeadEmail::getId).toList());
+        }
+
+        if (!deletableIds.isEmpty()) {
+            campaignSendRepository.deleteByLeadEmailIdIn(deletableIds);
+            leadEmailRepository.deleteAllByIdInBatch(deletableIds);
+        }
+
+        Set<Long> affectedLeadIds = selectedEmails.stream()
+                .filter(item -> item.getLead() != null && item.getLead().getId() != null)
+                .map(item -> item.getLead().getId())
+                .collect(Collectors.toSet());
+        refreshLeadPrimaryEmail(affectedLeadIds);
+
+        return DeleteLeadEmailsResponseDTO.builder()
+                .deletedCount(deletableIds.size())
+                .skippedCount(skippedIds.size())
+                .skippedEmailIds(skippedIds)
+                .build();
     }
 
     private Optional<Lead> findExistingLead(LeadDTO leadDTO) {
@@ -312,6 +559,107 @@ public class LeadService {
     private void addEmail(Set<String> set, String email) {
         if (hasText(email)) {
             set.add(email.trim().toLowerCase());
+        }
+    }
+
+    private Map<String, Integer> buildHeaderIndex(List<String> headers) {
+        Map<String, Integer> index = new HashMap<>();
+        for (int i = 0; i < headers.size(); i++) {
+            String normalized = headers.get(i) == null ? "" : headers.get(i).trim().toLowerCase();
+            if (!normalized.isEmpty()) {
+                index.put(normalized, i);
+            }
+        }
+        return index;
+    }
+
+    private String getCsvValue(List<String> values, Map<String, Integer> headerIndex, String key) {
+        Integer index = headerIndex.get(key);
+        if (index == null || index < 0 || index >= values.size()) {
+            return "";
+        }
+        String value = values.get(index);
+        return value == null ? "" : value.trim();
+    }
+
+    private List<String> splitPipeValues(String value) {
+        if (!hasText(value)) {
+            return List.of();
+        }
+        return Arrays.stream(value.split("\\\\|"))
+                .map(String::trim)
+                .filter(this::hasText)
+                .map(v -> v.toLowerCase(Locale.ROOT))
+                .distinct()
+                .toList();
+    }
+
+    private List<String> parseCsvLine(String line) {
+        List<String> values = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inQuotes = false;
+
+        for (int i = 0; i < line.length(); i++) {
+            char ch = line.charAt(i);
+            if (ch == '"') {
+                if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                    current.append('"');
+                    i++;
+                    continue;
+                }
+                inQuotes = !inQuotes;
+                continue;
+            }
+
+            if (ch == ',' && !inQuotes) {
+                values.add(current.toString());
+                current.setLength(0);
+                continue;
+            }
+
+            current.append(ch);
+        }
+
+        values.add(current.toString());
+        return values;
+    }
+
+    private String csvCell(String value) {
+        String safe = value == null ? "" : value;
+        return '"' + safe.replace("\"", "\"\"") + '"';
+    }
+
+    private void refreshLeadPrimaryEmail(Set<Long> leadIds) {
+        if (leadIds == null || leadIds.isEmpty()) {
+            return;
+        }
+
+        for (Long leadId : leadIds) {
+            if (leadId == null) {
+                continue;
+            }
+
+            Lead lead = leadRepository.findById(leadId).orElse(null);
+            if (lead == null) {
+                continue;
+            }
+
+            List<LeadEmail> emails = leadEmailRepository.findByLeadId(leadId);
+            if (emails.isEmpty()) {
+                continue;
+            }
+
+            LeadEmail primary = emails.stream().filter(LeadEmail::isPrimary).findFirst().orElse(null);
+            if (primary == null) {
+                primary = emails.get(0);
+                for (LeadEmail email : emails) {
+                    email.setPrimary(email.getId().equals(primary.getId()));
+                }
+                leadEmailRepository.saveAll(emails);
+            }
+
+            lead.setEmail(primary.getEmail());
+            leadRepository.save(lead);
         }
     }
 

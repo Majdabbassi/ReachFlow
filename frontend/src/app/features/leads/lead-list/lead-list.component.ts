@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, ElementRef, ViewChild, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -86,6 +86,7 @@ export class LeadListComponent implements OnInit {
   private toastr = inject(ToastrService);
   private fb = inject(FormBuilder);
   private currentLeads: Lead[] = [];
+  @ViewChild('csvImportInput') csvImportInput?: ElementRef<HTMLInputElement>;
 
   // Selection model
   selection = new SelectionModel<Lead>(true, []);
@@ -515,6 +516,69 @@ export class LeadListComponent implements OnInit {
         this.toastr.error('Failed to download all emails file');
       }
     });
+  }
+
+  downloadLeadsCsvFromDb() {
+    this.leadService.exportLeadsCsv().subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.toastr.success('Leads CSV downloaded');
+      },
+      error: () => {
+        this.toastr.error('Failed to download leads CSV');
+      }
+    });
+  }
+
+  openCsvImportPicker() {
+    this.csvImportInput?.nativeElement.click();
+  }
+
+  onCsvImportSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      this.toastr.error('Please select a CSV file');
+      input.value = '';
+      return;
+    }
+
+    this.leadService.importLeadsCsv(file).subscribe({
+      next: (result) => {
+        this.toastr.success(`Imported ${result.imported}, Skipped ${result.skipped}, Failed ${result.failed}`);
+        if (result.errors?.length) {
+          this.toastr.warning(`Import reported ${result.errors.length} row errors`);
+        }
+        input.value = '';
+        this.loadLeads();
+      },
+      error: () => {
+        this.toastr.error('Failed to import CSV');
+        input.value = '';
+      }
+    });
+  }
+
+  downloadCsvTemplate() {
+    const header = 'institutionName,city,phone,address,website,email,categories';
+    const example = 'Example School,Berlin,+49 30 123456,Example Street 1,https://example-school.de,info@example-school.de|contact@example-school.de,Healthcare|Education';
+    const csv = `${header}\n${example}`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'leads-import-template.csv';
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   getInstitutionName(result: WebhookLeadResult): string {

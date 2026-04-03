@@ -1,0 +1,112 @@
+<div class="page-header">
+  <div class="heading">
+    <h2>Email Quality Audit</h2>
+    <p>Inspect risky records, switch between invalid and duplicate modes, and remove selected emails safely.</p>
+  </div>
+
+  <div class="actions">
+    <mat-button-toggle-group [value]="mode" (change)="onModeChange($event)" class="mode-switch">
+      <mat-button-toggle value="invalid">Invalid Emails</mat-button-toggle>
+      <mat-button-toggle value="duplicate">Duplicate Emails</mat-button-toggle>
+    </mat-button-toggle-group>
+
+    <button mat-stroked-button color="primary" (click)="exportSelected()" [disabled]="selectedCount === 0">
+      <mat-icon>download</mat-icon>
+      Export Selected
+    </button>
+
+    <button mat-flat-button color="warn" (click)="deleteSelected()" [disabled]="selectedCount === 0">
+      <mat-icon>delete</mat-icon>
+      Delete Selected ({{ selectedCount }})
+    </button>
+  </div>
+</div>
+
+<div class="summary-strip">
+  <div class="summary-card mode">
+    <span class="label">Current Mode</span>
+    <strong>{{ mode === 'invalid' ? 'Invalid Emails' : 'Duplicate Emails' }}</strong>
+  </div>
+  <div class="summary-card total">
+    <span class="label">Total Results</span>
+    <strong>{{ totalElements }}</strong>
+  </div>
+  <div class="summary-card selected">
+    <span class="label">Selected</span>
+    <strong>{{ selectedCount }}</strong>
+  </div>
+</div>
+
+<mat-card class="table-card">
+  <div class="loading" *ngIf="isLoading">
+    <mat-spinner diameter="34"></mat-spinner>
+  </div>
+
+  <div class="empty" *ngIf="!isLoading && rows.length === 0">
+    <mat-icon>task_alt</mat-icon>
+    <h3>No rows found for this mode</h3>
+    <p>Switch mode to check the other audit list.</p>
+  </div>
+
+  <ng-container *ngIf="!isLoading && rows.length > 0">
+    <mat-table [dataSource]="rows">
+      <ng-container matColumnDef="select">
+        <mat-header-cell *matHeaderCellDef>
+          <mat-checkbox [checked]="isAllSelected()" (change)="toggleAll()"></mat-checkbox>
+        </mat-header-cell>
+        <mat-cell *matCellDef="let row">
+          <mat-checkbox (click)="$event.stopPropagation()" (change)="$event ? selection.toggle(row) : null" [checked]="selection.isSelected(row)"></mat-checkbox>
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="email">
+        <mat-header-cell *matHeaderCellDef>Email</mat-header-cell>
+        <mat-cell *matCellDef="let row">{{ row.email || '—' }}</mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="institution">
+        <mat-header-cell *matHeaderCellDef>Institution</mat-header-cell>
+        <mat-cell *matCellDef="let row">{{ row.institutionName || '—' }}</mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="leadId">
+        <mat-header-cell *matHeaderCellDef>Lead ID</mat-header-cell>
+        <mat-cell *matCellDef="let row">{{ row.leadId }}</mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="primary">
+        <mat-header-cell *matHeaderCellDef>Primary</mat-header-cell>
+        <mat-cell *matCellDef="let row">
+          <mat-chip [color]="row.primary ? 'primary' : undefined" [highlighted]="row.primary">
+            {{ row.primary ? 'Yes' : 'No' }}
+          </mat-chip>
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="issue">
+        <mat-header-cell *matHeaderCellDef>Issue</mat-header-cell>
+        <mat-cell *matCellDef="let row">
+          <mat-chip class="issue-chip" [class.duplicate]="row.issueType === 'DUPLICATE'" [class.invalid]="row.issueType === 'INVALID'">
+            {{ row.issueType }}
+          </mat-chip>
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="duplicateCount">
+        <mat-header-cell *matHeaderCellDef>Duplicate Count</mat-header-cell>
+        <mat-cell *matCellDef="let row">{{ row.duplicateCount || '—' }}</mat-cell>
+      </ng-container>
+
+      <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: displayedColumns"></mat-row>
+    </mat-table>
+
+    <mat-paginator
+      [length]="totalElements"
+      [pageIndex]="pageIndex"
+      [pageSize]="pageSize"
+      [pageSizeOptions]="[10, 20, 50, 100]"
+      (page)="onPageChange($event)">
+    </mat-paginator>
+  </ng-container>
+</mat-card>

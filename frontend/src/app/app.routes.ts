@@ -23,6 +23,11 @@ export const routes: Routes = [
         data: { animation: 'Leads' }
       },
       {
+        path: 'leads/email-audit',
+        loadComponent: () => import('./features/leads/email-audit/email-audit.component').then((m) => m.EmailAuditComponent),
+        data: { animation: 'EmailAudit' }
+      },
+      {
         path: 'campaigns',
         loadComponent: () => import('./features/campaigns/campaign-list/campaign-list.component').then((m) => m.CampaignListComponent),
         data: { animation: 'Campaigns' }

@@ -81,13 +81,16 @@ export interface Campaign {
   status: CampaignStatus;
   clientId: number;
   clientName?: string;
+  scheduledAt?: string;
   createdAt?: string;
 }
 
 export enum CampaignSendStatus {
   PENDING = 'PENDING',
   SENT = 'SENT',
-  FAILED = 'FAILED'
+  FAILED = 'FAILED',
+  REPLIED = 'REPLIED',
+  BOUNCED = 'BOUNCED'
 }
 
 export interface CampaignSend {
@@ -100,6 +103,7 @@ export interface CampaignSend {
   leadCity?: string;
   status: CampaignSendStatus;
   sentAt?: string;
+  repliedAt?: string;
 }
 
 export interface ArchivedClient {
@@ -145,8 +149,10 @@ export interface PageResponse<T> {
 export interface CampaignStats {
   total: number;
   sent: number;
+  replied: number;
   pending: number;
   failed: number;
+  bounced: number;
 }
 
 export interface CampaignLog {
@@ -160,10 +166,26 @@ export interface CampaignLog {
 export interface GmailScanResult {
   scannedCount: number;
   markedAsSentCount: number;
+  markedAsRepliedCount?: number;
+}
+
+export interface CampaignScheduleRequest {
+  scheduledAt: string;
+  subject: string;
+  body: string;
+  delaySeconds: number;
+  htmlBody: boolean;
 }
 
 export interface BulkLeadImportResponse {
   saved: Lead[];
+  errors: string[];
+}
+
+export interface BulkImportResult {
+  imported: number;
+  skipped: number;
+  failed: number;
   errors: string[];
 }
 
@@ -173,4 +195,20 @@ export interface SelectiveSendRequest {
   body: string;
   delaySeconds: number;
   htmlBody: boolean;
+}
+
+export interface EmailAuditItem {
+  id: number;
+  leadId: number;
+  institutionName?: string;
+  email: string;
+  primary: boolean;
+  issueType: 'INVALID' | 'DUPLICATE';
+  duplicateCount: number;
+}
+
+export interface DeleteLeadEmailsResponse {
+  deletedCount: number;
+  skippedCount: number;
+  skippedEmailIds: number[];
 }

@@ -1,12 +1,14 @@
 package com.majd.n8n.service;
 
 import com.majd.n8n.dto.CampaignDTO;
+import com.majd.n8n.dto.CampaignScheduleRequestDTO;
 import com.majd.n8n.dto.CampaignSendDTO;
 import com.majd.n8n.dto.CampaignStartRequestDTO;
 import com.majd.n8n.dto.CampaignStatsDTO;
 import com.majd.n8n.dto.SelectiveSendRequestDTO;
 import com.majd.n8n.entity.Campaign;
 import com.majd.n8n.entity.CampaignSend;
+import com.majd.n8n.entity.CampaignStartRequest;
 import com.majd.n8n.entity.Client;
 import com.majd.n8n.entity.ClientCategory;
 import com.majd.n8n.entity.Lead;
@@ -103,6 +105,9 @@ public class CampaignService {
     @Async
     public void startCampaign(Long id, CampaignStartRequestDTO request) {
         try {
+            if (request == null) {
+                throw new BusinessException("Campaign request is required", HttpStatus.BAD_REQUEST);
+            }
             CampaignStartContext context = prepareCampaignStart(id);
             int delaySeconds = request.getDelaySeconds() == null ? 2 : Math.max(request.getDelaySeconds(), 0);
             boolean htmlBody = Boolean.TRUE.equals(request.getHtmlBody());
@@ -116,6 +121,35 @@ public class CampaignService {
             }
             throw new BusinessException("Failed to start campaign", HttpStatus.INTERNAL_SERVER_ERROR, ex);
         }
+    }
+
+    @Transactional
+    public void scheduleCampaign(Long campaignId, CampaignScheduleRequestDTO request) {
+        if (request == null || request.getScheduledAt() == null) {
+            throw new BusinessException("scheduledAt is required", HttpStatus.BAD_REQUEST);
+        }
+
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new BusinessException("Campaign not found with id: " + campaignId, HttpStatus.NOT_FOUND));
+
+        if (campaign.getStatus() == CampaignStatus.RUNNING) {
+            throw new BusinessException("Cannot schedule a running campaign", HttpStatus.CONFLICT);
+        }
+
+        campaign.setStatus(CampaignStatus.DRAFT);
+        campaign.setScheduledAt(request.getScheduledAt());
+        campaign.setStartRequest(CampaignStartRequest.builder()
+                .subject(request.getSubject())
+                .body(request.getBody())
+                .delaySeconds(request.getDelaySeconds())
+                .htmlBody(Boolean.TRUE.equals(request.getHtmlBody()))
+                .build());
+        campaignRepository.save(campaign);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Campaign> getSchedulableCampaigns(LocalDateTime now) {
+        return campaignRepository.findByStatusAndScheduledAtIsNotNullAndScheduledAtLessThanEqual(CampaignStatus.DRAFT, now);
     }
 
     @Transactional
@@ -167,13 +201,17 @@ public class CampaignService {
         syncCampaignSendsWithAllLeads(id);
         long total = campaignSendRepository.countByCampaignId(id);
         long sent = campaignSendRepository.countByCampaignIdAndStatus(id, CampaignSendStatus.SENT);
+        long replied = campaignSendRepository.countByCampaignIdAndStatus(id, CampaignSendStatus.REPLIED);
         long pending = campaignSendRepository.countByCampaignIdAndStatus(id, CampaignSendStatus.PENDING);
         long failed = campaignSendRepository.countByCampaignIdAndStatus(id, CampaignSendStatus.FAILED);
+        long bounced = campaignSendRepository.countByCampaignIdAndStatus(id, CampaignSendStatus.BOUNCED);
         return CampaignStatsDTO.builder()
                 .total(total)
                 .sent(sent)
+            .replied(replied)
                 .pending(pending)
                 .failed(failed)
+            .bounced(bounced)
                 .build();
     }
 
@@ -223,6 +261,7 @@ public class CampaignService {
                 .leadCity(send.getLeadEmail().getLead().getCity())
                 .status(send.getStatus())
                 .sentAt(send.getSentAt())
+            .repliedAt(send.getRepliedAt())
                 .build());
     }
 
@@ -248,6 +287,8 @@ public class CampaignService {
         }
 
         campaign.setStatus(CampaignStatus.RUNNING);
+        campaign.setScheduledAt(null);
+        campaign.setStartRequest(null);
         campaignRepository.save(campaign);
 
         return new CampaignStartContext(campaign.getClient(), retryableSends);

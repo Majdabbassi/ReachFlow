@@ -22,4 +22,5 @@ public class CampaignSendDTO {
     private String leadCity;
     private CampaignSendStatus status;
     private LocalDateTime sentAt;
+    private LocalDateTime repliedAt;
 }

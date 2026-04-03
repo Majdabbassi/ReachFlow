@@ -12,5 +12,6 @@ public interface CampaignMapper {
 
     @Mapping(target = "client", ignore = true)
     @Mapping(target = "campaignSends", ignore = true)
+    @Mapping(target = "startRequest", ignore = true)
     Campaign toEntity(CampaignDTO campaignDTO);
 }

@@ -20,6 +20,14 @@
       <mat-icon>{{ showLogs ? 'terminal' : 'history' }}</mat-icon> 
       {{ showLogs ? 'Hide Console' : 'Execution Logs' }}
     </button>
+    <button mat-stroked-button (click)="scanSentEmails()" class="action-btn" [disabled]="!client?.id">
+      <mat-icon>mark_email_read</mat-icon>
+      Scan Sent
+    </button>
+    <button mat-stroked-button (click)="scanReplies()" class="action-btn" [disabled]="!client?.id">
+      <mat-icon>reply</mat-icon>
+      Scan Replies
+    </button>
     <button
       mat-flat-button
       color="warn"
@@ -97,13 +105,21 @@
           <span class="count">{{ stats.sent }}</span>
           <span class="label">Sent Successfully</span>
         </div>
+        <div class="stat-box replied">
+          <span class="count">{{ stats.replied }}</span>
+          <span class="label">Replied</span>
+        </div>
         <div class="stat-box pending">
           <span class="count">{{ stats.pending }}</span>
           <span class="label">In Queue</span>
         </div>
         <div class="stat-box failed">
           <span class="count">{{ stats.failed }}</span>
-          <span class="label">Failed / Bounced</span>
+          <span class="label">Failed</span>
+        </div>
+        <div class="stat-box bounced">
+          <span class="count">{{ stats.bounced }}</span>
+          <span class="label">Bounced</span>
         </div>
       </div>
       
@@ -165,6 +181,24 @@
           <mat-icon matSuffix>timer</mat-icon>
         </mat-form-field>
 
+        <mat-checkbox formControlName="scheduleForLater" color="primary">
+          Schedule for later
+        </mat-checkbox>
+
+        <div class="schedule-row" *ngIf="templateForm.value.scheduleForLater">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Scheduled Date</mat-label>
+            <input matInput [matDatepicker]="schedulePicker" formControlName="scheduledDate">
+            <mat-datepicker-toggle matIconSuffix [for]="schedulePicker"></mat-datepicker-toggle>
+            <mat-datepicker #schedulePicker></mat-datepicker>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Scheduled Time</mat-label>
+            <input matInput type="time" formControlName="scheduledTime">
+          </mat-form-field>
+        </div>
+
         <mat-checkbox formControlName="htmlBody" color="primary">
           Send body as HTML
         </mat-checkbox>
@@ -210,6 +244,8 @@
       <button [class.active]="selectedSendStatus === 'ALL'" (click)="onSendStatusFilterChange('ALL')">All</button>
       <button [class.active]="selectedSendStatus === CampaignSendStatus.PENDING" (click)="onSendStatusFilterChange(CampaignSendStatus.PENDING)">Queued</button>
       <button [class.active]="selectedSendStatus === CampaignSendStatus.SENT" (click)="onSendStatusFilterChange(CampaignSendStatus.SENT)">Delivered</button>
+      <button [class.active]="selectedSendStatus === CampaignSendStatus.REPLIED" (click)="onSendStatusFilterChange(CampaignSendStatus.REPLIED)">Replied</button>
+      <button [class.active]="selectedSendStatus === CampaignSendStatus.BOUNCED" (click)="onSendStatusFilterChange(CampaignSendStatus.BOUNCED)">Bounced</button>
       <button [class.active]="selectedSendStatus === CampaignSendStatus.FAILED" (click)="onSendStatusFilterChange(CampaignSendStatus.FAILED)">Failed</button>
     </div>
   </div>
