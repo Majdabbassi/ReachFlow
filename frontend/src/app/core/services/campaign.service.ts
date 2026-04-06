@@ -8,7 +8,7 @@ import { Campaign, CampaignScheduleRequest, CampaignSend, CampaignStats, Campaig
 })
 export class CampaignService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8080/api/campaigns';
+  private apiUrl = '/api/campaigns';
   private campaignsSubject = new BehaviorSubject<Campaign[]>([]);
   readonly campaigns$ = this.campaignsSubject.asObservable();
 

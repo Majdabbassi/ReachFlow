@@ -8,7 +8,7 @@ import { Client, GmailScanResult } from '../models/models';
 })
 export class ClientService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8080/api/clients';
+  private apiUrl = '/api/clients';
   private clientsSubject = new BehaviorSubject<Client[]>([]);
   readonly clients$ = this.clientsSubject.asObservable();
 

@@ -31,13 +31,13 @@
     <button
       mat-flat-button
       color="warn"
-      *ngIf="campaign?.status === CampaignStatus.RUNNING"
+      *ngIf="canStopCampaign()"
       (click)="stopCampaign()"
       class="action-btn">
       <mat-icon>stop_circle</mat-icon> Stop
     </button>
     <button mat-flat-button color="primary" 
-          [disabled]="campaign?.status === CampaignStatus.RUNNING || (stats.pending + stats.failed) === 0"
+          [disabled]="canStopCampaign() || (stats.pending + stats.failed) === 0"
             (click)="startCampaign()"
             class="action-btn start-btn">
       <mat-icon>rocket_launch</mat-icon> Launch outreach

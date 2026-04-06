@@ -8,7 +8,7 @@ import { Category, CategoryWithKeywords, Keyword } from '../models/models';
 })
 export class CategoryService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8080/api/categories';
+  private apiUrl = '/api/categories';
 
   getCategories(): Observable<CategoryWithKeywords[]> {
     return this.http.get<CategoryWithKeywords[]>(this.apiUrl);

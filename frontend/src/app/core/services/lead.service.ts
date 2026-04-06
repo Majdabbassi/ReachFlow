@@ -7,7 +7,7 @@ import { BulkImportResult, BulkLeadImportResponse, DeleteLeadEmailsResponse, Ema
 @Injectable({ providedIn: 'root' })
 export class LeadService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8080/api/leads';
+  private apiUrl = '/api/leads';
 
   getLeads(page = 0, size = 10, city?: string, source?: string): Observable<PageResponse<Lead>> {
     let params = new HttpParams()

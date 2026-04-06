@@ -14,8 +14,8 @@ import {
 })
 export class ArchiveService {
   private http = inject(HttpClient);
-  private apiClientsUrl = 'http://localhost:8080/api/clients';
-  private apiArchiveUrl = 'http://localhost:8080/api/archive';
+  private apiClientsUrl = '/api/clients';
+  private apiArchiveUrl = '/api/archive';
 
   archiveClient(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiClientsUrl}/${id}/archive`);

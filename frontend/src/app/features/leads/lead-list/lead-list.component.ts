@@ -61,6 +61,16 @@ interface CollectorCategory {
   keywords: CollectorKeyword[];
 }
 
+interface GermanyCityNode {
+  name: string;
+  districts: string[];
+}
+
+interface GermanyStateNode {
+  name: string;
+  cities: GermanyCityNode[];
+}
+
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { SelectionModel } from '@angular/cdk/collections';
@@ -92,7 +102,7 @@ export class LeadListComponent implements OnInit {
   selection = new SelectionModel<Lead>(true, []);
 
   // Collector state
-  cityInput = '';
+  placeSearch = '';
   cities: string[] = [];
   isLoadingLeads = false;
   loadError: string | null = null;
@@ -172,13 +182,80 @@ export class LeadListComponent implements OnInit {
   private rawResponsePreviewSubject = new BehaviorSubject<string>('');
   rawResponsePreview$ = this.rawResponsePreviewSubject.asObservable();
 
-  // Autocomplete for cities (Example list)
-  allCities = [
-    'Rastatt', 'Kuppenheim', 'Gaggenau', 'Gernsbach', 'Weisenbach', 'Forbach', 
-    'Bühl', 'Bühlertal', 'Sinzheim', 'Hügelsheim', 'Iffezheim',
-    'Berlin', 'Hamburg', 'Munich', 'Cologne', 'Frankfurt', 'Stuttgart', 'Düsseldorf', 'Leipzig', 'Dortmund', 'Essen', 'Bremen', 'Dresden', 'Hanover', 'Nuremberg', 'Duisburg'
+  private selectedPlaces = new Map<string, string>();
+  filteredPlaceTree: GermanyStateNode[] = [];
+  selectedPlaceLabels: Array<{ key: string; label: string }> = [];
+
+  readonly germanyPlaces: GermanyStateNode[] = [
+    {
+      name: 'Bayern',
+      cities: [
+        { name: 'Muenchen', districts: ['Schwabing', 'Maxvorstadt', 'Sendling', 'Bogenhausen', 'Pasing'] },
+        { name: 'Nuernberg', districts: ['Nordstadt', 'Suedstadt', 'Gostenhof'] },
+        { name: 'Augsburg', districts: ['Innenstadt', 'Lechhausen', 'Goeggingen'] }
+      ]
+    },
+    {
+      name: 'Nordrhein-Westfalen',
+      cities: [
+        { name: 'Koeln', districts: ['Ehrenfeld', 'Nippes', 'Chorweiler', 'Kalk'] },
+        { name: 'Duesseldorf', districts: ['Altstadt', 'Bilk', 'Oberkassel'] },
+        { name: 'Dortmund', districts: ['Innenstadt-West', 'Innenstadt-Ost', 'Hoerde', 'Eving'] },
+        { name: 'Essen', districts: ['Ruettenscheid', 'Kettwig', 'Altenessen'] },
+        { name: 'Duisburg', districts: ['Hamborn', 'Meiderich', 'Rheinhausen'] }
+      ]
+    },
+    {
+      name: 'Baden-Wuerttemberg',
+      cities: [
+        { name: 'Stuttgart', districts: ['Mitte', 'Bad Cannstatt', 'Vaihingen'] },
+        { name: 'Karlsruhe', districts: ['Innenstadt', 'Durlach'] },
+        { name: 'Mannheim', districts: ['Neckarstadt', 'Lindenhof'] }
+      ]
+    },
+    {
+      name: 'Hessen',
+      cities: [
+        { name: 'Frankfurt am Main', districts: ['Innenstadt', 'Sachsenhausen', 'Bockenheim', 'Hoechst'] },
+        { name: 'Wiesbaden', districts: ['Mitte', 'Biebrich'] },
+        { name: 'Darmstadt', districts: ['Arheilgen', 'Eberstadt'] }
+      ]
+    },
+    {
+      name: 'Niedersachsen',
+      cities: [
+        { name: 'Hannover', districts: ['Mitte', 'Linden', 'Bothfeld'] },
+        { name: 'Braunschweig', districts: ['Innenstadt', 'Weststadt'] },
+        { name: 'Wolfsburg', districts: ['Mitte-West', 'Fallersleben'] }
+      ]
+    },
+    {
+      name: 'Sachsen',
+      cities: [
+        { name: 'Leipzig', districts: ['Zentrum', 'Plagwitz', 'Connewitz'] },
+        { name: 'Dresden', districts: ['Altstadt', 'Neustadt', 'Blasewitz'] }
+      ]
+    },
+    {
+      name: 'Berlin',
+      cities: [
+        { name: 'Berlin', districts: ['Mitte', 'Neukoelln', 'Kreuzberg', 'Charlottenburg', 'Spandau'] }
+      ]
+    },
+    {
+      name: 'Hamburg',
+      cities: [
+        { name: 'Hamburg', districts: ['Altona', 'Eimsbuettel', 'Wandsbek', 'Harburg'] }
+      ]
+    },
+    {
+      name: 'Bremen',
+      cities: [
+        { name: 'Bremen', districts: ['Mitte', 'Vegesack', 'Neustadt'] },
+        { name: 'Bremerhaven', districts: ['Lehe', 'Geestemuende'] }
+      ]
+    }
   ];
-  filteredCities$: Observable<string[]> = of([]);
 
   // Keyword Domains
   keywordDomains: CollectorCategory[] = [];
@@ -272,7 +349,7 @@ export class LeadListComponent implements OnInit {
   ngOnInit() {
     this.loadCategories();
     this.loadLeads();
-    this.setupCityAutocomplete();
+    this.updateFilteredPlaceTree();
   }
 
   loadCategories() {
@@ -286,34 +363,132 @@ export class LeadListComponent implements OnInit {
     });
   }
 
-  setupCityAutocomplete() {
-    // This is a simple implementation, in a real app we'd use a form control
-    this.filteredCities$ = of(this.allCities);
+  onPlaceSearchChange() {
+    this.updateFilteredPlaceTree();
   }
 
-  onCityInputChange() {
-    const filterValue = this.cityInput.toLowerCase();
-    this.filteredCities$ = of(this.allCities.filter(city => city.toLowerCase().includes(filterValue)));
-  }
-
-  addCity(city?: string) {
-    const cityName = (city || this.cityInput).trim();
-    if (cityName && !this.cities.includes(cityName)) {
-      this.cities.push(cityName);
-      this.cityInput = '';
-      this.onCityInputChange();
+  private updateFilteredPlaceTree() {
+    const query = this.placeSearch.trim().toLowerCase();
+    if (!query) {
+      this.filteredPlaceTree = this.germanyPlaces;
+      return;
     }
+
+    this.filteredPlaceTree = this.germanyPlaces
+      .map((state) => {
+        const stateMatch = state.name.toLowerCase().includes(query);
+        if (stateMatch) {
+          return state;
+        }
+
+        const cities = state.cities
+          .map((city) => {
+            const cityMatch = city.name.toLowerCase().includes(query);
+            if (cityMatch) {
+              return city;
+            }
+
+            const districts = city.districts.filter((district) => district.toLowerCase().includes(query));
+            if (districts.length > 0) {
+              return { ...city, districts };
+            }
+
+            return null;
+          })
+          .filter((city): city is GermanyCityNode => city !== null);
+
+        if (cities.length > 0) {
+          return { ...state, cities };
+        }
+
+        return null;
+      })
+      .filter((state): state is GermanyStateNode => state !== null);
   }
 
-  removeCity(city: string) {
-    this.cities = this.cities.filter(c => c !== city);
+  selectAllStates() {
+    this.germanyPlaces.forEach((state) => {
+      this.selectedPlaces.set(this.stateKey(state.name), state.name);
+    });
+    this.syncSelectedCities();
   }
 
-  onCityKeydown(event: KeyboardEvent) {
-    if (event.key === 'Enter') { 
-      event.preventDefault(); 
-      this.addCity(); 
+  selectAllCities() {
+    this.germanyPlaces.forEach((state) => {
+      state.cities.forEach((city) => {
+        this.selectedPlaces.set(this.cityKey(state.name, city.name), city.name);
+      });
+    });
+    this.syncSelectedCities();
+  }
+
+  clearPlaces() {
+    this.selectedPlaces.clear();
+    this.syncSelectedCities();
+  }
+
+  toggleState(stateName: string, checked: boolean) {
+    const key = this.stateKey(stateName);
+    if (checked) {
+      this.selectedPlaces.set(key, stateName);
+    } else {
+      this.selectedPlaces.delete(key);
     }
+    this.syncSelectedCities();
+  }
+
+  toggleCity(stateName: string, cityName: string, checked: boolean) {
+    const key = this.cityKey(stateName, cityName);
+    if (checked) {
+      this.selectedPlaces.set(key, cityName);
+    } else {
+      this.selectedPlaces.delete(key);
+    }
+    this.syncSelectedCities();
+  }
+
+  toggleDistrict(stateName: string, cityName: string, districtName: string, checked: boolean) {
+    const key = this.districtKey(stateName, cityName, districtName);
+    if (checked) {
+      this.selectedPlaces.set(key, `${cityName} ${districtName}`);
+    } else {
+      this.selectedPlaces.delete(key);
+    }
+    this.syncSelectedCities();
+  }
+
+  isStateSelected(stateName: string): boolean {
+    return this.selectedPlaces.has(this.stateKey(stateName));
+  }
+
+  isCitySelected(stateName: string, cityName: string): boolean {
+    return this.selectedPlaces.has(this.cityKey(stateName, cityName));
+  }
+
+  isDistrictSelected(stateName: string, cityName: string, districtName: string): boolean {
+    return this.selectedPlaces.has(this.districtKey(stateName, cityName, districtName));
+  }
+
+  removeSelectedPlace(key: string) {
+    this.selectedPlaces.delete(key);
+    this.syncSelectedCities();
+  }
+
+  private stateKey(stateName: string): string {
+    return `state:${stateName}`;
+  }
+
+  private cityKey(stateName: string, cityName: string): string {
+    return `city:${stateName}:${cityName}`;
+  }
+
+  private districtKey(stateName: string, cityName: string, districtName: string): string {
+    return `district:${stateName}:${cityName}:${districtName}`;
+  }
+
+  private syncSelectedCities() {
+    this.cities = Array.from(new Set(this.selectedPlaces.values()));
+    this.selectedPlaceLabels = Array.from(this.selectedPlaces.entries()).map(([key, label]) => ({ key, label }));
   }
 
   toggleDebug() {

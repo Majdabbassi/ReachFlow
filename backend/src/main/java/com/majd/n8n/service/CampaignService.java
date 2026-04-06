@@ -103,6 +103,7 @@ public class CampaignService {
     }
 
     @Async
+    @Transactional
     public void startCampaign(Long id, CampaignStartRequestDTO request) {
         try {
             if (request == null) {
@@ -157,8 +158,16 @@ public class CampaignService {
         Campaign campaign = campaignRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Campaign not found with id: " + id, HttpStatus.NOT_FOUND));
 
-        if (campaign.getStatus() != CampaignStatus.RUNNING) {
-            throw new BusinessException("Campaign is not running", HttpStatus.CONFLICT);
+        if (campaign.getStatus() == CampaignStatus.COMPLETED) {
+            throw new BusinessException("Campaign is already completed", HttpStatus.CONFLICT);
+        }
+
+        if (campaign.getStatus() == CampaignStatus.STOP_REQUESTED) {
+            return;
+        }
+
+        if (campaign.getStatus() != CampaignStatus.RUNNING && campaign.getStatus() != CampaignStatus.DRAFT) {
+            throw new BusinessException("Campaign cannot be stopped in status: " + campaign.getStatus(), HttpStatus.CONFLICT);
         }
 
         campaign.setStatus(CampaignStatus.STOP_REQUESTED);

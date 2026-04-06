@@ -12,67 +12,77 @@
 </div>
 
 <div class="collector-grid">
-        <ng-container matColumnDef="email">
-          <mat-header-cell *matHeaderCellDef>Email</mat-header-cell>
-          <mat-cell *matCellDef="let r">{{ r.email || r.emails?.[0] || '—' }}</mat-cell>
-        </ng-container>
   <!-- City Selection -->
   <mat-card class="glass-card collect-card">
     <div class="card-header">
       <mat-icon>location_city</mat-icon>
-      <mat-card-title>Target Cities</mat-card-title>
+      <mat-card-title>Target Places (Germany)</mat-card-title>
     </div>
     
     <mat-card-content>
-        <ng-container matColumnDef="phone">
-          <mat-header-cell *matHeaderCellDef>Phone</mat-header-cell>
-          <mat-cell *matCellDef="let r">{{ r.phone || '—' }}</mat-cell>
-        </ng-container>
-        <ng-container matColumnDef="coordinates">
-          <mat-header-cell *matHeaderCellDef>Coordinates</mat-header-cell>
-          <mat-cell *matCellDef="let r">{{ getCoordinatesText(r) }}</mat-cell>
-        </ng-container>
-        <ng-container matColumnDef="emails">
-          <mat-header-cell *matHeaderCellDef>All Emails</mat-header-cell>
-          <mat-cell *matCellDef="let r">
-            <div>
-              <div *ngFor="let email of getEmailsForDisplay(r)">{{ email }}</div>
-            </div>
-          </mat-cell>
-        </ng-container>
-        <ng-container matColumnDef="address">
-          <mat-header-cell *matHeaderCellDef>Address</mat-header-cell>
-          <mat-cell *matCellDef="let r">{{ r.address || '—' }}</mat-cell>
-        </ng-container>
-      <div class="row-input">
+      <div class="place-controls">
         <mat-form-field class="full-field" appearance="outline">
-          <mat-label>Search City</mat-label>
-          <input matInput 
-                 [(ngModel)]="cityInput" 
-                 (ngModelChange)="onCityInputChange()"
-                 [matAutocomplete]="auto"
-                 (keydown)="onCityKeydown($event)" 
-                 placeholder="e.g. Berlin">
-          <mat-autocomplete #auto="matAutocomplete" (optionSelected)="addCity($event.option.value)">
-            <mat-option *ngFor="let city of filteredCities$ | async" [value]="city">
-              {{ city }}
-            </mat-option>
-          </mat-autocomplete>
+          <mat-label>Search state, city, district</mat-label>
+          <input matInput [(ngModel)]="placeSearch" (ngModelChange)="onPlaceSearchChange()" placeholder="e.g. Bayern, Koeln, Kreuzberg">
+          <mat-icon matSuffix>search</mat-icon>
         </mat-form-field>
-        <button mat-icon-button class="add-btn" (click)="addCity()" matTooltip="Add City">
-          <mat-icon>add</mat-icon>
-        </button>
+
+        <div class="place-actions">
+          <button mat-stroked-button color="primary" (click)="selectAllStates()">All States</button>
+          <button mat-stroked-button color="primary" (click)="selectAllCities()">All Cities</button>
+          <button mat-stroked-button color="warn" (click)="clearPlaces()">Clear</button>
+        </div>
       </div>
 
       <div class="selected-chips">
-        <mat-chip-listbox *ngIf="cities.length" multiple>
-          <mat-chip-option *ngFor="let city of cities" [removable]="true" (removed)="removeCity(city)" selected>
-            {{ city }}
+        <mat-chip-listbox *ngIf="selectedPlaceLabels.length" multiple>
+          <mat-chip-option *ngFor="let place of selectedPlaceLabels" [removable]="true" (removed)="removeSelectedPlace(place.key)" selected>
+            {{ place.label }}
             <mat-icon matChipRemove>cancel</mat-icon>
           </mat-chip-option>
         </mat-chip-listbox>
-        <div *ngIf="!cities.length" class="empty-hint">No cities selected yet. Search and add above.</div>
+        <div *ngIf="!selectedPlaceLabels.length" class="empty-hint">Select from states, cities, districts, or any mix.</div>
       </div>
+
+      <div class="place-tree" *ngIf="filteredPlaceTree.length > 0; else noPlacesFound">
+        <div class="state-block" *ngFor="let state of filteredPlaceTree">
+          <div class="state-row">
+            <mat-checkbox
+              color="primary"
+              [checked]="isStateSelected(state.name)"
+              (change)="toggleState(state.name, $event.checked)">
+              <span class="state-name">{{ state.name }}</span>
+            </mat-checkbox>
+          </div>
+
+          <div class="city-list">
+            <div class="city-block" *ngFor="let city of state.cities">
+              <div class="city-row">
+                <mat-checkbox
+                  color="primary"
+                  [checked]="isCitySelected(state.name, city.name)"
+                  (change)="toggleCity(state.name, city.name, $event.checked)">
+                  <span class="city-name">{{ city.name }}</span>
+                </mat-checkbox>
+              </div>
+
+              <div class="district-grid">
+                <mat-checkbox
+                  color="primary"
+                  *ngFor="let district of city.districts"
+                  [checked]="isDistrictSelected(state.name, city.name, district)"
+                  (change)="toggleDistrict(state.name, city.name, district, $event.checked)">
+                  {{ district }}
+                </mat-checkbox>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #noPlacesFound>
+        <div class="empty-hint">No places match your search.</div>
+      </ng-template>
     </mat-card-content>
   </mat-card>
 
