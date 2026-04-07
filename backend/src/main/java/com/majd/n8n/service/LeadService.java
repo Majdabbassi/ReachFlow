@@ -127,11 +127,25 @@ public class LeadService {
 
     @Transactional
     public void deleteLead(Long id) {
-        Lead lead = leadRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Lead not found with id: " + id, HttpStatus.NOT_FOUND));
+        if (!leadRepository.existsById(id)) {
+            throw new BusinessException("Lead not found with id: " + id, HttpStatus.NOT_FOUND);
+        }
 
-        campaignSendRepository.deleteByLeadEmailLeadId(id);
-        leadRepository.delete(lead);
+        List<Long> leadEmailIds = leadEmailRepository.findByLeadId(id).stream()
+                .map(LeadEmail::getId)
+                .toList();
+
+        if (!leadEmailIds.isEmpty()) {
+            campaignSendRepository.deleteByLeadEmailIdIn(leadEmailIds);
+            leadEmailRepository.deleteAllByIdInBatch(leadEmailIds);
+        }
+
+        List<LeadCategory> leadCategories = leadCategoryRepository.findByLeadId(id);
+        if (!leadCategories.isEmpty()) {
+            leadCategoryRepository.deleteAllInBatch(leadCategories);
+        }
+
+        leadRepository.deleteById(id);
     }
 
     @Transactional(readOnly = true)
@@ -354,7 +368,7 @@ public class LeadService {
                 .collect(Collectors.groupingBy(item -> item.getLead().getId()));
 
         List<Long> deletableIds = new ArrayList<>();
-        List<Long> skippedIds = new ArrayList<>();
+        Set<Long> forceDeleteLeadIds = new LinkedHashSet<>();
 
         for (Map.Entry<Long, List<LeadEmail>> entry : byLeadId.entrySet()) {
             Long leadId = entry.getKey();
@@ -362,11 +376,17 @@ public class LeadService {
             long totalForLead = leadEmailRepository.countByLeadId(leadId);
 
             if (totalForLead - selectedForLead <= 0) {
-                skippedIds.addAll(entry.getValue().stream().map(LeadEmail::getId).toList());
+            forceDeleteLeadIds.add(leadId);
                 continue;
             }
 
             deletableIds.addAll(entry.getValue().stream().map(LeadEmail::getId).toList());
+        }
+
+        int deletedViaForcedLeadDelete = 0;
+        for (Long leadId : forceDeleteLeadIds) {
+            deletedViaForcedLeadDelete += (int) leadEmailRepository.countByLeadId(leadId);
+            deleteLead(leadId);
         }
 
         if (!deletableIds.isEmpty()) {
@@ -374,16 +394,15 @@ public class LeadService {
             leadEmailRepository.deleteAllByIdInBatch(deletableIds);
         }
 
-        Set<Long> affectedLeadIds = selectedEmails.stream()
-                .filter(item -> item.getLead() != null && item.getLead().getId() != null)
-                .map(item -> item.getLead().getId())
-                .collect(Collectors.toSet());
+        Set<Long> affectedLeadIds = byLeadId.keySet().stream()
+            .filter(leadId -> !forceDeleteLeadIds.contains(leadId))
+            .collect(Collectors.toSet());
         refreshLeadPrimaryEmail(affectedLeadIds);
 
         return DeleteLeadEmailsResponseDTO.builder()
-                .deletedCount(deletableIds.size())
-                .skippedCount(skippedIds.size())
-                .skippedEmailIds(skippedIds)
+            .deletedCount(deletableIds.size() + deletedViaForcedLeadDelete)
+            .skippedCount(0)
+            .skippedEmailIds(List.of())
                 .build();
     }
 

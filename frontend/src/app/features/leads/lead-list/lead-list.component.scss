@@ -217,48 +217,52 @@
   }
 }
 
-.state-block {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 10px 12px;
-  background: rgba(15, 23, 42, 0.25);
+.state-accordion,
+.city-accordion {
+  display: block;
+}
 
-  .state-row {
-    .state-name {
-      color: #e2e8f0;
-      font-weight: 700;
-      letter-spacing: 0.01em;
-    }
+.state-panel,
+.city-panel {
+  background: rgba(15, 23, 42, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 12px !important;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.state-panel {
+  .state-name {
+    color: #e2e8f0;
+    font-weight: 700;
+    letter-spacing: 0.01em;
   }
 
   .city-list {
-    margin-top: 10px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     padding-left: 10px;
     border-left: 2px solid rgba(99, 102, 241, 0.25);
   }
 }
 
-.city-block {
-  .city-row {
-    .city-name {
-      color: #cbd5e1;
-      font-weight: 600;
-    }
+.city-panel {
+  .city-name {
+    color: #cbd5e1;
+    font-weight: 600;
   }
+}
 
-  .district-grid {
-    margin-top: 8px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 6px 10px;
-    padding-left: 10px;
+.district-grid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px 10px;
+  padding-left: 10px;
 
-    mat-checkbox {
-      font-size: 0.84rem;
-    }
+  mat-checkbox {
+    font-size: 0.84rem;
   }
 }
 

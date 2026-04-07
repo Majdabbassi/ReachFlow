@@ -45,7 +45,11 @@ export class EmailAuditComponent implements OnInit {
   pageIndex = 0;
 
   selection = new SelectionModel<EmailAuditItem>(true, []);
-  displayedColumns: string[] = ['select', 'email', 'institution', 'leadId', 'primary', 'issue', 'duplicateCount'];
+
+  get displayedColumns(): string[] {
+    const baseColumns = ['select', 'email', 'institution', 'leadId', 'primary', 'issue'];
+    return this.mode === 'duplicate' ? [...baseColumns, 'duplicateCount'] : baseColumns;
+  }
 
   get selectedCount(): number {
     return this.selection.selected.length;

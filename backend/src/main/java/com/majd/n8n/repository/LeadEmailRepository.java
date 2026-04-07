@@ -32,14 +32,26 @@ public interface LeadEmailRepository extends JpaRepository<LeadEmail, Long> {
             JOIN leads l ON l.id = le.lead_id
             WHERE le.email IS NULL
                OR TRIM(le.email) = ''
-               OR LOWER(TRIM(le.email)) NOT REGEXP '^[a-z0-9._%+-]+@[a-z0-9.-]+\\\\.[a-z]{2,}$'
+                    OR LOWER(TRIM(le.email)) NOT REGEXP '^[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}$'
+                    OR LOWER(TRIM(le.email)) NOT REGEXP '^[a-z0-9._%+-]+@[a-z0-9.-]+\\.(de|com|org|net|eu)$'
+                    OR LOWER(TRIM(le.email)) REGEXP '\\.(webp|png|jpg|jpeg|svg|gif)$'
+                    OR LOWER(TRIM(le.email)) LIKE '%media%'
+                    OR LOWER(TRIM(le.email)) LIKE '%@2x%'
+                    OR LOWER(TRIM(le.email)) LIKE '%query%'
+                    OR LOWER(TRIM(le.email)) LIKE '%--%'
             """,
             countQuery = """
             SELECT COUNT(*)
             FROM lead_emails le
             WHERE le.email IS NULL
                OR TRIM(le.email) = ''
-               OR LOWER(TRIM(le.email)) NOT REGEXP '^[a-z0-9._%+-]+@[a-z0-9.-]+\\\\.[a-z]{2,}$'
+                    OR LOWER(TRIM(le.email)) NOT REGEXP '^[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}$'
+                    OR LOWER(TRIM(le.email)) NOT REGEXP '^[a-z0-9._%+-]+@[a-z0-9.-]+\\.(de|com|org|net|eu)$'
+                    OR LOWER(TRIM(le.email)) REGEXP '\\.(webp|png|jpg|jpeg|svg|gif)$'
+                    OR LOWER(TRIM(le.email)) LIKE '%media%'
+                    OR LOWER(TRIM(le.email)) LIKE '%@2x%'
+                    OR LOWER(TRIM(le.email)) LIKE '%query%'
+                    OR LOWER(TRIM(le.email)) LIKE '%--%'
             """,
             nativeQuery = true)
     Page<EmailAuditProjection> findInvalidEmails(Pageable pageable);

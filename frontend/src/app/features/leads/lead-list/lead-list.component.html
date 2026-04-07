@@ -45,39 +45,49 @@
       </div>
 
       <div class="place-tree" *ngIf="filteredPlaceTree.length > 0; else noPlacesFound">
-        <div class="state-block" *ngFor="let state of filteredPlaceTree">
-          <div class="state-row">
-            <mat-checkbox
-              color="primary"
-              [checked]="isStateSelected(state.name)"
-              (change)="toggleState(state.name, $event.checked)">
-              <span class="state-name">{{ state.name }}</span>
-            </mat-checkbox>
-          </div>
-
-          <div class="city-list">
-            <div class="city-block" *ngFor="let city of state.cities">
-              <div class="city-row">
+        <mat-accordion multi class="state-accordion">
+          <mat-expansion-panel *ngFor="let state of filteredPlaceTree" class="state-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
                 <mat-checkbox
                   color="primary"
-                  [checked]="isCitySelected(state.name, city.name)"
-                  (change)="toggleCity(state.name, city.name, $event.checked)">
-                  <span class="city-name">{{ city.name }}</span>
+                  [checked]="isStateSelected(state.name)"
+                  (click)="$event.stopPropagation()"
+                  (change)="toggleState(state.name, $event.checked)">
+                  <span class="state-name">{{ state.name }}</span>
                 </mat-checkbox>
-              </div>
+              </mat-panel-title>
+            </mat-expansion-panel-header>
 
-              <div class="district-grid">
-                <mat-checkbox
-                  color="primary"
-                  *ngFor="let district of city.districts"
-                  [checked]="isDistrictSelected(state.name, city.name, district)"
-                  (change)="toggleDistrict(state.name, city.name, district, $event.checked)">
-                  {{ district }}
-                </mat-checkbox>
-              </div>
+            <div class="city-list">
+              <mat-accordion multi class="city-accordion">
+                <mat-expansion-panel *ngFor="let city of state.cities" class="city-panel">
+                  <mat-expansion-panel-header>
+                    <mat-panel-title>
+                      <mat-checkbox
+                        color="primary"
+                        [checked]="isCitySelected(state.name, city.name)"
+                        (click)="$event.stopPropagation()"
+                        (change)="toggleCity(state.name, city.name, $event.checked)">
+                        <span class="city-name">{{ city.name }}</span>
+                      </mat-checkbox>
+                    </mat-panel-title>
+                  </mat-expansion-panel-header>
+
+                  <div class="district-grid">
+                    <mat-checkbox
+                      color="primary"
+                      *ngFor="let district of city.districts"
+                      [checked]="isDistrictSelected(state.name, city.name, district)"
+                      (change)="toggleDistrict(state.name, city.name, district, $event.checked)">
+                      {{ district }}
+                    </mat-checkbox>
+                  </div>
+                </mat-expansion-panel>
+              </mat-accordion>
             </div>
-          </div>
-        </div>
+          </mat-expansion-panel>
+        </mat-accordion>
       </div>
 
       <ng-template #noPlacesFound>

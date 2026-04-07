@@ -323,13 +323,7 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    if (this.campaign.status === CampaignStatus.RUNNING || this.campaign.status === CampaignStatus.STOP_REQUESTED) {
-      return true;
-    }
-
-    // In async launch flow, status can briefly remain DRAFT while sends are already progressing.
-    const hasProgress = (this.stats.sent + this.stats.failed + this.stats.bounced + this.stats.replied) > 0;
-    return this.campaign.status === CampaignStatus.DRAFT && this.stats.pending > 0 && hasProgress;
+    return this.campaign.status === CampaignStatus.RUNNING || this.campaign.status === CampaignStatus.STOP_REQUESTED;
   }
 
   openSendSelectedDialog() {

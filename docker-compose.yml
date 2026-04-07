@@ -10,10 +10,7 @@ services:
       - mysql_data:/var/lib/mysql
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     ports:
-      - target: 3306
-        published: ${N8N_MYSQL_PORT:-0}
-        host_ip: 127.0.0.1
-        protocol: tcp
+      - "3306:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
       interval: 10s
@@ -26,10 +23,7 @@ services:
     image: phpmyadmin/phpmyadmin
     container_name: phpmyadmin_ui
     ports:
-      - target: 80
-        published: ${N8N_PHPMYADMIN_PORT:-0}
-        host_ip: 127.0.0.1
-        protocol: tcp
+      - "5050:80"
     environment:
       - PMA_HOST=mysql
       - PMA_USER=root
@@ -46,10 +40,7 @@ services:
       dockerfile: n8n.Dockerfile
     container_name: n8n_app
     ports:
-      - target: 5678
-        published: ${N8N_APP_PORT:-0}
-        host_ip: 127.0.0.1
-        protocol: tcp
+      - "5678:5678"
     environment:
       - DB_TYPE=mysqldb
       - DB_MYSQLDB_HOST=mysql
@@ -78,10 +69,7 @@ services:
       dockerfile: Dockerfile
     container_name: backend_app
     ports:
-      - target: 8080
-        published: ${N8N_BACKEND_PORT:-0}
-        host_ip: 127.0.0.1
-        protocol: tcp
+      - "8080:8080"
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
@@ -101,10 +89,7 @@ services:
       dockerfile: Dockerfile
     container_name: frontend_app
     ports:
-      - target: 80
-        published: ${N8N_FRONTEND_PORT:-0}
-        host_ip: 127.0.0.1
-        protocol: tcp
+      - "80:80"
     depends_on:
       - backend
     restart: unless-stopped

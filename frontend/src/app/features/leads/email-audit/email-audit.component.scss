@@ -111,6 +111,13 @@ mat-cell {
   padding: 0.8rem;
 }
 
+.mat-column-select {
+  width: 44px;
+  max-width: 44px;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+}
+
 .issue-chip.invalid {
   color: #fbbf24;
   background: rgba(245, 158, 11, 0.18);
