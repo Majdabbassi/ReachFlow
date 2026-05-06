@@ -46,6 +46,11 @@ export const routes: Routes = [
         path: 'archive',
         loadComponent: () => import('./features/archive/archive.component').then((m) => m.ArchiveComponent),
         data: { animation: 'Archive' }
+      },
+      {
+        path: 'ausbildung-finder',
+        loadComponent: () => import('./features/ausbildung/ausbildung-finder/ausbildung-finder.component').then((m) => m.AusbildungFinderComponent),
+        data: { animation: 'AusbildungFinder' }
       }
     ]
   }

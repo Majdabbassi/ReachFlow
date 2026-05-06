@@ -158,6 +158,11 @@
     <div class="card-header">
       <mat-icon>edit_note</mat-icon>
       <mat-card-title>Email Narrative Flow</mat-card-title>
+      <span class="spacer"></span>
+      <button mat-stroked-button color="accent" (click)="openTemplateLoader()" matTooltip="Load a pre-built email template">
+        <mat-icon>mail_outline</mat-icon>
+        Load Template
+      </button>
     </div>
     
     <div class="editor-body">
@@ -177,7 +182,7 @@
 
         <mat-form-field appearance="outline" class="full-width delay-field">
           <mat-label>Delivery Delay (seconds)</mat-label>
-          <input matInput type="number" formControlName="delaySeconds" min="0" max="120">
+          <input matInput type="number" formControlName="delaySeconds" min="0">
           <mat-icon matSuffix>timer</mat-icon>
         </mat-form-field>
 

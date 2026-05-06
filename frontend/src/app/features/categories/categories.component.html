@@ -162,3 +162,69 @@
     </div>
   </mat-card>
 </div>
+
+<mat-card class="panel-card places-card">
+  <div class="panel-header">
+    <div>
+      <h3>Places Management</h3>
+      <p>Manage and inspect places used for one-by-one search combinations.</p>
+    </div>
+    <div class="places-actions">
+      <button mat-stroked-button color="primary" (click)="loadPlaces()" [disabled]="placesLoading || placesSeeding">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <button mat-flat-button color="primary" (click)="seedPlaces()" [disabled]="placesSeeding">
+        <mat-icon *ngIf="!placesSeeding">database</mat-icon>
+        <mat-progress-spinner *ngIf="placesSeeding" diameter="18" mode="indeterminate" style="margin-right: 8px"></mat-progress-spinner>
+        {{ placesSeeding ? 'Seeding...' : 'Seed Germany Places' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="places-summary" *ngIf="!placesLoading">
+    <span class="summary-pill">Countries: {{ placeCountries.length }}</span>
+    <span class="summary-pill">States: {{ placeStatesCount }}</span>
+    <span class="summary-pill">Cities: {{ placeCitiesCount }}</span>
+    <span class="summary-pill">Districts: {{ placeDistrictsCount }}</span>
+  </div>
+
+  <div class="places-loading" *ngIf="placesLoading">
+    <mat-progress-spinner diameter="28" mode="indeterminate"></mat-progress-spinner>
+    <span>Loading places from database...</span>
+  </div>
+
+  <div class="places-tree" *ngIf="!placesLoading && placeCountries.length > 0">
+    <mat-accordion multi>
+      <mat-expansion-panel *ngFor="let country of placeCountries; trackBy: trackCountry">
+        <mat-expansion-panel-header>
+          <mat-panel-title>{{ country.name }} ({{ country.code }})</mat-panel-title>
+          <mat-panel-description>{{ country.states.length }} states</mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <mat-accordion multi>
+          <mat-expansion-panel *ngFor="let state of country.states; trackBy: trackState">
+            <mat-expansion-panel-header>
+              <mat-panel-title>{{ state.name }}</mat-panel-title>
+              <mat-panel-description>{{ state.cities.length }} cities</mat-panel-description>
+            </mat-expansion-panel-header>
+
+            <div class="state-cities">
+              <div class="city-row" *ngFor="let city of state.cities">
+                <span class="city-name">{{ city.name }}</span>
+                <span class="city-meta">{{ city.districts.length }} districts</span>
+                <div class="district-list" *ngIf="city.districts.length > 0">
+                  {{ getDistrictNames(city.districts) }}
+                </div>
+              </div>
+            </div>
+          </mat-expansion-panel>
+        </mat-accordion>
+      </mat-expansion-panel>
+    </mat-accordion>
+  </div>
+
+  <div class="empty-state" *ngIf="!placesLoading && placeCountries.length === 0">
+    No places available yet. Use "Seed Germany Places" to initialize the places tree.
+  </div>
+</mat-card>

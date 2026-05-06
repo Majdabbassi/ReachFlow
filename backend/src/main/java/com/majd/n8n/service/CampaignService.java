@@ -24,6 +24,7 @@ import com.majd.n8n.repository.ClientCategoryRepository;
 import com.majd.n8n.repository.ClientRepository;
 import com.majd.n8n.repository.LeadCategoryRepository;
 import com.majd.n8n.repository.LeadEmailRepository;
+import org.springframework.beans.factory.ObjectProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -58,6 +59,7 @@ public class CampaignService {
     private final ClientCategoryDocumentRepository clientCategoryDocumentRepository;
     private final CampaignMapper campaignMapper;
     private final MailService mailService;
+    private final ObjectProvider<CampaignService> selfProvider;
 
     @Transactional(readOnly = true)
     public List<CampaignDTO> getAllCampaigns() {
@@ -102,21 +104,40 @@ public class CampaignService {
         campaignSendRepository.saveAll(newSends);
     }
 
-    @Async
     @Transactional
     public void startCampaign(Long id, CampaignStartRequestDTO request) {
+        if (request == null) {
+            throw new BusinessException("Campaign request is required", HttpStatus.BAD_REQUEST);
+        }
+
+        CampaignStartContext context = prepareCampaignStart(id);
+        int delaySeconds = request.getDelaySeconds() == null ? 2 : Math.max(request.getDelaySeconds(), 0);
+        boolean htmlBody = Boolean.TRUE.equals(request.getHtmlBody());
+        List<Long> sendIds = context.retryableSends().stream()
+                .map(CampaignSend::getId)
+                .toList();
+
+        selfProvider.getObject().startCampaignAsync(id, request.getSubject(), request.getBody(), htmlBody, delaySeconds, sendIds);
+    }
+
+    @Async
+    @Transactional
+    public void startCampaignAsync(Long campaignId, String subject, String body, boolean htmlBody, int delaySeconds, List<Long> sendIds) {
         try {
-            if (request == null) {
-                throw new BusinessException("Campaign request is required", HttpStatus.BAD_REQUEST);
+            Campaign campaign = campaignRepository.findById(campaignId)
+                    .orElseThrow(() -> new BusinessException("Campaign not found with id: " + campaignId, HttpStatus.NOT_FOUND));
+
+            List<CampaignSend> sendsToProcess = campaignSendRepository.findByCampaignIdAndIdIn(campaignId, sendIds);
+            if (sendsToProcess.isEmpty()) {
+                setCampaignToDraft(campaignId);
+                return;
             }
-            CampaignStartContext context = prepareCampaignStart(id);
-            int delaySeconds = request.getDelaySeconds() == null ? 2 : Math.max(request.getDelaySeconds(), 0);
-            boolean htmlBody = Boolean.TRUE.equals(request.getHtmlBody());
-            mailService.sendEmails(id, context.client(), request.getSubject(), request.getBody(), htmlBody, context.retryableSends(), delaySeconds);
-            checkCampaignCompletion(id);
+
+            mailService.sendEmails(campaignId, campaign.getClient(), subject, body, htmlBody, sendsToProcess, delaySeconds);
+            checkCampaignCompletion(campaignId);
         } catch (Exception ex) {
-            log.error("startCampaign failed for campaign {}", id, ex);
-            setCampaignToDraft(id);
+            log.error("startCampaignAsync failed for campaign {}", campaignId, ex);
+            setCampaignToDraft(campaignId);
             if (ex instanceof RuntimeException runtimeException) {
                 throw runtimeException;
             }
@@ -316,11 +337,10 @@ public class CampaignService {
 
         long total = campaignSendRepository.countByCampaignId(campaignId);
         long pending = campaignSendRepository.countByCampaignIdAndStatus(campaignId, CampaignSendStatus.PENDING);
-        long failed = campaignSendRepository.countByCampaignIdAndStatus(campaignId, CampaignSendStatus.FAILED);
 
-        CampaignStatus nextStatus = (total > 0 && pending == 0 && failed == 0)
-                ? CampaignStatus.COMPLETED
-                : CampaignStatus.DRAFT;
+        CampaignStatus nextStatus = (total > 0 && pending > 0)
+            ? CampaignStatus.RUNNING
+            : CampaignStatus.DRAFT;
 
         if (campaign.getStatus() != nextStatus) {
             campaign.setStatus(nextStatus);

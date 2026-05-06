@@ -22,6 +22,7 @@ import { Campaign, CampaignLog, CampaignSend, CampaignSendStatus, CampaignStats,
 import { ToastrService } from 'ngx-toastr';
 import { forkJoin, interval, of, Subscription, switchMap, takeWhile, tap, finalize } from 'rxjs';
 import { SelectiveSendDialogComponent, SelectiveSendDialogResult } from '../selective-send-dialog/selective-send-dialog.component';
+import { TemplateLoaderDialogComponent } from '../template-loader-dialog/template-loader-dialog.component';
 
 @Component({
   selector: 'app-campaign-details',
@@ -73,7 +74,7 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
   templateForm: FormGroup = this.fb.group({
     subject: ['Hello from {name}', Validators.required],
     body: ['Hi,\n\nI am writing to you regarding {city}.\n\nBest regards.', Validators.required],
-    delaySeconds: [2, [Validators.required, Validators.min(0), Validators.max(120)]],
+    delaySeconds: [2, [Validators.required, Validators.min(0)]],
     htmlBody: [false],
     scheduleForLater: [false],
     scheduledDate: [null],
@@ -110,6 +111,26 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
       details
     });
     if (this.logs.length > 100) this.logs.pop();
+  }
+
+  preloadTemplateData(template: any) {
+    // Pre-fill the form with template data
+    this.templateForm.patchValue({
+      subject: template.subject || '',
+      body: template.body || '',
+      delaySeconds: template.delaySeconds || 2,
+      htmlBody: template.htmlBody || false
+    });
+    this.toastr.success('Template loaded! You can now edit and launch.');
+  }
+
+  openTemplateLoader() {
+    const dialogRef = this.dialog.open(TemplateLoaderDialogComponent);
+    dialogRef.afterClosed().subscribe((template) => {
+      if (template) {
+        this.preloadTemplateData(template);
+      }
+    });
   }
 
   loadCampaign(id: number) {
@@ -255,10 +276,17 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
       }
 
       this.addLog('info', 'Launching outreach campaign...');
-      this.campaignService.startCampaign(this.campaign.id, request).subscribe(() => {
-        this.toastr.success('Campaign started successfully');
-        this.addLog('success', 'Campaign launched successfully');
-        this.loadCampaign(this.campaign!.id!);
+      this.campaignService.startCampaign(this.campaign.id, request).subscribe({
+        next: () => {
+          this.toastr.success('Campaign started successfully');
+          this.addLog('success', 'Campaign launched successfully');
+          this.loadCampaign(this.campaign!.id!);
+        },
+        error: (err) => {
+          const message = err?.error?.message || err?.message || 'Failed to start campaign';
+          this.toastr.error(message);
+          this.addLog('error', 'Failed to launch campaign', message);
+        }
       });
     }
   }

@@ -16,6 +16,7 @@ import com.majd.n8n.repository.ClientCategoryRepository;
 import com.majd.n8n.repository.LeadCategoryRepository;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.InternetAddress;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
@@ -68,13 +69,19 @@ public class MailService {
             CampaignSend send = sends.get(i);
             try {
                 LeadEmail leadEmail = send.getLeadEmail();
+                String recipientEmail = leadEmail == null ? null : leadEmail.getEmail();
+                if (!isValidRecipientEmail(recipientEmail)) {
+                    log.warn("Skipping invalid recipient email {}", recipientEmail);
+                    send.setStatus(CampaignSendStatus.FAILED);
+                    continue;
+                }
                 String personalizedSubject = applyTemplate(subject, leadEmail);
                 String personalizedBody = applyTemplate(body, leadEmail);
 
                 MimeMessage message = mailSender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(message, true);
                 helper.setFrom(client.getEmail());
-                helper.setTo(leadEmail.getEmail());
+                helper.setTo(recipientEmail);
                 helper.setSubject(personalizedSubject);
                 helper.setText(personalizedBody, htmlBody);
                 addCategoryAttachment(helper, client, leadEmail);
@@ -99,6 +106,20 @@ public class MailService {
             }
         }
         campaignSendRepository.saveAll(sends);
+    }
+
+    private boolean isValidRecipientEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+
+        try {
+            InternetAddress address = new InternetAddress(email, true);
+            address.validate();
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     private boolean isBounceError(Throwable throwable) {

@@ -2,12 +2,26 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { BulkImportResult, BulkLeadImportResponse, DeleteLeadEmailsResponse, EmailAuditItem, Lead, PageResponse } from '../models/models';
+import {
+  BulkImportResult,
+  BulkLeadImportResponse,
+  DeleteLeadEmailsResponse,
+  EmailAuditItem,
+  GenerateSearchCombinationsRequest,
+  GenerateSearchCombinationsResponse,
+  LaunchSearchCombinationRequest,
+  Lead,
+  PageResponse,
+  PlaceCountryTree,
+  SearchCombination,
+  SearchCombinationStatus
+} from '../models/models';
 
 @Injectable({ providedIn: 'root' })
 export class LeadService {
   private http = inject(HttpClient);
   private apiUrl = '/api/leads';
+  private searchCombinationsApiUrl = '/api/search-combinations';
 
   getLeads(page = 0, size = 10, city?: string, source?: string): Observable<PageResponse<Lead>> {
     let params = new HttpParams()
@@ -71,5 +85,42 @@ export class LeadService {
 
   deleteLead(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+
+  seedGermanyPlaces(): Observable<void> {
+    return this.http.post<void>(`${this.searchCombinationsApiUrl}/seed-germany`, {});
+  }
+
+  getPlaceTree(countryCode = 'DE'): Observable<PlaceCountryTree[]> {
+    const params = new HttpParams().set('countryCode', countryCode);
+    return this.http.get<PlaceCountryTree[]>(`${this.searchCombinationsApiUrl}/places/tree`, { params });
+  }
+
+  generateSearchCombinations(request: GenerateSearchCombinationsRequest): Observable<GenerateSearchCombinationsResponse> {
+    return this.http.post<GenerateSearchCombinationsResponse>(`${this.searchCombinationsApiUrl}/generate`, request);
+  }
+
+  getSearchCombinations(
+    page = 0,
+    size = 20,
+    status?: SearchCombinationStatus,
+    categoryId?: number
+  ): Observable<PageResponse<SearchCombination>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+
+    if (status) {
+      params = params.set('status', status);
+    }
+    if (categoryId != null) {
+      params = params.set('categoryId', categoryId.toString());
+    }
+
+    return this.http.get<PageResponse<SearchCombination>>(this.searchCombinationsApiUrl, { params });
+  }
+
+  launchSearchCombination(id: number, request: LaunchSearchCombinationRequest): Observable<SearchCombination> {
+    return this.http.post<SearchCombination>(`${this.searchCombinationsApiUrl}/${id}/launch`, request);
   }
 }

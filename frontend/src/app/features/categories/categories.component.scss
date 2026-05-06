@@ -15,6 +15,80 @@
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
+.places-card {
+  margin-top: 24px;
+}
+
+.places-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.places-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.summary-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.12);
+  color: #c7d2fe;
+  font-size: 0.82rem;
+}
+
+.places-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #94a3b8;
+  margin: 8px 0 10px;
+}
+
+.places-tree {
+  margin-top: 6px;
+}
+
+.state-cities {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.city-row {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.city-name {
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.city-meta {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  margin-left: 10px;
+}
+
+.district-list {
+  margin-top: 6px;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.empty-state {
+  margin-top: 10px;
+  color: #94a3b8;
+}
+
 .panel-header {
   display: flex;
   justify-content: space-between;

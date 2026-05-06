@@ -44,7 +44,7 @@ export class SelectiveSendDialogComponent {
   form = this.fb.group({
     subject: [this.data.subject || 'Hello from {name}', Validators.required],
     body: [this.data.body || 'Hi,\n\nI am writing to you regarding {city}.\n\nBest regards.', Validators.required],
-    delaySeconds: [this.data.delaySeconds ?? 2, [Validators.required, Validators.min(0), Validators.max(120)]],
+    delaySeconds: [this.data.delaySeconds ?? 2, [Validators.required, Validators.min(0)]],
     htmlBody: [this.data.htmlBody ?? false]
   });
 

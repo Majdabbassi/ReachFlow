@@ -1,0 +1,248 @@
+<div class="page-header">
+  <div class="title-group">
+    <h2>Ausbildung Finder</h2>
+    <p>Discover Ausbildung opportunities and extract application-ready contact signals.</p>
+  </div>
+</div>
+
+<mat-accordion class="section-accordion" multi>
+  <mat-expansion-panel class="section-panel" [expanded]="true">
+    <mat-expansion-panel-header>
+      <mat-panel-title>
+        <mat-icon>search</mat-icon>
+        Search Configuration
+      </mat-panel-title>
+      <mat-panel-description>Configure keywords, places, and industries</mat-panel-description>
+    </mat-expansion-panel-header>
+
+    <div class="collector-grid">
+      <!-- Keywords -->
+      <mat-card class="glass-card collect-card">
+        <div class="card-header">
+          <mat-icon>search</mat-icon>
+          <mat-card-title>Keywords</mat-card-title>
+        </div>
+        
+        <mat-card-content>
+          <mat-form-field class="full-field" appearance="outline">
+            <mat-label>Enter search terms</mat-label>
+            <mat-chip-grid #keywordChipGrid>
+              <mat-chip-row *ngFor="let keyword of keywords" (removed)="removeKeyword(keyword)">
+                {{ keyword }}
+                <button matChipRemove>
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </mat-chip-row>
+              <input
+                [matChipInputFor]="keywordChipGrid"
+                [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
+                [matChipInputAddOnBlur]="true"
+                [(ngModel)]="keywordInput"
+                (matChipInputTokenEnd)="addKeyword($event)"
+                placeholder="Type and press Enter"
+              >
+            </mat-chip-grid>
+          </mat-form-field>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Places Selection -->
+      <mat-card class="glass-card collect-card">
+        <div class="card-header">
+          <mat-icon>location_city</mat-icon>
+          <mat-card-title>Target Places (Germany)</mat-card-title>
+        </div>
+        
+        <mat-card-content>
+          <div class="place-controls">
+            <mat-form-field class="full-field" appearance="outline">
+              <mat-label>Search state, city, district</mat-label>
+              <input matInput [(ngModel)]="placeSearch" (ngModelChange)="onPlaceSearchChange()" placeholder="e.g., Bayern, Köln, Kreuzberg">
+              <mat-icon matSuffix>search</mat-icon>
+            </mat-form-field>
+
+            <div class="place-actions">
+              <button mat-stroked-button color="primary" (click)="selectAllPlaces()" *ngIf="placesLoaded && germanyPlaces.length > 0">All Places</button>
+              <button mat-stroked-button color="warn" (click)="clearPlaces()" [disabled]="selectedPlaceLabels.length === 0">Clear</button>
+            </div>
+          </div>
+
+          <div class="selected-chips">
+            <mat-chip-listbox *ngIf="selectedPlaceLabels.length" multiple>
+              <mat-chip-option *ngFor="let place of selectedPlaceLabels" [removable]="true" (removed)="removeSelectedPlace(place.key)" selected>
+                {{ place.label }}
+                <mat-icon matChipRemove>cancel</mat-icon>
+              </mat-chip-option>
+            </mat-chip-listbox>
+            <div *ngIf="!selectedPlaceLabels.length" class="empty-hint">Select from states, cities, or districts.</div>
+          </div>
+
+          <div class="place-tree" *ngIf="filteredPlaceTree.length > 0; else noPlacesFound">
+            <mat-accordion multi class="state-accordion">
+              <mat-expansion-panel *ngFor="let state of filteredPlaceTree" class="state-panel">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>
+                    <mat-checkbox
+                      color="primary"
+                      [checked]="isStateSelected(state.id)"
+                      (click)="$event.stopPropagation()"
+                      (change)="toggleState(state, $event.checked)">
+                      <span class="state-name">{{ state.name }}</span>
+                    </mat-checkbox>
+                  </mat-panel-title>
+                </mat-expansion-panel-header>
+
+                <div class="city-list">
+                  <mat-accordion multi class="city-accordion">
+                    <mat-expansion-panel *ngFor="let city of state.cities" class="city-panel">
+                      <mat-expansion-panel-header>
+                        <mat-panel-title>
+                          <mat-checkbox
+                            color="primary"
+                            [checked]="isCitySelected(city.id)"
+                            (click)="$event.stopPropagation()"
+                            (change)="toggleCity(city, $event.checked)">
+                            <span class="city-name">{{ city.name }}</span>
+                          </mat-checkbox>
+                        </mat-panel-title>
+                      </mat-expansion-panel-header>
+
+                      <div class="district-grid">
+                        <mat-checkbox
+                          color="primary"
+                          *ngFor="let district of city.districts"
+                          [checked]="isDistrictSelected(district.id)"
+                          (change)="toggleDistrict(city, district, $event.checked)">
+                          {{ district.name }}
+                        </mat-checkbox>
+                      </div>
+                    </mat-expansion-panel>
+                  </mat-accordion>
+                </div>
+              </mat-expansion-panel>
+            </mat-accordion>
+          </div>
+
+          <ng-template #noPlacesFound>
+            <div class="empty-hint">{{ placesLoaded ? 'No places match your search.' : 'Loading places...' }}</div>
+          </ng-template>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Categories/Industries -->
+      <mat-card class="glass-card collect-card">
+        <div class="card-header">
+          <mat-icon>category</mat-icon>
+          <mat-card-title>Industries</mat-card-title>
+          <div class="keyword-search-box" (click)="$event.stopPropagation()">
+            <mat-icon>search</mat-icon>
+            <input type="text" [(ngModel)]="categorySearch" placeholder="Filter industries..." (click)="$event.stopPropagation()">
+          </div>
+        </div>
+
+        <mat-card-content>
+          <div class="keyword-domains-scroll">
+            <mat-accordion multi>
+              <mat-expansion-panel *ngFor="let category of filteredCategories" class="domain-panel">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>
+                    {{ category.name }}
+                  </mat-panel-title>
+                  <mat-panel-description>
+                    {{ category.keywords.length || 0 }} industries
+                  </mat-panel-description>
+                </mat-expansion-panel-header>
+                
+                <div class="keyword-grid">
+                  <ng-container *ngFor="let keyword of category.keywords">
+                    <mat-checkbox *ngIf="keyword.id !== undefined"
+                                  [checked]="isCategorySelected(keyword.id)" 
+                                  (change)="toggleCategory(keyword)"
+                                  color="primary">
+                      <span class="keyword-label">{{ keyword.nameEn }}</span>
+                    </mat-checkbox>
+                  </ng-container>
+                </div>
+              </mat-expansion-panel>
+            </mat-accordion>
+            <div *ngIf="filteredCategories.length === 0 && categoriesLoaded" class="empty-hint">No industries match your search.</div>
+            <div *ngIf="!categoriesLoaded" class="empty-hint">Loading industries...</div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Settings -->
+      <mat-card class="glass-card collect-card settings-card">
+        <div class="card-header">
+          <mat-icon>settings</mat-icon>
+          <mat-card-title>Search Settings</mat-card-title>
+        </div>
+
+        <mat-card-content>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Max results</mat-label>
+            <input matInput type="number" [(ngModel)]="maxResults" min="1" max="100">
+          </mat-form-field>
+
+          <button mat-flat-button color="primary" class="search-button" (click)="search()" [disabled]="isLoading">
+            <mat-icon *ngIf="!isLoading">search</mat-icon>
+            <mat-progress-spinner *ngIf="isLoading" diameter="24" mode="indeterminate" style="margin-right: 10px"></mat-progress-spinner>
+            {{ isLoading ? 'Searching...' : 'Search' }}
+          </button>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <mat-progress-bar *ngIf="isLoading" mode="indeterminate" class="search-progress"></mat-progress-bar>
+  </mat-expansion-panel>
+</mat-accordion>
+
+<mat-card class="error-card" *ngIf="errorMessage">
+  <mat-card-content>
+    <mat-icon>error</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </mat-card-content>
+</mat-card>
+
+<div class="results-summary" *ngIf="hasSearched && !errorMessage">
+  Found {{ total }} results
+</div>
+
+<div class="empty-state" *ngIf="hasSearched && !errorMessage && total === 0">
+  <mat-icon>search_off</mat-icon>
+  <p>No results found. Try different search criteria.</p>
+</div>
+
+<div class="results-grid" *ngIf="hasSearched && !errorMessage && total > 0">
+  <mat-card class="result-card" *ngFor="let result of results">
+    <mat-card-content>
+      <div class="job-head">
+        <h3>{{ result.jobTitle }}</h3>
+        <p class="company-name">{{ result.company }}</p>
+      </div>
+
+      <a class="url-link" [href]="result.applyUrl" target="_blank" rel="noopener noreferrer">
+        <mat-icon>language</mat-icon>
+        <span>{{ result.applyUrl }}</span>
+      </a>
+
+      <div class="source-url" *ngIf="result.sourceUrl && result.sourceUrl !== result.applyUrl">
+        <mat-icon>public</mat-icon>
+        <span>Source: {{ result.sourceUrl }}</span>
+      </div>
+
+      <div class="emails-block">
+        <div class="block-title">Emails</div>
+        <button
+          type="button"
+          class="email-item"
+          *ngFor="let email of result.emails"
+          (click)="copyEmail(email)">
+          <mat-icon>mail</mat-icon>
+          <span>{{ email }}</span>
+        </button>
+        <div class="muted" *ngIf="result.emails.length === 0">No emails provided</div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

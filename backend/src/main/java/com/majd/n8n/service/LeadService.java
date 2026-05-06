@@ -96,9 +96,8 @@ public class LeadService {
                     Lead savedLead = leadRepository.save(existing);
 
                     linkLeadCategories(savedLead, leadDTO.getCategoryIds(), false);
-                    List<LeadEmail> newLeadEmails = mergeEmailsIntoLead(savedLead, normalizeIncomingEmails(leadDTO), true);
+                        mergeEmailsIntoLead(savedLead, normalizeIncomingEmails(leadDTO), true);
                     campaignService.syncLeadAcrossAllCampaigns(savedLead);
-                    newLeadEmails.forEach(campaignService::syncLeadEmailAcrossAllCampaigns);
 
                     Lead reloadedLead = leadRepository.findById(savedLead.getId())
                             .orElseThrow(() -> new BusinessException("Lead not found with id: " + savedLead.getId(), HttpStatus.NOT_FOUND));
@@ -116,9 +115,8 @@ public class LeadService {
         Lead savedLead = leadRepository.save(lead);
 
         linkLeadCategories(savedLead, leadDTO.getCategoryIds(), true);
-        List<LeadEmail> newLeadEmails = mergeEmailsIntoLead(savedLead, normalizeIncomingEmails(leadDTO), true);
+        mergeEmailsIntoLead(savedLead, normalizeIncomingEmails(leadDTO), true);
         campaignService.syncLeadAcrossAllCampaigns(savedLead);
-        newLeadEmails.forEach(campaignService::syncLeadEmailAcrossAllCampaigns);
 
         Lead reloadedLead = leadRepository.findById(savedLead.getId())
                 .orElseThrow(() -> new BusinessException("Lead not found with id: " + savedLead.getId(), HttpStatus.NOT_FOUND));

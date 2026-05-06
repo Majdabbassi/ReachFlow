@@ -23,7 +23,7 @@ services:
     image: phpmyadmin/phpmyadmin
     container_name: phpmyadmin_ui
     ports:
-      - "5050:80"
+      - "${PHPMYADMIN_HOST_PORT:-5051}:80"
     environment:
       - PMA_HOST=mysql
       - PMA_USER=root
@@ -40,7 +40,7 @@ services:
       dockerfile: n8n.Dockerfile
     container_name: n8n_app
     ports:
-      - "5678:5678"
+      - "${N8N_HOST_PORT:-5678}:5678"
     environment:
       - DB_TYPE=mysqldb
       - DB_MYSQLDB_HOST=mysql
@@ -55,6 +55,7 @@ services:
       - N8N_DISABLE_EXTERNAL_MODULES=false
       - N8N_DEFAULT_TIMEOUT=180000
       - N8N_TASK_RUNNER_TIMEOUT=180000
+      - N8N_COMMUNITY_PACKAGES_ENABLED=true
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:
@@ -69,7 +70,7 @@ services:
       dockerfile: Dockerfile
     container_name: backend_app
     ports:
-      - "8080:8080"
+      - "${BACKEND_HOST_PORT:-8082}:8080"
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
@@ -89,7 +90,7 @@ services:
       dockerfile: Dockerfile
     container_name: frontend_app
     ports:
-      - "80:80"
+      - "${FRONTEND_HOST_PORT:-8088}:80"
     depends_on:
       - backend
     restart: unless-stopped

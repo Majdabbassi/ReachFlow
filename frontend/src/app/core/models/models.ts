@@ -212,3 +212,88 @@ export interface DeleteLeadEmailsResponse {
   skippedCount: number;
   skippedEmailIds: number[];
 }
+
+export interface PlaceDistrictTree {
+  id: number;
+  name: string;
+}
+
+export interface PlaceCityTree {
+  id: number;
+  name: string;
+  districts: PlaceDistrictTree[];
+}
+
+export interface PlaceStateTree {
+  id: number;
+  name: string;
+  cities: PlaceCityTree[];
+}
+
+export interface PlaceCountryTree {
+  id: number;
+  code: string;
+  name: string;
+  states: PlaceStateTree[];
+}
+
+export type SearchCombinationStatus = 'PENDING' | 'LAUNCHED' | 'FAILED';
+
+export interface SearchCombination {
+  id: number;
+  keywordId: number;
+  keywordNameEn: string;
+  keywordNameDe: string;
+  categoryId: number;
+  categoryName: string;
+  cityId?: number;
+  cityName?: string;
+  districtId?: number;
+  districtName?: string;
+  placeDisplayName: string;
+  status: SearchCombinationStatus;
+  maxResults: number;
+  launchedAt?: string;
+  failedAt?: string;
+  failureReason?: string;
+  createdAt?: string;
+}
+
+export interface GenerateSearchCombinationsRequest {
+  keywordIds: number[];
+  stateIds: number[];
+  cityIds: number[];
+  districtIds: number[];
+  maxResults: number;
+}
+
+export interface GenerateSearchCombinationsResponse {
+  created: number;
+  existing: number;
+}
+
+export interface LaunchSearchCombinationRequest {
+  status: SearchCombinationStatus;
+  failureReason?: string;
+  maxResults?: number;
+}
+
+export interface AusbildungSearchRequest {
+  keywords: string[];
+  categories: string[];
+  countries?: string[];
+  maxResults: number;
+}
+
+export interface AusbildungResult {
+  applyUrl: string;
+  jobTitle: string;
+  company: string;
+  emails: string[];
+}
+
+export interface AusbildungSearchResponse {
+  results: AusbildungResult[];
+  total: number;
+  message?: string;
+}

@@ -18,7 +18,16 @@ import { BehaviorSubject, Observable, finalize, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { CategoryService } from '../../../core/services/category.service';
 import { LeadService } from '../../../core/services/lead.service';
-import { CategoryWithKeywords, Lead } from '../../../core/models/models';
+import {
+  CategoryWithKeywords,
+  Lead,
+  PlaceCountryTree,
+  PlaceStateTree,
+  PlaceCityTree,
+  PlaceDistrictTree,
+  SearchCombination,
+  SearchCombinationStatus
+} from '../../../core/models/models';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 
 type DebugLevel = 'info' | 'success' | 'warn' | 'error';
@@ -47,6 +56,7 @@ interface WebhookLeadResult {
  }
 
 interface CollectorKeyword {
+  id: number;
   nameEn: string;
   nameDe: string;
   categoryId: number;
@@ -61,14 +71,9 @@ interface CollectorCategory {
   keywords: CollectorKeyword[];
 }
 
-interface GermanyCityNode {
-  name: string;
-  districts: string[];
-}
-
-interface GermanyStateNode {
-  name: string;
-  cities: GermanyCityNode[];
+interface SelectedPlaceItem {
+  key: string;
+  label: string;
 }
 
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
@@ -107,7 +112,7 @@ export class LeadListComponent implements OnInit {
   isLoadingLeads = false;
   loadError: string | null = null;
   maxResults = 10;
-  webhookUrl = 'http://localhost:5678/webhook/leads-collector';
+  webhookUrl = 'http://localhost:5678/webhook-test/3dd78525-b1e6-4775-98bc-1c88aeb0e313';
   isCollecting = false;
   private collectedResultsSubject = new BehaviorSubject<WebhookLeadResult[]>([]);
   collectedResults$ = this.collectedResultsSubject.asObservable();
@@ -182,80 +187,22 @@ export class LeadListComponent implements OnInit {
   private rawResponsePreviewSubject = new BehaviorSubject<string>('');
   rawResponsePreview$ = this.rawResponsePreviewSubject.asObservable();
 
-  private selectedPlaces = new Map<string, string>();
-  filteredPlaceTree: GermanyStateNode[] = [];
+  private selectedPlaces = new Map<string, SelectedPlaceItem>();
+  placeCountries: PlaceCountryTree[] = [];
+  germanyPlaces: PlaceStateTree[] = [];
+  filteredPlaceTree: PlaceStateTree[] = [];
   selectedPlaceLabels: Array<{ key: string; label: string }> = [];
+  placesLoaded = false;
 
-  readonly germanyPlaces: GermanyStateNode[] = [
-    {
-      name: 'Bayern',
-      cities: [
-        { name: 'Muenchen', districts: ['Schwabing', 'Maxvorstadt', 'Sendling', 'Bogenhausen', 'Pasing'] },
-        { name: 'Nuernberg', districts: ['Nordstadt', 'Suedstadt', 'Gostenhof'] },
-        { name: 'Augsburg', districts: ['Innenstadt', 'Lechhausen', 'Goeggingen'] }
-      ]
-    },
-    {
-      name: 'Nordrhein-Westfalen',
-      cities: [
-        { name: 'Koeln', districts: ['Ehrenfeld', 'Nippes', 'Chorweiler', 'Kalk'] },
-        { name: 'Duesseldorf', districts: ['Altstadt', 'Bilk', 'Oberkassel'] },
-        { name: 'Dortmund', districts: ['Innenstadt-West', 'Innenstadt-Ost', 'Hoerde', 'Eving'] },
-        { name: 'Essen', districts: ['Ruettenscheid', 'Kettwig', 'Altenessen'] },
-        { name: 'Duisburg', districts: ['Hamborn', 'Meiderich', 'Rheinhausen'] }
-      ]
-    },
-    {
-      name: 'Baden-Wuerttemberg',
-      cities: [
-        { name: 'Stuttgart', districts: ['Mitte', 'Bad Cannstatt', 'Vaihingen'] },
-        { name: 'Karlsruhe', districts: ['Innenstadt', 'Durlach'] },
-        { name: 'Mannheim', districts: ['Neckarstadt', 'Lindenhof'] }
-      ]
-    },
-    {
-      name: 'Hessen',
-      cities: [
-        { name: 'Frankfurt am Main', districts: ['Innenstadt', 'Sachsenhausen', 'Bockenheim', 'Hoechst'] },
-        { name: 'Wiesbaden', districts: ['Mitte', 'Biebrich'] },
-        { name: 'Darmstadt', districts: ['Arheilgen', 'Eberstadt'] }
-      ]
-    },
-    {
-      name: 'Niedersachsen',
-      cities: [
-        { name: 'Hannover', districts: ['Mitte', 'Linden', 'Bothfeld'] },
-        { name: 'Braunschweig', districts: ['Innenstadt', 'Weststadt'] },
-        { name: 'Wolfsburg', districts: ['Mitte-West', 'Fallersleben'] }
-      ]
-    },
-    {
-      name: 'Sachsen',
-      cities: [
-        { name: 'Leipzig', districts: ['Zentrum', 'Plagwitz', 'Connewitz'] },
-        { name: 'Dresden', districts: ['Altstadt', 'Neustadt', 'Blasewitz'] }
-      ]
-    },
-    {
-      name: 'Berlin',
-      cities: [
-        { name: 'Berlin', districts: ['Mitte', 'Neukoelln', 'Kreuzberg', 'Charlottenburg', 'Spandau'] }
-      ]
-    },
-    {
-      name: 'Hamburg',
-      cities: [
-        { name: 'Hamburg', districts: ['Altona', 'Eimsbuettel', 'Wandsbek', 'Harburg'] }
-      ]
-    },
-    {
-      name: 'Bremen',
-      cities: [
-        { name: 'Bremen', districts: ['Mitte', 'Vegesack', 'Neustadt'] },
-        { name: 'Bremerhaven', districts: ['Lehe', 'Geestemuende'] }
-      ]
-    }
-  ];
+  combinations: SearchCombination[] = [];
+  isLoadingCombinations = false;
+  isGeneratingCombinations = false;
+  combinationsPageSize = 20;
+  combinationsPageIndex = 0;
+  combinationsTotalElements = 0;
+  combinationStatusFilter: 'ALL' | SearchCombinationStatus = 'PENDING';
+  combinationDisplayedColumns: string[] = ['keyword', 'place', 'status', 'launchedAt', 'actions'];
+  launchingCombinationId: number | null = null;
 
   // Keyword Domains
   keywordDomains: CollectorCategory[] = [];
@@ -349,7 +296,30 @@ export class LeadListComponent implements OnInit {
   ngOnInit() {
     this.loadCategories();
     this.loadLeads();
-    this.updateFilteredPlaceTree();
+    this.initializePlaces();
+    this.loadCombinations();
+  }
+
+  initializePlaces() {
+    this.leadService.seedGermanyPlaces().subscribe({
+      next: () => this.loadPlaceTree(),
+      error: () => this.loadPlaceTree()
+    });
+  }
+
+  loadPlaceTree() {
+    this.leadService.getPlaceTree('DE').subscribe({
+      next: (countries) => {
+        this.placeCountries = countries;
+        this.germanyPlaces = countries[0]?.states || [];
+        this.updateFilteredPlaceTree();
+        this.placesLoaded = true;
+      },
+      error: () => {
+        this.placesLoaded = true;
+        this.toastr.error('Failed to load places tree from database');
+      }
+    });
   }
 
   loadCategories() {
@@ -388,14 +358,14 @@ export class LeadListComponent implements OnInit {
               return city;
             }
 
-            const districts = city.districts.filter((district) => district.toLowerCase().includes(query));
+            const districts = city.districts.filter((district) => district.name.toLowerCase().includes(query));
             if (districts.length > 0) {
               return { ...city, districts };
             }
 
             return null;
           })
-          .filter((city): city is GermanyCityNode => city !== null);
+          .filter((city): city is PlaceCityTree => city !== null);
 
         if (cities.length > 0) {
           return { ...state, cities };
@@ -403,12 +373,39 @@ export class LeadListComponent implements OnInit {
 
         return null;
       })
-      .filter((state): state is GermanyStateNode => state !== null);
+      .filter((state): state is PlaceStateTree => state !== null);
   }
 
   selectAllStates() {
     this.germanyPlaces.forEach((state) => {
-      this.selectedPlaces.set(this.stateKey(state.name), state.name);
+      this.selectedPlaces.set(this.stateKey(state.id), {
+        key: this.stateKey(state.id),
+        label: state.name
+      });
+    });
+    this.syncSelectedCities();
+  }
+
+  selectAllPlaces() {
+    this.germanyPlaces.forEach((state) => {
+      this.selectedPlaces.set(this.stateKey(state.id), {
+        key: this.stateKey(state.id),
+        label: state.name
+      });
+
+      state.cities.forEach((city) => {
+        this.selectedPlaces.set(this.cityKey(city.id), {
+          key: this.cityKey(city.id),
+          label: city.name
+        });
+
+        city.districts.forEach((district) => {
+          this.selectedPlaces.set(this.districtKey(district.id), {
+            key: this.districtKey(district.id),
+            label: `${city.name} ${district.name}`
+          });
+        });
+      });
     });
     this.syncSelectedCities();
   }
@@ -416,7 +413,10 @@ export class LeadListComponent implements OnInit {
   selectAllCities() {
     this.germanyPlaces.forEach((state) => {
       state.cities.forEach((city) => {
-        this.selectedPlaces.set(this.cityKey(state.name, city.name), city.name);
+        this.selectedPlaces.set(this.cityKey(city.id), {
+          key: this.cityKey(city.id),
+          label: city.name
+        });
       });
     });
     this.syncSelectedCities();
@@ -427,46 +427,46 @@ export class LeadListComponent implements OnInit {
     this.syncSelectedCities();
   }
 
-  toggleState(stateName: string, checked: boolean) {
-    const key = this.stateKey(stateName);
+  toggleState(state: PlaceStateTree, checked: boolean) {
+    const key = this.stateKey(state.id);
     if (checked) {
-      this.selectedPlaces.set(key, stateName);
+      this.selectedPlaces.set(key, { key, label: state.name });
     } else {
       this.selectedPlaces.delete(key);
     }
     this.syncSelectedCities();
   }
 
-  toggleCity(stateName: string, cityName: string, checked: boolean) {
-    const key = this.cityKey(stateName, cityName);
+  toggleCity(city: PlaceCityTree, checked: boolean) {
+    const key = this.cityKey(city.id);
     if (checked) {
-      this.selectedPlaces.set(key, cityName);
+      this.selectedPlaces.set(key, { key, label: city.name });
     } else {
       this.selectedPlaces.delete(key);
     }
     this.syncSelectedCities();
   }
 
-  toggleDistrict(stateName: string, cityName: string, districtName: string, checked: boolean) {
-    const key = this.districtKey(stateName, cityName, districtName);
+  toggleDistrict(city: PlaceCityTree, district: PlaceDistrictTree, checked: boolean) {
+    const key = this.districtKey(district.id);
     if (checked) {
-      this.selectedPlaces.set(key, `${cityName} ${districtName}`);
+      this.selectedPlaces.set(key, { key, label: `${city.name} ${district.name}` });
     } else {
       this.selectedPlaces.delete(key);
     }
     this.syncSelectedCities();
   }
 
-  isStateSelected(stateName: string): boolean {
-    return this.selectedPlaces.has(this.stateKey(stateName));
+  isStateSelected(stateId: number): boolean {
+    return this.selectedPlaces.has(this.stateKey(stateId));
   }
 
-  isCitySelected(stateName: string, cityName: string): boolean {
-    return this.selectedPlaces.has(this.cityKey(stateName, cityName));
+  isCitySelected(cityId: number): boolean {
+    return this.selectedPlaces.has(this.cityKey(cityId));
   }
 
-  isDistrictSelected(stateName: string, cityName: string, districtName: string): boolean {
-    return this.selectedPlaces.has(this.districtKey(stateName, cityName, districtName));
+  isDistrictSelected(districtId: number): boolean {
+    return this.selectedPlaces.has(this.districtKey(districtId));
   }
 
   removeSelectedPlace(key: string) {
@@ -474,21 +474,189 @@ export class LeadListComponent implements OnInit {
     this.syncSelectedCities();
   }
 
-  private stateKey(stateName: string): string {
-    return `state:${stateName}`;
+  private stateKey(stateId: number): string {
+    return `state:${stateId}`;
   }
 
-  private cityKey(stateName: string, cityName: string): string {
-    return `city:${stateName}:${cityName}`;
+  private cityKey(cityId: number): string {
+    return `city:${cityId}`;
   }
 
-  private districtKey(stateName: string, cityName: string, districtName: string): string {
-    return `district:${stateName}:${cityName}:${districtName}`;
+  private districtKey(districtId: number): string {
+    return `district:${districtId}`;
   }
 
   private syncSelectedCities() {
-    this.cities = Array.from(new Set(this.selectedPlaces.values()));
-    this.selectedPlaceLabels = Array.from(this.selectedPlaces.entries()).map(([key, label]) => ({ key, label }));
+    this.cities = Array.from(new Set(Array.from(this.selectedPlaces.values()).map((entry) => entry.label)));
+    this.selectedPlaceLabels = Array.from(this.selectedPlaces.values()).map((entry) => ({ key: entry.key, label: entry.label }));
+  }
+
+  private collectSelectedPlaceIds(): { stateIds: number[]; cityIds: number[]; districtIds: number[] } {
+    const stateIds = new Set<number>();
+    const cityIds = new Set<number>();
+    const districtIds = new Set<number>();
+
+    this.selectedPlaces.forEach((entry) => {
+      if (entry.key.startsWith('state:')) {
+        stateIds.add(Number(entry.key.replace('state:', '')));
+      } else if (entry.key.startsWith('city:')) {
+        cityIds.add(Number(entry.key.replace('city:', '')));
+      } else if (entry.key.startsWith('district:')) {
+        districtIds.add(Number(entry.key.replace('district:', '')));
+      }
+    });
+
+    return {
+      stateIds: Array.from(stateIds),
+      cityIds: Array.from(cityIds),
+      districtIds: Array.from(districtIds)
+    };
+  }
+
+  generateSearchCombinations() {
+    const keywordIds = this.selectedKeywords
+      .map((keyword) => keyword.id)
+      .filter((id): id is number => !!id);
+    const { stateIds, cityIds, districtIds } = this.collectSelectedPlaceIds();
+
+    if (keywordIds.length === 0) {
+      this.toastr.warning('Select at least one keyword before generating combinations');
+      return;
+    }
+
+    if (stateIds.length === 0 && cityIds.length === 0 && districtIds.length === 0) {
+      this.toastr.warning('Select at least one place before generating combinations');
+      return;
+    }
+
+    this.isGeneratingCombinations = true;
+    this.leadService.generateSearchCombinations({
+      keywordIds,
+      stateIds,
+      cityIds,
+      districtIds,
+      maxResults: this.maxResults
+    }).pipe(
+      finalize(() => this.isGeneratingCombinations = false)
+    ).subscribe({
+      next: (response) => {
+        this.toastr.success(`Combinations created: ${response.created}, existing: ${response.existing}`);
+        this.combinationsPageIndex = 0;
+        this.loadCombinations();
+      },
+      error: () => {
+        this.toastr.error('Failed to generate combinations');
+      }
+    });
+  }
+
+  loadCombinations() {
+    this.isLoadingCombinations = true;
+    const status = this.combinationStatusFilter === 'ALL' ? undefined : this.combinationStatusFilter;
+
+    this.leadService.getSearchCombinations(this.combinationsPageIndex, this.combinationsPageSize, status).pipe(
+      finalize(() => this.isLoadingCombinations = false)
+    ).subscribe({
+      next: (response) => {
+        // Sort by launchedAt (most recent first), then by createdAt for pending items
+        this.combinations = response.content.sort((a, b) => {
+          // If both have launchedAt, sort by launchedAt descending (most recent first)
+          if (a.launchedAt && b.launchedAt) {
+            return new Date(b.launchedAt).getTime() - new Date(a.launchedAt).getTime();
+          }
+          // If one has launchedAt and the other doesn't, launched items come first
+          if (a.launchedAt && !b.launchedAt) return -1;
+          if (!a.launchedAt && b.launchedAt) return 1;
+          // If neither has launchedAt, sort by createdAt descending
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        });
+        this.combinationsTotalElements = response.totalElements;
+      },
+      error: () => {
+        this.toastr.error('Failed to load search combinations');
+      }
+    });
+  }
+
+  onCombinationsPageChange(event: PageEvent) {
+    this.combinationsPageIndex = event.pageIndex;
+    this.combinationsPageSize = event.pageSize;
+    this.loadCombinations();
+  }
+
+  onCombinationStatusFilterChange(status: 'ALL' | SearchCombinationStatus) {
+    this.combinationStatusFilter = status;
+    this.combinationsPageIndex = 0;
+    this.loadCombinations();
+  }
+
+  launchCombination(combination: SearchCombination) {
+    const webhookUrl = this.webhookUrl.trim();
+    if (!webhookUrl) {
+      this.toastr.warning('Webhook URL is required to launch a combination');
+      return;
+    }
+
+    const launchMaxResults = 45;
+    const keywordName = combination.keywordNameDe || combination.keywordNameEn;
+    const payload = {
+      cities: [combination.placeDisplayName],
+      keywords: [{ name: keywordName, categoryId: combination.categoryId }],
+      maxResults: launchMaxResults
+    };
+
+    this.launchingCombinationId = combination.id;
+    this.leadService.collectFromWebhook(webhookUrl, payload).subscribe({
+      next: (response) => {
+        this.lastSelectedCategoryIds = [combination.categoryId];
+        this.lastSelectedCategoryNames = [combination.categoryName];
+
+        try {
+          const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+          const results = this.extractResults(body);
+          this.collectedResultsSubject.next(results);
+          this.toastr.success(`Found ${results.length} potential leads`);
+        } catch (e) {
+          this.logDebug('error', 'Failed to parse launch response body', String(e));
+          this.rawResponsePreviewSubject.next(String(response.body));
+        }
+
+        this.leadService.launchSearchCombination(combination.id, {
+          status: 'LAUNCHED',
+          maxResults: launchMaxResults
+        }).pipe(
+          finalize(() => this.launchingCombinationId = null)
+        ).subscribe({
+          next: () => {
+            this.toastr.success('Combination launched and results loaded');
+            this.loadCombinations();
+          },
+          error: () => {
+            this.toastr.error('Webhook succeeded but status update failed');
+            this.loadCombinations();
+          }
+        });
+      },
+      error: (err) => {
+        const failureReason = err?.message || 'Webhook request failed';
+        this.leadService.launchSearchCombination(combination.id, {
+          status: 'FAILED',
+          failureReason,
+          maxResults: launchMaxResults
+        }).pipe(
+          finalize(() => this.launchingCombinationId = null)
+        ).subscribe({
+          next: () => {
+            this.toastr.error('Failed to launch combination');
+            this.loadCombinations();
+          },
+          error: () => {
+            this.toastr.error('Failed to launch combination and failed to update status');
+            this.loadCombinations();
+          }
+        });
+      }
+    });
   }
 
   toggleDebug() {
@@ -870,6 +1038,7 @@ export class LeadListComponent implements OnInit {
       name: category.name,
       color: category.color,
       keywords: (category.keywords || []).map((keyword) => ({
+        id: keyword.id!,
         nameEn: keyword.nameEn,
         nameDe: keyword.nameDe,
         categoryId: keyword.categoryId || category.id!,
