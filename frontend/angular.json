@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "ausbuildung_n8n": {
+    "reachflow": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -53,10 +53,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "ausbuildung_n8n:build:production"
+              "buildTarget": "reachflow:build:production"
             },
             "development": {
-              "buildTarget": "ausbuildung_n8n:build:development"
+              "buildTarget": "reachflow:build:development"
             }
           },
           "defaultConfiguration": "development"

@@ -7,13 +7,15 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { SkeletonLoaderComponent } from '../../../shared/components/skeleton-loader/skeleton-loader.component';
+import { LeadMapComponent } from '../lead-map/lead-map.component';
+import { CampaignPerformanceComponent } from '../campaign-performance/campaign-performance.component';
 import { ClientService } from '../../../core/services/client.service';
 import { LeadService } from '../../../core/services/lead.service';
 import { CampaignService } from '../../../core/services/campaign.service';
 import { CampaignStatus, Lead } from '../../../core/models/models';
 import { ArchiveService } from '../../../core/services/archive.service';
-import { Observable, forkJoin, of } from 'rxjs';
-import { catchError, finalize, map, switchMap } from 'rxjs/operators';
+import { BehaviorSubject, Observable, forkJoin, of } from 'rxjs';
+import { catchError, finalize, map, switchMap, tap } from 'rxjs/operators';
 
 interface DashboardStats {
   clients: number;
@@ -28,6 +30,8 @@ interface DashboardStats {
   stopRequestedCampaigns: number;
   pendingEmails: number;
   failedEmails: number;
+  repliedEmails: number;
+  bouncedEmails: number;
   deliveryRate: number;
   invalidEmails: number;
   duplicateEmails: number;
@@ -50,7 +54,9 @@ type DateRangePreset = '7d' | '30d' | '90d';
     MatButtonModule, 
     MatButtonToggleModule,
     MatTooltipModule,
-    SkeletonLoaderComponent
+    SkeletonLoaderComponent,
+    LeadMapComponent,
+    CampaignPerformanceComponent
   ],
   templateUrl: './dashboard-home.component.html',
   styleUrl: './dashboard-home.component.scss'
@@ -75,6 +81,8 @@ export class DashboardHomeComponent implements OnInit {
     stopRequestedCampaigns: 0,
     pendingEmails: 0,
     failedEmails: 0,
+    repliedEmails: 0,
+    bouncedEmails: 0,
     deliveryRate: 0,
     invalidEmails: 0,
     duplicateEmails: 0,
@@ -84,6 +92,7 @@ export class DashboardHomeComponent implements OnInit {
     campaignsTrend: [0, 0, 0, 0, 0, 0, 0],
     emailsSentTrend: [0, 0, 0, 0, 0, 0, 0]
   };
+  readonly allLeads$ = new BehaviorSubject<Lead[]>([]);
   stats$: Observable<DashboardStats> = of(this.emptyStats);
   recentLeads$: Observable<Lead[]> = of([]);
 
@@ -199,6 +208,7 @@ export class DashboardHomeComponent implements OnInit {
       duplicateEmails: this.leadService.getEmailAudit('duplicate', 0, 1).pipe(map((page) => page.totalElements || 0)),
       archivedClients: this.archiveService.getArchivedClients(0, 1).pipe(map((page) => page.totalElements || 0))
     }).pipe(
+      tap(({ leadsForTrend }) => this.allLeads$.next(leadsForTrend.content || [])),
       switchMap(({ clients, leads, leadsForTrend, campaigns, invalidEmails, duplicateEmails, archivedClients }) => {
         const rangeDays = this.getRangeDays();
         const rangeStart = this.getRangeStartDate();
@@ -227,6 +237,8 @@ export class DashboardHomeComponent implements OnInit {
             stopRequestedCampaigns,
             pendingEmails: 0,
             failedEmails: 0,
+            repliedEmails: 0,
+            bouncedEmails: 0,
             deliveryRate: 0,
             invalidEmails,
             duplicateEmails,
@@ -245,6 +257,8 @@ export class DashboardHomeComponent implements OnInit {
         ).pipe(
           map((allStats) => {
             const emailsSent = allStats.reduce((sum, stats) => sum + stats.sent, 0);
+            const repliedEmails = allStats.reduce((sum, stats) => sum + stats.replied, 0);
+            const bouncedEmails = allStats.reduce((sum, stats) => sum + stats.bounced, 0);
             const pendingEmails = allStats.reduce((sum, stats) => sum + stats.pending, 0);
             const failedEmails = allStats.reduce((sum, stats) => sum + stats.failed, 0);
             const totalAttempts = emailsSent + failedEmails;
@@ -266,6 +280,8 @@ export class DashboardHomeComponent implements OnInit {
               stopRequestedCampaigns,
               pendingEmails,
               failedEmails,
+              repliedEmails,
+              bouncedEmails,
               deliveryRate,
               invalidEmails,
               duplicateEmails,

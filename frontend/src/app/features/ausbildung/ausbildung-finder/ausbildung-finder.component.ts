@@ -95,6 +95,9 @@ export class AusbildungFinderComponent implements OnInit {
   total = 0;
   results: UiAusbildungResult[] = [];
   errorMessage = '';
+  
+  // Progress tracking
+  searchProgress: { message: string; status: 'idle' | 'searching' | 'completed' | 'failed' } = { message: '', status: 'idle' };
 
   ngOnInit() {
     this.initializePlaces();
@@ -298,6 +301,7 @@ export class AusbildungFinderComponent implements OnInit {
     this.maxResults = request.maxResults;
     this.isLoading = true;
     this.errorMessage = '';
+    this.searchProgress = { message: 'Searching Ausbildung opportunities...', status: 'searching' };
 
     this.ausbildungService.search(request)
       .pipe(finalize(() => {
@@ -309,11 +313,15 @@ export class AusbildungFinderComponent implements OnInit {
           const normalized = this.normalizeResponse(response);
           this.results = normalized.results;
           this.total = normalized.total;
+          this.searchProgress = { message: `Found ${normalized.total} opportunities`, status: 'completed' };
+          this.toastr.success(`Found ${normalized.total} Ausbildung opportunities`);
         },
         error: (err) => {
           this.results = [];
           this.total = 0;
           this.errorMessage = err?.error?.message || err?.message || 'Failed to search Ausbildung opportunities.';
+          this.searchProgress = { message: this.errorMessage, status: 'failed' };
+          this.toastr.error('Failed to search Ausbildung opportunities');
         }
       });
   }

@@ -174,10 +174,14 @@
         </mat-form-field>
 
         <div class="narrative-wrapper">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Message Body</mat-label>
-            <textarea matInput formControlName="body" rows="12" placeholder="Write your outreach narrative..."></textarea>
-          </mat-form-field>
+          <label class="editor-label">Message Body</label>
+          <quill-editor 
+            formControlName="body" 
+            [modules]="QuillConfiguration"
+            placeholder="Write your outreach narrative..."
+            class="reachflow-editor">
+          </quill-editor>
+          <div class="editor-hint">Use <b>{{ '{' }}name{{ '}' }}</b>, <b>{{ '{' }}city{{ '}' }}</b>, <b>{{ '{' }}institutionName{{ '}' }}</b> for personalization.</div>
         </div>
 
         <mat-form-field appearance="outline" class="full-width delay-field">

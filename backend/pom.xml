@@ -9,11 +9,11 @@
 		<relativePath/>
 	</parent>
 	<groupId>com.majd</groupId>
-	<artifactId>n8n</artifactId>
+	<artifactId>reachflow</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
-	<name>n8n Backend</name>
-	<description>n8n Leads Backend API</description>
+	<name>ReachFlow Backend</name>
+	<description>ReachFlow Leads Backend API</description>
 
 	<properties>
 		<java.version>21</java.version>

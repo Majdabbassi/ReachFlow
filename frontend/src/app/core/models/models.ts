@@ -297,3 +297,18 @@ export interface AusbildungSearchResponse {
   total: number;
   message?: string;
 }
+
+export type ScrapeStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+
+export interface ScrapeProgress {
+  jobId: string;
+  status: ScrapeStatus;
+  message: string;
+  leadsFound?: number;
+  leadsImported?: number;
+  errorMessage?: string;
+  keywords?: string;
+  cities?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}

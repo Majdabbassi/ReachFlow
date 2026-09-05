@@ -14,8 +14,8 @@ import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, finalize, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { BehaviorSubject, Observable, finalize, of, interval, take } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
 import { CategoryService } from '../../../core/services/category.service';
 import { LeadService } from '../../../core/services/lead.service';
 import {
@@ -25,6 +25,7 @@ import {
   PlaceStateTree,
   PlaceCityTree,
   PlaceDistrictTree,
+  ScrapeProgress,
   SearchCombination,
   SearchCombinationStatus
 } from '../../../core/models/models';
@@ -38,22 +39,6 @@ interface DebugLog {
   message: string;
   details?: string;
 }
-
-interface WebhookLeadResult {
-  title?: string;
-  institution?: string;
-  city?: string;
-  phone?: string;
-  website?: string;
-  address?: string;
-  email?: string;
-  allEmails?: string[];
-  emails?: string[];
-  latitude?: number;
-  longitude?: number;
-  lat?: number;
-  lng?: number;
- }
 
 interface CollectorKeyword {
   id: number;
@@ -114,11 +99,13 @@ export class LeadListComponent implements OnInit {
   maxResults = 10;
   webhookUrl = 'http://localhost:5678/webhook-test/3dd78525-b1e6-4775-98bc-1c88aeb0e313';
   isCollecting = false;
-  private collectedResultsSubject = new BehaviorSubject<WebhookLeadResult[]>([]);
-  collectedResults$ = this.collectedResultsSubject.asObservable();
-  isSaving = false;
   private lastSelectedCategoryIds: number[] = [];
   private lastSelectedCategoryNames: string[] = [];
+  
+  // Scraping progress tracking
+  currentJobId: string | null = null;
+  scrapeProgress: ScrapeProgress | null = null;
+  private pollingSubscriptions: Map<string, any> = new Map();
   
   // Selection
   isAllSelected(leads: Lead[]) {
@@ -298,6 +285,34 @@ export class LeadListComponent implements OnInit {
     this.loadLeads();
     this.initializePlaces();
     this.loadCombinations();
+  }
+
+  setAusbildungPreset() {
+    this.clearPlaces();
+    
+    // Select major German cities for demo
+    const demoCities = ['Berlin', 'München', 'Hamburg', 'Köln', 'Frankfurt'];
+    
+    this.germanyPlaces.forEach(state => {
+      state.cities.forEach(city => {
+        if (demoCities.includes(city.name)) {
+          this.toggleCity(city, true);
+        }
+      });
+    });
+
+    // Select "Ausbildung" keywords
+    this.keywordDomains.forEach(domain => {
+      domain.keywords.forEach(keyword => {
+        if (keyword.nameEn.toLowerCase().includes('ausbildung') || 
+            keyword.nameDe.toLowerCase().includes('ausbildung')) {
+          keyword.selected = true;
+        }
+      });
+    });
+
+    this.maxResults = 20;
+    this.toastr.info('Ausbildung preset loaded! Cities and keywords have been pre-selected.', 'Demo Mode');
   }
 
   initializePlaces() {
@@ -591,70 +606,26 @@ export class LeadListComponent implements OnInit {
   }
 
   launchCombination(combination: SearchCombination) {
-    const webhookUrl = this.webhookUrl.trim();
-    if (!webhookUrl) {
-      this.toastr.warning('Webhook URL is required to launch a combination');
-      return;
-    }
-
     const launchMaxResults = 45;
     const keywordName = combination.keywordNameDe || combination.keywordNameEn;
-    const payload = {
-      cities: [combination.placeDisplayName],
-      keywords: [{ name: keywordName, categoryId: combination.categoryId }],
-      maxResults: launchMaxResults
-    };
 
     this.launchingCombinationId = combination.id;
-    this.leadService.collectFromWebhook(webhookUrl, payload).subscribe({
+    this.lastSelectedCategoryIds = [combination.categoryId];
+    this.lastSelectedCategoryNames = [combination.categoryName];
+
+    this.leadService.collectLeads({
+      keywords: [keywordName],
+      cities: [combination.placeDisplayName],
+      maxResults: launchMaxResults,
+      webhookUrl: this.webhookUrl
+    }).subscribe({
       next: (response) => {
-        this.lastSelectedCategoryIds = [combination.categoryId];
-        this.lastSelectedCategoryNames = [combination.categoryName];
-
-        try {
-          const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
-          const results = this.extractResults(body);
-          this.collectedResultsSubject.next(results);
-          this.toastr.success(`Found ${results.length} potential leads`);
-        } catch (e) {
-          this.logDebug('error', 'Failed to parse launch response body', String(e));
-          this.rawResponsePreviewSubject.next(String(response.body));
-        }
-
-        this.leadService.launchSearchCombination(combination.id, {
-          status: 'LAUNCHED',
-          maxResults: launchMaxResults
-        }).pipe(
-          finalize(() => this.launchingCombinationId = null)
-        ).subscribe({
-          next: () => {
-            this.toastr.success('Combination launched and results loaded');
-            this.loadCombinations();
-          },
-          error: () => {
-            this.toastr.error('Webhook succeeded but status update failed');
-            this.loadCombinations();
-          }
-        });
+        this.startPollingForLaunch(response.jobId, combination.id, launchMaxResults);
+        this.toastr.success('Launch job started');
       },
       error: (err) => {
-        const failureReason = err?.message || 'Webhook request failed';
-        this.leadService.launchSearchCombination(combination.id, {
-          status: 'FAILED',
-          failureReason,
-          maxResults: launchMaxResults
-        }).pipe(
-          finalize(() => this.launchingCombinationId = null)
-        ).subscribe({
-          next: () => {
-            this.toastr.error('Failed to launch combination');
-            this.loadCombinations();
-          },
-          error: () => {
-            this.toastr.error('Failed to launch combination and failed to update status');
-            this.loadCombinations();
-          }
-        });
+        this.launchingCombinationId = null;
+        this.toastr.error('Failed to start launch job');
       }
     });
   }
@@ -666,7 +637,6 @@ export class LeadListComponent implements OnInit {
   // Existing Leads Table state
   leads$: Observable<Lead[]> = of([]);
   displayedColumns: string[] = ['select', 'email', 'institution', 'city', 'phone', 'coordinates', 'address', 'status', 'website', 'actions'];
-  collectedColumns: string[] = ['institution', 'city', 'phone', 'coordinates', 'emails', 'address', 'website'];
   totalElements = 0;
   pageSize = 100;
   pageIndex = 0;
@@ -718,75 +688,135 @@ export class LeadListComponent implements OnInit {
   }
 
   runCollection() {
-    const webhookUrl = this.webhookUrl.trim();
-    if (!webhookUrl || this.cities.length === 0 || this.selectedKeywords.length === 0) {
-      this.toastr.warning('Please provide Webhook URL, at least one city and one keyword');
+    if (this.cities.length === 0 || this.selectedKeywords.length === 0) {
+      this.toastr.warning('Please select at least one city and one keyword');
       return;
     }
 
     this.lastSelectedCategoryIds = this.selectedCategoryIds;
     this.lastSelectedCategoryNames = this.selectedCategoryNames;
     this.isCollecting = true;
-    this.collectedResultsSubject.next([]);
     this.logDebug('info', 'Starting collection', `Cities: ${this.cities.join(', ')} | Keywords: ${this.selectedKeywordNames.join(', ')}`);
 
-    this.leadService.collectFromWebhook(webhookUrl, {
+    this.leadService.collectLeads({
+      keywords: this.selectedKeywordNames,
       cities: this.cities,
-      keywords: this.selectedKeywords.map((keyword) => ({
-        name: keyword.nameDe || keyword.nameEn,
-        categoryId: keyword.categoryId
-      })),
-      maxResults: this.maxResults
-    }).pipe(
-      finalize(() => this.isCollecting = false)
-    ).subscribe({
+      maxResults: this.maxResults,
+      webhookUrl: this.webhookUrl
+    }).subscribe({
       next: (response) => {
-        this.logDebug('success', 'Webhook response received', `Status: ${response.status}`);
-        try {
-          const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
-          const results = this.extractResults(body);
-          this.collectedResultsSubject.next(results);
-          this.toastr.success(`Found ${results.length} potential leads`);
-        } catch (e) {
-          this.logDebug('error', 'Failed to parse response body', String(e));
-          this.rawResponsePreviewSubject.next(String(response.body));
-        }
+        this.currentJobId = response.jobId;
+        this.scrapeProgress = null;
+        this.startPolling(response.jobId);
+        this.toastr.success('Scraping job started');
       },
       error: (err) => {
-        this.logDebug('error', 'Webhook request failed', err.message);
-        this.toastr.error('Failed to collect leads from webhook');
+        this.isCollecting = false;
+        this.toastr.error('Failed to start scraping job');
       }
     });
   }
 
-  saveCollectedLeads() {
-    const results = this.collectedResultsSubject.value;
-    if (!results.length) return;
+  private startPolling(jobId: string) {
+    this.startPollingForJob(jobId, null);
+  }
 
-    this.isSaving = true;
-    const leadsToSave: Lead[] = this.expandWebhookResultsToLeads(results, this.lastSelectedCategoryIds, this.lastSelectedCategoryNames);
-
-    if (leadsToSave.length === 0) {
-      this.isSaving = false;
-      this.toastr.warning('No valid emails found in webhook output');
-      return;
+  private startPollingForJob(jobId: string, combinationId: number | null) {
+    if (this.pollingSubscriptions.has(jobId)) {
+      this.stopPolling(jobId);
     }
 
-    this.leadService.bulkImport(leadsToSave).pipe(
-      finalize(() => this.isSaving = false)
+    const subscription = interval(2000).pipe(
+      switchMap(() => this.leadService.getScrapeProgress(jobId)),
+      take(60) // Max 2 minutes of polling
     ).subscribe({
-      next: (response) => {
-        this.toastr.success(`Saved ${response.saved.length} lead(s)`);
-        if (response.errors.length > 0) {
-          this.toastr.warning(`${response.errors.length} lead(s) failed during import`);
+      next: (progress) => {
+        if (combinationId === null) {
+          // Main "Run Search" polling
+          this.scrapeProgress = progress;
+          
+          if (progress.status === 'COMPLETED') {
+            this.stopPolling(jobId);
+            this.isCollecting = false;
+            this.toastr.success(`Scraping completed! ${progress.leadsImported} leads imported`);
+            this.loadLeads();
+          } else if (progress.status === 'FAILED') {
+            this.stopPolling(jobId);
+            this.isCollecting = false;
+            this.toastr.error(`Scraping failed: ${progress.errorMessage}`);
+          }
+        } else {
+          // Launch combination polling
+          if (progress.status === 'COMPLETED') {
+            this.stopPolling(jobId);
+            this.leadService.launchSearchCombination(combinationId, {
+              status: 'LAUNCHED',
+              maxResults: 45
+            }).pipe(
+              finalize(() => this.launchingCombinationId = null)
+            ).subscribe({
+              next: () => {
+                this.toastr.success(`Launch completed! ${progress.leadsImported} leads imported`);
+                this.loadCombinations();
+                this.loadLeads();
+              },
+              error: () => {
+                this.toastr.error('Launch succeeded but status update failed');
+                this.loadCombinations();
+              }
+            });
+          } else if (progress.status === 'FAILED') {
+            this.stopPolling(jobId);
+            this.leadService.launchSearchCombination(combinationId, {
+              status: 'FAILED',
+              failureReason: progress.errorMessage,
+              maxResults: 45
+            }).pipe(
+              finalize(() => this.launchingCombinationId = null)
+            ).subscribe({
+              next: () => {
+                this.toastr.error('Launch failed');
+                this.loadCombinations();
+              },
+              error: () => {
+                this.toastr.error('Launch failed and status update failed');
+                this.loadCombinations();
+              }
+            });
+          }
         }
-        this.collectedResultsSubject.next([]);
-        this.loadLeads();
       },
-      error: (err) => {
-        this.toastr.error('Failed to save leads to database');
+      error: () => {
+        this.stopPolling(jobId);
+        if (combinationId === null) {
+          this.isCollecting = false;
+        } else {
+          this.launchingCombinationId = null;
+        }
+      },
+      complete: () => {
+        this.stopPolling(jobId);
+        if (combinationId === null) {
+          this.isCollecting = false;
+        } else {
+          this.launchingCombinationId = null;
+        }
       }
     });
+
+    this.pollingSubscriptions.set(jobId, subscription);
+  }
+
+  private startPollingForLaunch(jobId: string, combinationId: number, maxResults: number) {
+    this.startPollingForJob(jobId, combinationId);
+  }
+
+  private stopPolling(jobId: string) {
+    const subscription = this.pollingSubscriptions.get(jobId);
+    if (subscription) {
+      subscription.unsubscribe();
+      this.pollingSubscriptions.delete(jobId);
+    }
   }
 
   confirmDeleteLead(lead: Lead) {
@@ -922,114 +952,6 @@ export class LeadListComponent implements OnInit {
     link.download = 'leads-import-template.csv';
     link.click();
     URL.revokeObjectURL(url);
-  }
-
-  getInstitutionName(result: WebhookLeadResult): string {
-    return result.title || result.institution || 'Unknown Institution';
-  }
-
-  getEmailsForDisplay(result: WebhookLeadResult): string[] {
-    const emails = new Set<string>();
-    if (result.email) {
-      emails.add(result.email.trim().toLowerCase());
-    }
-    (result.emails || []).forEach((email) => {
-      if (email && email.trim()) {
-        emails.add(email.trim().toLowerCase());
-      }
-    });
-    (result.allEmails || []).forEach((email) => {
-      if (email && email.trim()) {
-        emails.add(email.trim().toLowerCase());
-      }
-    });
-    return Array.from(emails);
-  }
-
-  getCoordinatesText(result: WebhookLeadResult): string {
-    const lat = this.parseNumber(result.latitude ?? result.lat);
-    const lng = this.parseNumber(result.longitude ?? result.lng);
-    if (lat === undefined || lng === undefined) {
-      return '—';
-    }
-    return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-  }
-
-  private extractResults(body: any): WebhookLeadResult[] {
-    if (Array.isArray(body)) {
-      return body;
-    }
-    if (Array.isArray(body?.results)) {
-      return body.results;
-    }
-    if (Array.isArray(body?.data)) {
-      return body.data;
-    }
-    if (Array.isArray(body?.items)) {
-      return body.items;
-    }
-    if (Array.isArray(body?.leads)) {
-      return body.leads;
-    }
-    return [];
-  }
-
-  private expandWebhookResultsToLeads(results: WebhookLeadResult[], categoryIds: number[], categoryNames: string[]): Lead[] {
-    const byInstitution = new Map<string, { lead: Lead; emails: Set<string> }>();
-
-    results.forEach((result) => {
-      const emails = this.getEmailsForDisplay(result);
-      if (emails.length === 0) {
-        return;
-      }
-
-      const institutionName = this.getInstitutionName(result);
-      const city = result.city || this.cities[0] || 'Unknown City';
-      const latitude = this.parseNumber(result.latitude ?? result.lat);
-      const longitude = this.parseNumber(result.longitude ?? result.lng);
-
-      const key = [
-        institutionName.trim().toLowerCase(),
-        (city || '').trim().toLowerCase(),
-        (result.website || '').trim().toLowerCase(),
-        (result.address || '').trim().toLowerCase()
-      ].join('|');
-
-      const existing = byInstitution.get(key);
-      if (!existing) {
-        byInstitution.set(key, {
-          lead: {
-            email: emails[0],
-            primaryEmail: emails[0],
-            emails: [...emails],
-            institutionName,
-            city,
-            phone: result.phone || '',
-            address: result.address || '',
-            latitude,
-            longitude,
-            website: result.website || '',
-            source: 'Webhook Collector',
-            categoryIds,
-            categoryNames
-          },
-          emails: new Set(emails)
-        });
-        return;
-      }
-
-      emails.forEach((email) => existing.emails.add(email));
-      existing.lead.email = Array.from(existing.emails)[0];
-      existing.lead.primaryEmail = Array.from(existing.emails)[0];
-      existing.lead.emails = Array.from(existing.emails);
-      if (!existing.lead.phone && result.phone) existing.lead.phone = result.phone;
-      if (!existing.lead.address && result.address) existing.lead.address = result.address;
-      if (existing.lead.latitude == null && latitude != null) existing.lead.latitude = latitude;
-      if (existing.lead.longitude == null && longitude != null) existing.lead.longitude = longitude;
-      if (!existing.lead.website && result.website) existing.lead.website = result.website;
-    });
-
-    return Array.from(byInstitution.values()).map((entry) => entry.lead);
   }
 
   private toCollectorCategory(category: CategoryWithKeywords): CollectorCategory {

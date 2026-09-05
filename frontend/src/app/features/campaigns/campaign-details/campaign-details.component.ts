@@ -23,6 +23,7 @@ import { ToastrService } from 'ngx-toastr';
 import { forkJoin, interval, of, Subscription, switchMap, takeWhile, tap, finalize } from 'rxjs';
 import { SelectiveSendDialogComponent, SelectiveSendDialogResult } from '../selective-send-dialog/selective-send-dialog.component';
 import { TemplateLoaderDialogComponent } from '../template-loader-dialog/template-loader-dialog.component';
+import { QuillModule } from 'ngx-quill';
 
 @Component({
   selector: 'app-campaign-details',
@@ -44,7 +45,8 @@ import { TemplateLoaderDialogComponent } from '../template-loader-dialog/templat
     MatDatepickerModule,
     MatNativeDateModule,
     ReactiveFormsModule,
-    RouterLink
+    RouterLink,
+    QuillModule
   ],
   templateUrl: './campaign-details.component.html',
   styleUrl: './campaign-details.component.scss'
@@ -56,6 +58,18 @@ export class CampaignDetailsComponent implements OnInit, OnDestroy {
   private dialog = inject(MatDialog);
   private fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
+
+  QuillConfiguration = {
+    toolbar: [
+      ['bold', 'italic', 'underline', 'strike'],
+      ['blockquote', 'code-block'],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+      [{ 'color': [] }, { 'background': [] }],
+      ['link'],
+      ['clean']
+    ]
+  };
 
   CampaignStatus = CampaignStatus;
   CampaignSendStatus = CampaignSendStatus;

@@ -1,6 +1,6 @@
 
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
   BulkImportResult,
@@ -13,6 +13,7 @@ import {
   Lead,
   PageResponse,
   PlaceCountryTree,
+  ScrapeProgress,
   SearchCombination,
   SearchCombinationStatus
 } from '../models/models';
@@ -30,13 +31,6 @@ export class LeadService {
     if (city) params = params.set('city', city);
     if (source) params = params.set('source', source);
     return this.http.get<PageResponse<Lead>>(this.apiUrl, { params });
-  }
-
-  collectFromWebhook(webhookUrl: string, payload: { cities: string[]; keywords: Array<{ name: string; categoryId: number }>; maxResults: number }): Observable<HttpResponse<string>> {
-    return this.http.post(webhookUrl, payload, {
-      observe: 'response',
-      responseType: 'text'
-    });
   }
 
   bulkImport(leads: Partial<Lead>[]): Observable<BulkLeadImportResponse> {
@@ -122,5 +116,13 @@ export class LeadService {
 
   launchSearchCombination(id: number, request: LaunchSearchCombinationRequest): Observable<SearchCombination> {
     return this.http.post<SearchCombination>(`${this.searchCombinationsApiUrl}/${id}/launch`, request);
+  }
+
+  collectLeads(request: { keywords: string[]; cities: string[]; maxResults?: number; webhookUrl?: string }): Observable<{ jobId: string; status: string }> {
+    return this.http.post<{ jobId: string; status: string }>(`${this.apiUrl}/collect`, request);
+  }
+
+  getScrapeProgress(jobId: string): Observable<ScrapeProgress> {
+    return this.http.get<ScrapeProgress>(`${this.apiUrl}/scrape-status/${jobId}`);
   }
 }

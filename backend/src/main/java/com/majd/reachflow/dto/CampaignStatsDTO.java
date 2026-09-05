@@ -1,0 +1,19 @@
+package com.majd.reachflow.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class CampaignStatsDTO {
+    private long total;
+    private long sent;
+    private long replied;
+    private long pending;
+    private long failed;
+    private long bounced;
+}

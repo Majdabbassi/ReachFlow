@@ -4,6 +4,10 @@
     <p>Discover and manage potential leads across multiple industries.</p>
   </div>
   <div class="header-actions">
+    <button mat-flat-button color="accent" (click)="setAusbildungPreset()" class="preset-btn">
+      <mat-icon>school</mat-icon>
+      Demo: Ausbildung Finder
+    </button>
     <button mat-stroked-button (click)="toggleDebug()" [color]="showDebug ? 'accent' : 'primary'">
       <mat-icon>{{ showDebug ? 'bug_report' : 'terminal' }}</mat-icon>
       {{ showDebug ? 'Hide Debug' : 'Debug Logs' }}
@@ -188,6 +192,19 @@
             <mat-progress-spinner *ngIf="isCollecting" diameter="24" mode="indeterminate" style="margin-right: 10px"></mat-progress-spinner>
             {{ isCollecting ? 'Collecting Leads...' : 'Launch Search' }}
           </button>
+          
+          <!-- Scraping Progress Badge -->
+          <div *ngIf="scrapeProgress" class="scrape-progress-badge" [class.completed]="scrapeProgress.status === 'COMPLETED'" [class.failed]="scrapeProgress.status === 'FAILED'">
+            <div class="progress-header">
+              <span class="status-indicator" [class.status-running]="scrapeProgress.status === 'RUNNING'" [class.status-completed]="scrapeProgress.status === 'COMPLETED'" [class.status-failed]="scrapeProgress.status === 'FAILED'"></span>
+              <span class="status-text">{{ scrapeProgress.status }}</span>
+            </div>
+            <div class="progress-message">{{ scrapeProgress.message }}</div>
+            <div *ngIf="scrapeProgress.leadsFound !== undefined || scrapeProgress.leadsImported !== undefined" class="progress-stats">
+              <span *ngIf="scrapeProgress.leadsFound !== undefined">Found: {{ scrapeProgress.leadsFound }}</span>
+              <span *ngIf="scrapeProgress.leadsImported !== undefined">Imported: {{ scrapeProgress.leadsImported }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </mat-card-content>
@@ -316,64 +333,6 @@
       <div *ngIf="(debugLogs$ | async)?.length === 0" class="empty-hint">No activity recorded. Launch a search to see logs.</div>
     </div>
   </mat-card-content>
-</mat-card>
-
-<!-- Collected Results Review -->
-<mat-card class="glass-card results-preview-card animate-fade-in" *ngIf="(collectedResults$ | async) as results">
-  <ng-container *ngIf="results.length > 0">
-    <div class="card-header">
-      <mat-icon>fact_check</mat-icon>
-      <h3>Review {{ results.length }} New Leads</h3>
-      <span class="spacer"></span>
-      <button mat-flat-button color="accent" class="import-btn" (click)="saveCollectedLeads()" [disabled]="isSaving">
-        <mat-icon *ngIf="!isSaving">cloud_download</mat-icon>
-        <mat-progress-spinner *ngIf="isSaving" diameter="20" mode="indeterminate" style="margin-right: 8px"></mat-progress-spinner>
-        Import to Database
-      </button>
-    </div>
-    
-    <div class="table-container">
-      <mat-table [dataSource]="results">
-        <ng-container matColumnDef="institution">
-          <mat-header-cell *matHeaderCellDef>Institution</mat-header-cell>
-          <mat-cell *matCellDef="let r">{{ getInstitutionName(r) }}</mat-cell>
-        </ng-container>
-        <ng-container matColumnDef="city">
-          <mat-header-cell *matHeaderCellDef>City</mat-header-cell>
-          <mat-cell *matCellDef="let r">{{ r.city || '—' }}</mat-cell>
-        </ng-container>
-        <ng-container matColumnDef="phone">
-          <mat-header-cell *matHeaderCellDef>Phone</mat-header-cell>
-          <mat-cell *matCellDef="let r">{{ r.phone || '—' }}</mat-cell>
-        </ng-container>
-        <ng-container matColumnDef="coordinates">
-          <mat-header-cell *matHeaderCellDef>Coordinates</mat-header-cell>
-          <mat-cell *matCellDef="let r">{{ getCoordinatesText(r) }}</mat-cell>
-        </ng-container>
-        <ng-container matColumnDef="emails">
-          <mat-header-cell *matHeaderCellDef>All Emails</mat-header-cell>
-          <mat-cell *matCellDef="let r">
-            <div>
-              <div *ngFor="let email of getEmailsForDisplay(r)">{{ email }}</div>
-            </div>
-          </mat-cell>
-        </ng-container>
-        <ng-container matColumnDef="address">
-          <mat-header-cell *matHeaderCellDef>Address</mat-header-cell>
-          <mat-cell *matCellDef="let r">{{ r.address || '—' }}</mat-cell>
-        </ng-container>
-        <ng-container matColumnDef="website">
-          <mat-header-cell *matHeaderCellDef>Website</mat-header-cell>
-          <mat-cell *matCellDef="let r">
-            <a [href]="r.website" target="_blank" *ngIf="r.website">{{ r.website | slice:0:40 }}{{ r.website.length > 40 ? '...' : '' }}</a>
-            <span *ngIf="!r.website" class="dim">—</span>
-          </mat-cell>
-        </ng-container>
-        <mat-header-row *matHeaderRowDef="collectedColumns"></mat-header-row>
-        <mat-row *matRowDef="let row; columns: collectedColumns;"></mat-row>
-      </mat-table>
-    </div>
-  </ng-container>
 </mat-card>
 
 <div class="section-title">

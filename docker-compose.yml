@@ -5,7 +5,7 @@ services:
     container_name: mysql_db
     environment:
       - MYSQL_ROOT_PASSWORD=root
-      - MYSQL_DATABASE=n8n
+      - MYSQL_DATABASE=reachflow
     volumes:
       - mysql_data:/var/lib/mysql
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
@@ -74,8 +74,8 @@ services:
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
-      - DB_NAME=n8n
-      - DB_ARCHIVE_NAME=n8n_archive
+      - DB_NAME=reachflow
+      - DB_ARCHIVE_NAME=reachflow_archive
       - DB_USER=root
       - DB_PASSWORD=root
     depends_on:

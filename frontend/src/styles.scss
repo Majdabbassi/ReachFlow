@@ -26,6 +26,37 @@ $dark-theme: mat.m2-define-dark-theme((
 
 @include mat.all-component-themes($dark-theme);
 
+// --- QUILL EDITOR STYLES ---
+@import 'quill/dist/quill.snow.css';
+@import 'quill/dist/quill.bubble.css';
+
+.ql-toolbar.ql-snow {
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  background: rgba(15, 23, 42, 0.4) !important;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  
+  .ql-stroke { stroke: #94a3b8 !important; }
+  .ql-fill { fill: #94a3b8 !important; }
+  .ql-picker { color: #94a3b8 !important; }
+}
+
+.ql-container.ql-snow {
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  background: rgba(15, 23, 42, 0.2) !important;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.95rem !important;
+  color: #f1f5f9 !important;
+  min-height: 250px;
+}
+
+.ql-editor.ql-blank::before {
+  color: #475569 !important;
+  font-style: normal !important;
+}
+
 // --- GLOBAL STYLES ---
 html, body { 
   height: 100%; 

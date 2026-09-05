@@ -345,39 +345,40 @@
     .narrative-wrapper {
       position: relative;
       margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
 
-      mat-form-field {
-        textarea {
-          font-family: 'Inter', sans-serif;
-          line-height: 1.6;
-          font-size: 1rem;
-          color: #f1f5f9;
-        }
+      .editor-label {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        text-transform: uppercase;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        margin-bottom: 4px;
       }
-        .label { font-size: 0.75rem; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 4px; }
+
+      .reachflow-editor {
+        display: block;
+        min-height: 300px;
         
-        button {
-          height: 32px;
-          padding: 0 14px;
-          background: rgba(99, 102, 241, 0.12);
-          border: 1px solid rgba(99, 102, 241, 0.25);
-          color: #a5b4fc;
-          border-radius: 8px;
-          font-size: 0.8rem;
-          font-weight: 700;
-          font-family: 'JetBrains Mono', monospace;
-          cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-          
-          &:hover { 
-            background: rgba(99, 102, 241, 0.25); 
-            border-color: #818cf8;
-            color: #fff;
-            transform: translateY(-2px); 
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
-          }
+        ::ng-deep .ql-container {
+          min-height: 250px;
         }
       }
+
+      .editor-hint {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 8px;
+        font-style: italic;
+
+        b {
+          color: #818cf8;
+          font-family: 'JetBrains Mono', monospace;
+        }
+      }
+    }
     }
 
   .delay-field {

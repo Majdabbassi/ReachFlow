@@ -189,6 +189,15 @@
             <mat-progress-spinner *ngIf="isLoading" diameter="24" mode="indeterminate" style="margin-right: 10px"></mat-progress-spinner>
             {{ isLoading ? 'Searching...' : 'Search' }}
           </button>
+          
+          <!-- Search Progress Badge -->
+          <div *ngIf="searchProgress.status !== 'idle'" class="search-progress-badge" [class.completed]="searchProgress.status === 'completed'" [class.failed]="searchProgress.status === 'failed'">
+            <div class="progress-header">
+              <span class="status-indicator" [class.status-searching]="searchProgress.status === 'searching'" [class.status-completed]="searchProgress.status === 'completed'" [class.status-failed]="searchProgress.status === 'failed'"></span>
+              <span class="status-text">{{ searchProgress.status }}</span>
+            </div>
+            <div class="progress-message">{{ searchProgress.message }}</div>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>

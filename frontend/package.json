@@ -1,5 +1,5 @@
 {
-  "name": "ausbuildung-n8n",
+  "name": "reachflow",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
@@ -32,8 +32,11 @@
     "@angular/platform-browser": "^20.3.0",
     "@angular/platform-browser-dynamic": "^20.3.0",
     "@angular/router": "^20.3.0",
+    "chart.js": "^4.5.1",
     "leaflet": "^1.9.4",
+    "ngx-quill": "^28.0.0",
     "ngx-toastr": "^19.1.0",
+    "quill": "^2.0.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
