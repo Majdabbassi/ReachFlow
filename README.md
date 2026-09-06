@@ -47,7 +47,9 @@ There is **no callback endpoint** — the `@Async` backend thread blocks on the 
 
 **Implementation note:** both entry points live in `lead-list.component.ts`. The polling mechanism was generalized from a single `pollingSubscription` field to a `pollingSubscriptions: Map<string, any>` keyed by `jobId`, via `startPollingForJob(jobId, combinationId)` — passing `combinationId: null` for a plain "Run Search" job, or an actual id for a "Launch", which additionally calls `launchSearchCombination()` with `LAUNCHED`/`FAILED` once that job's poll resolves. This lets a "Run Search" and one or more "Launch" calls run concurrently without interfering with each other. The old direct-webhook code path (`collectFromWebhook()` in `lead.service.ts`, plus the results-preview UI card and its supporting fields/methods in the component and template) was deleted rather than left dormant.
 
-There's one exception, by design: the **Ausbildung Finder demo** posts directly from the browser to a separate, hardcoded n8n webhook (`ausbildung.service.ts` → `http://localhost:5678/webhook-test/ausbildung-finder`) — a deliberately simple, standalone demo flow, not part of the main lead-collection pipeline.
+There's one exception, by design: the **Ausbildung Finder page** (`AusbildungFinderComponent`, openable from the sidenav) posts directly from the browser to a separate, hardcoded n8n webhook (`ausbildung.service.ts` → `http://localhost:5678/webhook-test/ausbildung-finder`) — a deliberately simple, standalone demo flow, not part of the main lead-collection pipeline. See the n8n section below for its webhook requirements.
+
+Despite the similar name, this standalone page is unrelated to the "Ausbildung" category/keyword that `CategorySeeder` seeds as base reference data (see the Base Reference Data & Resetting the Environment section below) — it's easy to confuse the two, but they don't share any code or data.
 
 ### 🧹 Deduplication & data quality
 
@@ -119,6 +121,25 @@ Gmail App Passwords are stored via a JPA `AttributeConverter` that AES-encrypts 
 - DTO-based API boundary — entities never travel across the wire.
 
 ---
+
+## 🌱 Base Reference Data & Resetting the Environment
+
+Two kinds of data live in the database, and it's worth knowing the difference before you run `docker-compose down -v`:
+
+- **Base reference data** — German places (states/cities/districts) and a small set of starter categories/keywords (e.g. "Ausbildung"). This is safe, reusable scaffolding, not user content.
+- **Everything else** (leads, clients, campaigns, search combinations) — real work product, wiped on `down -v` by design.
+
+Both kinds of reference data **self-seed automatically and idempotently**, so a fresh start needs no manual setup:
+
+- **Places**: seeded lazily the first time the frontend loads the Leads or Ausbildung Finder page (`POST /api/search-combinations/seed-germany` → `SearchCombinationService.seedGermanyHierarchy()`), using a find-or-create pattern — safe to call repeatedly, never duplicates.
+- **Categories & keywords**: seeded once on backend startup via `CategorySeeder` (a `CommandLineRunner`), following the same find-or-create pattern. It creates a small starter set (Ausbildung, IT Services, Hospitality, each with a few keywords) only if they don't already exist — it never touches leads, clients, or anything you've customized.
+
+**Recommended reset flow:**
+```bash
+docker-compose down -v      # wipes MySQL + n8n data volumes
+docker-compose up -d        # backend seeds categories on boot; frontend seeds places on first load
+```
+No manual data entry needed to get back to a working demo state.
 
 ## 🚀 Getting Started
 

@@ -27,20 +27,6 @@
   .header-actions {
     display: flex;
     gap: 12px;
-
-    .preset-btn {
-      background: linear-gradient(90deg, #ec4899 0%, #f43f5e 100%);
-      font-weight: 700;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
-      
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(236, 72, 153, 0.4);
-      }
-
-      mat-icon { margin-right: 8px; }
-    }
   }
 }
 

@@ -13,6 +13,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, finalize, of, interval, take } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
@@ -74,7 +75,7 @@ import { SelectionModel } from '@angular/cdk/collections';
     MatButtonModule, MatIconModule, MatCheckboxModule,
     MatChipsModule, MatProgressSpinnerModule, MatDividerModule,
     MatTableModule, MatPaginatorModule, MatAutocompleteModule,
-    MatExpansionModule, MatDialogModule
+    MatExpansionModule, MatDialogModule, MatTooltipModule
   ],
   templateUrl: './lead-list.component.html',
   styleUrl: './lead-list.component.scss'
@@ -285,34 +286,6 @@ export class LeadListComponent implements OnInit {
     this.loadLeads();
     this.initializePlaces();
     this.loadCombinations();
-  }
-
-  setAusbildungPreset() {
-    this.clearPlaces();
-    
-    // Select major German cities for demo
-    const demoCities = ['Berlin', 'München', 'Hamburg', 'Köln', 'Frankfurt'];
-    
-    this.germanyPlaces.forEach(state => {
-      state.cities.forEach(city => {
-        if (demoCities.includes(city.name)) {
-          this.toggleCity(city, true);
-        }
-      });
-    });
-
-    // Select "Ausbildung" keywords
-    this.keywordDomains.forEach(domain => {
-      domain.keywords.forEach(keyword => {
-        if (keyword.nameEn.toLowerCase().includes('ausbildung') || 
-            keyword.nameDe.toLowerCase().includes('ausbildung')) {
-          keyword.selected = true;
-        }
-      });
-    });
-
-    this.maxResults = 20;
-    this.toastr.info('Ausbildung preset loaded! Cities and keywords have been pre-selected.', 'Demo Mode');
   }
 
   initializePlaces() {
