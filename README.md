@@ -164,8 +164,8 @@ No manual data entry needed to get back to a working demo state.
 ### Quick Start
 1. Clone the repository:
    ```bash
-   git clone https://github.com/Majdabbassi/Ausbildung_n8n.git
-   cd Ausbildung_n8n
+   git clone https://github.com/Majdabbassi/ReachFlow.git
+   cd ReachFlow
    ```
 2. Start the environment:
    ```bash
