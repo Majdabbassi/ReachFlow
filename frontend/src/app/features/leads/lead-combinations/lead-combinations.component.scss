@@ -1,0 +1,76 @@
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+
+  .title-group {
+    h2 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      margin: 0 0 6px 0;
+      letter-spacing: -0.01em;
+      color: var(--color-text);
+    }
+
+    p {
+      color: var(--color-text-muted);
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 400;
+    }
+  }
+}
+
+.tab-body {
+  padding: 16px 0 8px;
+}
+
+.combinations-card {
+  margin-bottom: 32px;
+  background: var(--color-panel) !important;
+  border: 1px solid var(--hairline) !important;
+  border-radius: var(--radius-panel) !important;
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--hairline);
+
+    mat-icon {
+      color: var(--color-signal);
+    }
+
+    mat-card-title {
+      margin: 0 !important;
+      color: var(--color-text);
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+  }
+
+  mat-card-content {
+    padding: 0 20px 16px !important;
+  }
+
+  .combination-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  mat-column-launchedAt {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+
+  .empty-hint {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    padding: 24px 0;
+    text-align: center;
+  }
+}

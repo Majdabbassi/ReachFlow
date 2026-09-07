@@ -1,100 +1,99 @@
 :host {
   display: block;
-  background: #0f172a;
-  color: #f1f5f9;
-  border-radius: 24px;
+  background: var(--color-panel);
+  color: var(--color-text);
+  border-radius: var(--radius-panel);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--hairline);
+  width: 540px;
+  max-width: calc(100vw - 48px);
+  box-sizing: border-box;
 }
 
 .dialog-header {
-  padding: 24px 32px;
-  background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px 28px;
+  background: rgba(230, 234, 240, 0.02);
+  border-bottom: 1px solid var(--hairline);
   display: flex;
   justify-content: space-between;
   align-items: center;
 
   .header-content {
     display: flex;
-    gap: 20px;
+    gap: 16px;
     align-items: center;
 
     .icon-badge {
-      width: 54px;
-      height: 54px;
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(99, 102, 241, 0.05) 100%);
-      border-radius: 16px;
+      width: 48px;
+      height: 48px;
+      background: var(--color-base);
+      border-radius: var(--radius-interactive);
       display: flex;
       align-items: center;
       justify-content: center;
-      border: 1px solid rgba(99, 102, 241, 0.2);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(34, 211, 196, 0.25);
 
       mat-icon {
-        color: #818cf8;
-        font-size: 28px;
-        width: 28px;
-        height: 28px;
+        color: var(--color-signal);
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
       }
     }
 
     .title-info {
       h2 {
         margin: 0;
-        font-size: 1.5rem;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-        background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
+        font-size: 1.3rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: var(--color-text);
       }
 
       .subtitle {
         margin: 4px 0 0;
         font-size: 0.9rem;
-        color: #64748b;
-        font-weight: 500;
+        color: var(--color-text-muted);
+        font-weight: 400;
       }
     }
   }
 
   .close-btn {
-    color: #475569;
-    transition: all 0.2s ease;
+    color: var(--color-text-muted);
+
     &:hover {
-      color: #f1f5f9;
-      background: rgba(255, 255, 255, 0.05);
+      color: var(--color-text);
+      background: rgba(230, 234, 240, 0.05);
     }
   }
 }
 
 .custom-content {
-  padding: 32px !important;
+  padding: 28px !important;
   max-height: 70vh;
 
   .form-section {
-    margin-bottom: 32px;
-    
+    margin-bottom: 28px;
+
     &:last-child { margin-bottom: 0; }
 
     .section-header {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 20px;
-      color: #94a3b8;
+      margin-bottom: 18px;
+      color: var(--color-text-muted);
       font-weight: 700;
-      font-size: 0.85rem;
+      font-size: 0.78rem;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
 
       mat-icon {
         font-size: 18px;
         width: 18px;
         height: 18px;
-        color: #6366f1;
+        color: var(--color-signal);
       }
     }
   }
@@ -115,10 +114,10 @@
     justify-content: space-between;
     align-items: center;
     gap: 16px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 12px 14px;
+    border-radius: var(--radius-panel);
+    background: var(--color-base);
+    border: 1px solid var(--hairline);
   }
 
   .category-document-label {
@@ -127,12 +126,12 @@
     gap: 12px;
 
     strong {
-      color: #f1f5f9;
+      color: var(--color-text);
     }
 
     p {
       margin: 2px 0 0;
-      color: #64748b;
+      color: var(--color-text-muted);
       font-size: 0.82rem;
     }
   }
@@ -141,13 +140,17 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 160px;
+    min-width: 140px;
     padding: 10px 14px;
-    border-radius: 12px;
-    border: 1px dashed rgba(129, 140, 248, 0.4);
-    color: #cbd5e1;
+    border-radius: var(--radius-interactive);
+    border: 1px dashed rgba(34, 211, 196, 0.4);
+    color: var(--color-text);
     cursor: pointer;
-    background: rgba(99, 102, 241, 0.08);
+    background: rgba(34, 211, 196, 0.06);
+
+    &:hover {
+      background: rgba(34, 211, 196, 0.1);
+    }
 
     input {
       display: none;
@@ -173,8 +176,8 @@
 
   ::ng-deep {
     .mat-mdc-text-field-wrapper {
-      background-color: rgba(255, 255, 255, 0.02) !important;
-      border-radius: 12px !important;
+      background-color: rgba(230, 234, 240, 0.02) !important;
+      border-radius: var(--radius-interactive) !important;
     }
 
     .mat-mdc-form-field-focus-overlay {
@@ -182,95 +185,95 @@
     }
 
     .mat-mdc-form-field-outline {
-      color: rgba(255, 255, 255, 0.1) !important;
+      color: var(--hairline) !important;
     }
 
     .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__leading,
     .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__notch,
     .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__trailing {
-      border-color: rgba(255, 255, 255, 0.1) !important;
+      border-color: var(--hairline) !important;
     }
 
     .mat-mdc-form-field.mat-focused {
       .mdc-notched-outline__leading,
       .mdc-notched-outline__notch,
       .mdc-notched-outline__trailing {
-        border-color: #6366f1 !important;
+        border-color: var(--color-signal) !important;
         border-width: 2px !important;
       }
-      
+
       .mat-mdc-form-field-label {
-        color: #818cf8 !important;
+        color: var(--color-signal) !important;
       }
-      
+
       mat-icon[matPrefix] {
-        color: #818cf8 !important;
+        color: var(--color-signal) !important;
       }
     }
 
     .mat-mdc-form-field-label {
-      color: #64748b !important;
+      color: var(--color-text-muted) !important;
     }
 
     input.mat-mdc-input-element {
-      color: #f1f5f9 !important;
+      color: var(--color-text) !important;
       font-weight: 500;
     }
 
     mat-icon[matPrefix] {
-      color: #475569;
+      color: var(--color-text-muted);
       margin-right: 12px;
       font-size: 20px;
       width: 20px;
       height: 20px;
-      transition: color 0.2s ease;
     }
 
     .mat-mdc-form-field-hint {
-      color: #475569 !important;
+      color: var(--color-text-muted);
       font-size: 0.75rem;
     }
   }
 }
 
 .custom-actions {
-  padding: 24px 32px !important;
-  background: rgba(255, 255, 255, 0.02);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px 28px !important;
+  background: rgba(230, 234, 240, 0.02);
+  border-top: 1px solid var(--hairline);
   gap: 16px;
 
   .cancel-btn {
-    height: 48px;
+    height: 44px;
     padding: 0 24px;
-    color: #94a3b8;
+    color: var(--color-text-muted);
     font-weight: 600;
-    border-radius: 12px;
-    
+    border-radius: var(--radius-interactive);
+    border: 1px solid var(--hairline);
+    background: transparent;
+
     &:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: #f1f5f9;
+      background: rgba(230, 234, 240, 0.05);
+      color: var(--color-text);
     }
   }
 
   .submit-btn {
-    height: 48px;
+    height: 44px;
     padding: 0 28px;
-    border-radius: 12px;
-    font-weight: 700;
-    background: linear-gradient(90deg, #6366f1 0%, #818cf8 100%);
-    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    border-radius: var(--radius-interactive);
+    font-weight: 600;
     display: flex;
     align-items: center;
     gap: 8px;
+    box-shadow: none;
 
-    &:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+    &:not(:disabled):hover {
+      transform: none;
+      box-shadow: 0 0 0 1px var(--color-signal), 0 0 14px rgba(34, 211, 196, 0.25);
     }
 
     &:disabled {
-      background: rgba(255, 255, 255, 0.05);
-      color: #475569;
+      background: rgba(230, 234, 240, 0.05);
+      color: var(--color-text-muted);
     }
 
     mat-icon {

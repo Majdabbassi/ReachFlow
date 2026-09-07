@@ -2,7 +2,6 @@ import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleChange, MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
@@ -11,7 +10,7 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
 import { ToastrService } from 'ngx-toastr';
-import { finalize } from 'rxjs';
+import { finalize, forkJoin } from 'rxjs';
 import { EmailAuditItem } from '../../../core/models/models';
 import { LeadService } from '../../../core/services/lead.service';
 
@@ -26,7 +25,6 @@ import { LeadService } from '../../../core/services/lead.service';
     MatCheckboxModule,
     MatButtonModule,
     MatIconModule,
-    MatButtonToggleModule,
     MatProgressSpinnerModule,
     MatChipsModule
   ],
@@ -37,33 +35,35 @@ export class EmailAuditComponent implements OnInit {
   private leadService = inject(LeadService);
   private toastr = inject(ToastrService);
 
-  mode: 'invalid' | 'duplicate' = 'invalid';
+  issueFilter: 'all' | 'invalid' | 'duplicate' = 'all';
   isLoading = false;
   rows: EmailAuditItem[] = [];
-  totalElements = 0;
+  allRows: EmailAuditItem[] = [];
+  invalidTotal = 0;
+  duplicateTotal = 0;
   pageSize = 20;
   pageIndex = 0;
 
   selection = new SelectionModel<EmailAuditItem>(true, []);
 
-  get displayedColumns(): string[] {
-    const baseColumns = ['select', 'email', 'institution', 'leadId', 'primary', 'issue'];
-    return this.mode === 'duplicate' ? [...baseColumns, 'duplicateCount'] : baseColumns;
-  }
+  displayedColumns: string[] = ['select', 'email', 'institution', 'leadId', 'primary', 'issue', 'duplicateCount'];
 
   get selectedCount(): number {
     return this.selection.selected.length;
+  }
+
+  get totalElements(): number {
+    return this.invalidTotal + this.duplicateTotal;
   }
 
   ngOnInit(): void {
     this.loadAudit();
   }
 
-  onModeChange(event: MatButtonToggleChange): void {
-    this.mode = event.value;
-    this.pageIndex = 0;
+  onIssueFilterChange(filter: 'all' | 'invalid' | 'duplicate'): void {
+    this.issueFilter = filter;
     this.selection.clear();
-    this.loadAudit();
+    this.applyFilter();
   }
 
   onPageChange(event: PageEvent): void {
@@ -75,20 +75,36 @@ export class EmailAuditComponent implements OnInit {
 
   loadAudit(): void {
     this.isLoading = true;
-    this.leadService
-      .getEmailAudit(this.mode, this.pageIndex, this.pageSize)
+    forkJoin({
+      invalid: this.leadService.getEmailAudit('invalid', this.pageIndex, this.pageSize),
+      duplicate: this.leadService.getEmailAudit('duplicate', this.pageIndex, this.pageSize)
+    })
       .pipe(finalize(() => (this.isLoading = false)))
       .subscribe({
-        next: (response) => {
-          this.rows = response.content || [];
-          this.totalElements = response.totalElements || 0;
+        next: ({ invalid, duplicate }) => {
+          this.invalidTotal = invalid.totalElements || 0;
+          this.duplicateTotal = duplicate.totalElements || 0;
+          this.allRows = [...(invalid.content || []), ...(duplicate.content || [])];
+          this.applyFilter();
         },
         error: () => {
           this.toastr.error('Failed to load email audit data');
+          this.allRows = [];
           this.rows = [];
-          this.totalElements = 0;
+          this.invalidTotal = 0;
+          this.duplicateTotal = 0;
         }
       });
+  }
+
+  private applyFilter(): void {
+    if (this.issueFilter === 'invalid') {
+      this.rows = this.allRows.filter((row) => row.issueType === 'INVALID');
+    } else if (this.issueFilter === 'duplicate') {
+      this.rows = this.allRows.filter((row) => row.issueType === 'DUPLICATE');
+    } else {
+      this.rows = [...this.allRows];
+    }
   }
 
   isAllSelected(): boolean {
@@ -150,7 +166,7 @@ export class EmailAuditComponent implements OnInit {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `email-audit-selected-${this.mode}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `email-audit-selected-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
 

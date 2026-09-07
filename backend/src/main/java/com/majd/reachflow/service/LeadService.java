@@ -37,6 +37,7 @@ public class LeadService {
     private final LeadMapper leadMapper;
     private final CampaignExecutionService campaignExecutionService;
     private final ScrapeProgressTracker scrapeProgressTracker;
+    private final GeocodingService geocodingService;
 
     @Transactional(readOnly = true)
     public Page<LeadDTO> getAllLeads(String city, String source, Pageable pageable) {
@@ -496,10 +497,61 @@ public class LeadService {
         lead.setCity(leadDTO.getCity());
         lead.setPhone(leadDTO.getPhone());
         lead.setAddress(leadDTO.getAddress());
-        lead.setLatitude(leadDTO.getLatitude());
-        lead.setLongitude(leadDTO.getLongitude());
         lead.setWebsite(leadDTO.getWebsite());
         lead.setSource(leadDTO.getSource());
+        if (leadDTO.getLatitude() != null) {
+            lead.setLatitude(leadDTO.getLatitude());
+        }
+        if (leadDTO.getLongitude() != null) {
+            lead.setLongitude(leadDTO.getLongitude());
+        }
+        geocodeIfMissing(lead);
+    }
+
+    private void geocodeIfMissing(Lead lead) {
+        if (lead.getLatitude() != null && lead.getLongitude() != null) {
+            return;
+        }
+        try {
+            double[] coords = geocodingService.geocode(lead.getCity(), lead.getAddress());
+            if (coords != null) {
+                lead.setLatitude(coords[0]);
+                lead.setLongitude(coords[1]);
+            }
+        } catch (Exception e) {
+            log.debug("Geocoding skipped for lead {}: {}", lead.getId(), e.getMessage());
+        }
+    }
+
+    @Transactional
+    public int geocodeMissingLeads() {
+        List<Lead> leads = leadRepository.findAll();
+        log.info("Geocoding backfill: found {} leads total", leads.size());
+        int geocoded = 0;
+        int attempted = 0;
+        for (Lead lead : leads) {
+            if (lead.getLatitude() != null && lead.getLongitude() != null) {
+                continue;
+            }
+            if (hasText(lead.getCity()) || hasText(lead.getAddress())) {
+                attempted++;
+                try {
+                    double[] coords = geocodingService.geocode(lead.getCity(), lead.getAddress());
+                    if (coords != null) {
+                        lead.setLatitude(coords[0]);
+                        lead.setLongitude(coords[1]);
+                        leadRepository.save(lead);
+                        geocoded++;
+                    } else {
+                        log.info("Geocoding returned no coords for lead {} '{}' '{}'", lead.getId(), lead.getCity(), lead.getAddress());
+                    }
+                } catch (Exception e) {
+                    log.warn("Geocoding failed for lead {}: {}", lead.getId(), e.getMessage());
+                }
+            }
+        }
+        log.info("Geocoding backfill done: attempted={}, geocoded={}", attempted, geocoded);
+        return geocoded;
     }
 
     private void linkLeadCategories(Lead lead, List<Long> categoryIds, boolean replaceMissing) {
@@ -731,6 +783,19 @@ public class LeadService {
                                 .emails((List<String>) item.get("allEmails"))
                                 .source("Scraper Automation")
                                 .build();
+
+                            if (leadDTO.getLatitude() == null && leadDTO.getLongitude() == null
+                                    && hasText(leadDTO.getCity())) {
+                                try {
+                                    double[] coords = geocodingService.geocode(leadDTO.getCity(), leadDTO.getAddress());
+                                    if (coords != null) {
+                                        leadDTO.setLatitude(coords[0]);
+                                        leadDTO.setLongitude(coords[1]);
+                                    }
+                                } catch (Exception ge) {
+                                    log.debug("Scraper geocoding skipped for {}: {}", leadDTO.getCity(), ge.getMessage());
+                                }
+                            }
 
                             // Map categories if needed, for now we leave them empty or use a default
                             createOrSkipLead(leadDTO);

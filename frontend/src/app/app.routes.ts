@@ -19,8 +19,26 @@ export const routes: Routes = [
       },
       {
         path: 'leads',
-        loadComponent: () => import('./features/leads/lead-list/lead-list.component').then((m) => m.LeadListComponent),
-        data: { animation: 'Leads' }
+        loadComponent: () => import('./features/leads/leads-shell/leads-shell.component').then((m) => m.LeadsShellComponent),
+        data: { animation: 'Leads' },
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'database' },
+          {
+            path: 'new-search',
+            loadComponent: () => import('./features/leads/lead-new-search/lead-new-search.component').then((m) => m.LeadNewSearchComponent),
+            data: { animation: 'LeadsNewSearch' }
+          },
+          {
+            path: 'combinations',
+            loadComponent: () => import('./features/leads/lead-combinations/lead-combinations.component').then((m) => m.LeadCombinationsComponent),
+            data: { animation: 'LeadsCombinations' }
+          },
+          {
+            path: 'database',
+            loadComponent: () => import('./features/leads/lead-database/lead-database.component').then((m) => m.LeadDatabaseComponent),
+            data: { animation: 'LeadsDatabase' }
+          }
+        ]
       },
       {
         path: 'leads/email-audit',
@@ -39,8 +57,21 @@ export const routes: Routes = [
       },
       {
         path: 'categories',
-        loadComponent: () => import('./features/categories/categories.component').then((m) => m.CategoriesComponent),
-        data: { animation: 'Categories' }
+        loadComponent: () => import('./features/categories/categories-shell/categories-shell.component').then((m) => m.CategoriesShellComponent),
+        data: { animation: 'Categories' },
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'taxonomy' },
+          {
+            path: 'taxonomy',
+            loadComponent: () => import('./features/categories/categories-keywords/categories-keywords.component').then((m) => m.CategoriesKeywordsComponent),
+            data: { animation: 'CategoriesTaxonomy' }
+          },
+          {
+            path: 'places',
+            loadComponent: () => import('./features/categories/categories-places/categories-places.component').then((m) => m.CategoriesPlacesComponent),
+            data: { animation: 'CategoriesPlaces' }
+          }
+        ]
       },
       {
         path: 'archive',

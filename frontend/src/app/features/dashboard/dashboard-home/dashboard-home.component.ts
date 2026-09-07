@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -101,6 +101,14 @@ export class DashboardHomeComponent implements OnInit {
   isLoading = true;
   isLoadingLeads = true;
   loadError: string | null = null;
+
+  mapExpanded = false;
+  @ViewChild(LeadMapComponent) leadMapRef?: LeadMapComponent;
+
+  toggleMap() {
+    this.mapExpanded = !this.mapExpanded;
+    this.leadMapRef?.invalidateSize();
+  }
 
   ngOnInit() {
     this.loadStats();

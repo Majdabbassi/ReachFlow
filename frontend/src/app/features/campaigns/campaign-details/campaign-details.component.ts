@@ -15,6 +15,8 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatMenuModule } from '@angular/material/menu';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { CampaignService } from '../../../core/services/campaign.service';
 import { ClientService } from '../../../core/services/client.service';
@@ -44,6 +46,8 @@ import { QuillModule } from 'ngx-quill';
     MatDialogModule,
     MatDatepickerModule,
     MatNativeDateModule,
+    MatTabsModule,
+    MatMenuModule,
     ReactiveFormsModule,
     RouterLink,
     QuillModule

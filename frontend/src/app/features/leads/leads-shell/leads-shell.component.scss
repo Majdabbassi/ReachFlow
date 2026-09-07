@@ -1,0 +1,132 @@
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+
+  .title-group {
+    h2 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      margin: 0 0 6px 0;
+      letter-spacing: -0.01em;
+      color: var(--color-text);
+    }
+
+    p {
+      color: var(--color-text-muted);
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 400;
+    }
+  }
+}
+
+.shell-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px;
+  background: var(--color-panel);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-interactive);
+}
+
+.strip-stages {
+  display: flex;
+  gap: 8px;
+}
+
+.strip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-interactive);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    color: var(--color-text);
+    background: rgba(230, 234, 240, 0.04);
+  }
+
+  &.active {
+    color: var(--color-signal);
+    background: rgba(34, 211, 196, 0.1);
+  }
+}
+
+.strip-count {
+  background: var(--color-signal);
+  color: #06201e;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: var(--radius-interactive);
+}
+
+.n8n-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 12px;
+  border-radius: var(--radius-interactive);
+  border: 1px solid var(--hairline);
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &.ok {
+    background: var(--color-success);
+  }
+
+  &.warn {
+    background: var(--color-amber);
+  }
+}
+
+.n8n-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+.test-btn {
+  min-height: 30px;
+  padding: 0 12px;
+}
+
+.conn-result-row {
+  margin-bottom: 14px;
+}
+
+.conn-result {
+  font-size: 0.82rem;
+  font-weight: 600;
+
+  &.ok {
+    color: var(--color-success);
+  }
+
+  &.warn {
+    color: var(--color-amber);
+  }
+}

@@ -11,6 +11,11 @@ Chart.register(...registerables);
   template: `
     <div class="chart-container">
       <canvas #chartCanvas></canvas>
+
+      <div class="chart-center" *ngIf="hasData">
+        <div class="center-value" [class.empty]="!hasData">{{ deliveryRate }}%</div>
+        <div class="center-label">Delivery Rate</div>
+      </div>
     </div>
   `,
   styles: [`
@@ -18,6 +23,33 @@ Chart.register(...registerables);
       width: 100%;
       height: 300px;
       position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .chart-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .center-value {
+      font-family: var(--font-mono);
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--color-text);
+      line-height: 1;
+    }
+    .center-label {
+      margin-top: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--color-text-muted);
     }
   `]
 })
@@ -26,15 +58,29 @@ export class CampaignPerformanceComponent implements OnChanges, AfterViewInit {
   @ViewChild('chartCanvas') chartCanvas!: ElementRef;
 
   private chart?: Chart;
+  hasData = false;
+  deliveryRate = 0;
 
   ngAfterViewInit() {
     this.initChart();
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['stats'] && this.chart) {
-      this.updateChart();
+    if (changes['stats']) {
+      this.compute();
+      if (this.chart) {
+        this.updateChart();
+      }
     }
+  }
+
+  private compute() {
+    const stats = this.stats || {};
+    const sent = stats.emailsSent || 0;
+    const failed = stats.failedEmails || 0;
+    const total = sent + failed;
+    this.deliveryRate = total > 0 ? Math.round((sent / total) * 100) : 0;
+    this.hasData = total > 0;
   }
 
   private initChart() {
@@ -42,16 +88,10 @@ export class CampaignPerformanceComponent implements OnChanges, AfterViewInit {
     this.chart = new Chart(ctx, {
       type: 'doughnut',
       data: {
-        labels: ['Sent', 'Replied', 'Pending', 'Failed', 'Bounced'],
+        labels: ['Sent', 'Failed'],
         datasets: [{
-          data: [0, 0, 0, 0, 0],
-          backgroundColor: [
-            '#6366f1', // Sent
-            '#10b981', // Replied
-            '#f59e0b', // Pending
-            '#ef4444', // Failed
-            '#94a3b8'  // Bounced
-          ],
+          data: [0, 0],
+          backgroundColor: ['#22D3C4', '#E5484D'],
           borderWidth: 0,
           hoverOffset: 10
         }]
@@ -59,44 +99,48 @@ export class CampaignPerformanceComponent implements OnChanges, AfterViewInit {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        cutout: '78%',
         plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              color: '#94a3b8',
-              usePointStyle: true,
-              padding: 20,
-              font: {
-                size: 12,
-                weight: 'bold'
-              }
-            }
-          },
-          tooltip: {
-            backgroundColor: 'rgba(15, 23, 42, 0.9)',
-            titleColor: '#f1f5f9',
-            bodyColor: '#cbd5e1',
-            padding: 12,
-            cornerRadius: 8,
-            displayColors: true
-          }
-        },
-        cutout: '70%'
+          legend: { display: false },
+          tooltip: { enabled: false }
+        }
       }
     });
-    this.updateChart();
+    this.compute();
+    if (!this.hasData) {
+      this.setEmptyChart();
+    }
+    this.mapCanvasCenter();
+  }
+
+  private setEmptyChart() {
+    if (!this.chart) return;
+    this.chart.data.datasets[0].data = [1, 0];
+    this.chart.data.datasets[0].backgroundColor = ['rgba(230,234,240,0.12)'];
+    this.chart.update();
   }
 
   private updateChart() {
-    if (!this.chart || !this.stats) return;
-
-    this.chart.data.datasets[0].data = [
-      this.stats.emailsSent || 0,
-      this.stats.repliedEmails || 0,
-      this.stats.pendingEmails || 0,
-      this.stats.failedEmails || 0,
-      this.stats.bouncedEmails || 0
-    ];
+    if (!this.chart) return;
+    if (this.hasData) {
+      this.chart.data.datasets[0].data = [
+        this.deliveryRate,
+        100 - this.deliveryRate
+      ];
+      this.chart.data.datasets[0].backgroundColor = ['#22D3C4', '#E5484D'];
+    } else {
+      this.setEmptyChart();
+    }
     this.chart.update();
+  }
+
+  private mapCanvasCenter() {
+    const container = this.chartCanvas.nativeElement.parentElement;
+    const wrapper = container?.parentElement;
+    if (wrapper) {
+      wrapper.style.display = 'flex';
+      wrapper.style.alignItems = 'center';
+      wrapper.style.justifyContent = 'center';
+    }
   }
 }

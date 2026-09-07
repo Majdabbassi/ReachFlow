@@ -8,7 +8,6 @@ services:
       - MYSQL_DATABASE=reachflow
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     ports:
       - "3306:3306"
     healthcheck:

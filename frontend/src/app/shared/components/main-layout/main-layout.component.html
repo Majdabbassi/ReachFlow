@@ -20,10 +20,29 @@
         <mat-icon matListItemIcon>group</mat-icon>
         <span matListItemTitle>Clients</span>
       </a>
-      <a mat-list-item routerLink="/leads" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
-        <mat-icon matListItemIcon>hub</mat-icon>
-        <span matListItemTitle>Leads</span>
-      </a>
+      <div class="nav-group" [class.open]="leadsExpanded" [class.active]="leadsGroupActive">
+        <button mat-button class="nav-group-btn" [class.active-link]="leadsGroupActive" (click)="toggleLeadsGroup()" [attr.aria-expanded]="leadsExpanded">
+          <span class="nav-group-content">
+            <mat-icon>hub</mat-icon>
+            <span class="nav-group-label">Leads</span>
+            <mat-icon class="nav-group-chevron">expand_more</mat-icon>
+          </span>
+        </button>
+        <div class="nav-children" *ngIf="leadsExpanded">
+          <a mat-list-item routerLink="/leads/new-search" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
+            <mat-icon matListItemIcon>search</mat-icon>
+            <span matListItemTitle>New Search</span>
+          </a>
+          <a mat-list-item routerLink="/leads/combinations" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
+            <mat-icon matListItemIcon>hub</mat-icon>
+            <span matListItemTitle>Combinations</span>
+          </a>
+          <a mat-list-item routerLink="/leads/database" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
+            <mat-icon matListItemIcon>storage</mat-icon>
+            <span matListItemTitle>Database</span>
+          </a>
+        </div>
+      </div>
       <a mat-list-item routerLink="/leads/email-audit" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
         <mat-icon matListItemIcon>mark_email_unread</mat-icon>
         <span matListItemTitle>Email Audit</span>
@@ -32,17 +51,35 @@
         <mat-icon matListItemIcon>auto_graph</mat-icon>
         <span matListItemTitle>Campaigns</span>
       </a>
-      <a mat-list-item routerLink="/categories" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
-        <mat-icon matListItemIcon>category</mat-icon>
-        <span matListItemTitle>Global management</span>
-      </a>
+      <div class="nav-group" [class.open]="categoriesExpanded" [class.active]="categoriesGroupActive">
+        <button mat-button class="nav-group-btn" [class.active-link]="categoriesGroupActive" (click)="toggleCategoriesGroup()" [attr.aria-expanded]="categoriesExpanded">
+          <span class="nav-group-content">
+            <mat-icon>category</mat-icon>
+            <span class="nav-group-label">Global management</span>
+            <mat-icon class="nav-group-chevron">expand_more</mat-icon>
+          </span>
+        </button>
+        <div class="nav-children" *ngIf="categoriesExpanded">
+          <a mat-list-item routerLink="/categories/taxonomy" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
+            <mat-icon matListItemIcon>category</mat-icon>
+            <span matListItemTitle>Taxonomy</span>
+          </a>
+          <a mat-list-item routerLink="/categories/places" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
+            <mat-icon matListItemIcon>map</mat-icon>
+            <span matListItemTitle>Places</span>
+          </a>
+        </div>
+      </div>
       <a mat-list-item routerLink="/archive" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
         <mat-icon matListItemIcon>inventory_2</mat-icon>
         <span matListItemTitle>Archive</span>
       </a>
       <a mat-list-item routerLink="/ausbildung-finder" routerLinkActive="active-link" (click)="closeSidenav(drawer)">
         <mat-icon matListItemIcon>travel_explore</mat-icon>
-        <span matListItemTitle>Ausbildung Form Finder</span>
+        <span matListItemTitle class="nav-item-label">
+          Ausbildung Form Finder
+          <span class="soon-pill">Soon</span>
+        </span>
       </a>
       
       <div class="nav-divider"></div>
@@ -68,9 +105,6 @@
       </button>
       <span class="page-title">Workspace</span>
       <span class="spacer"></span>
-      <button mat-icon-button class="header-icon">
-        <mat-icon matBadge="3" matBadgeColor="accent">notifications</mat-icon>
-      </button>
       <button mat-icon-button class="header-icon">
         <mat-icon>help_outline</mat-icon>
       </button>

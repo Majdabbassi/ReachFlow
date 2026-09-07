@@ -5,7 +5,24 @@
   </div>
 </div>
 
-<mat-card class="glass-card table-card">
+<div class="breadcrumb-bar" *ngIf="selectedClient">
+  <button mat-icon-button (click)="backToClients()" matTooltip="Back to archived clients">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <button mat-button class="crumb-link" (click)="backToClients()">Archived Clients</button>
+  <ng-container *ngIf="!selectedCampaign">
+    <mat-icon class="crumb-sep">chevron_right</mat-icon>
+    <span class="crumb-current">Campaigns for {{ selectedClient.name }}</span>
+  </ng-container>
+  <ng-container *ngIf="selectedCampaign">
+    <mat-icon class="crumb-sep">chevron_right</mat-icon>
+    <button mat-button class="crumb-link" (click)="backToCampaigns()">Campaigns for {{ selectedClient.name }}</button>
+    <mat-icon class="crumb-sep">chevron_right</mat-icon>
+    <span class="crumb-current">Sends for {{ selectedCampaign.name }}</span>
+  </ng-container>
+</div>
+
+<mat-card class="glass-card table-card" *ngIf="!selectedClient">
   <div class="card-header">
     <mat-icon>inventory_2</mat-icon>
     <h3>Archived Clients</h3>
@@ -44,8 +61,7 @@
 
     <mat-header-row *matHeaderRowDef="clientsColumns"></mat-header-row>
     <mat-row
-      *matRowDef="let row; columns: clientsColumns;"
-      [class.selected-row]="selectedClient?.id === row.id">
+      *matRowDef="let row; columns: clientsColumns;">
     </mat-row>
   </mat-table>
 
@@ -58,7 +74,7 @@
   </mat-paginator>
 </mat-card>
 
-<mat-card class="glass-card table-card" *ngIf="selectedClient">
+<mat-card class="glass-card table-card" *ngIf="selectedClient && !selectedCampaign">
   <div class="card-header">
     <mat-icon>folder</mat-icon>
     <h3>Campaigns for {{ selectedClient.name }}</h3>

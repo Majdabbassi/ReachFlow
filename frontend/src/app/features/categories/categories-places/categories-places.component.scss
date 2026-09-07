@@ -1,0 +1,163 @@
+:host {
+  display: block;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+
+  .title-group {
+    .breadcrumb {
+      color: var(--color-text-muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.01em;
+      color: var(--color-text);
+    }
+
+    p {
+      color: var(--color-text-muted);
+      margin: 8px 0 0;
+      font-size: 1rem;
+      font-weight: 400;
+    }
+  }
+}
+
+.panel-card {
+  padding: 20px;
+  background: var(--color-panel) !important;
+  border: 1px solid var(--hairline) !important;
+  border-radius: var(--radius-panel) !important;
+  box-shadow: none !important;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+
+  h3 {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--color-text);
+    letter-spacing: -0.01em;
+  }
+
+  p {
+    margin: 4px 0 0;
+    color: var(--color-text-muted);
+  }
+}
+
+.places-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.places-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.summary-pill {
+  padding: 6px 10px;
+  border-radius: var(--radius-interactive);
+  border: 1px solid rgba(34, 211, 196, 0.3);
+  background: rgba(34, 211, 196, 0.06);
+  color: var(--color-signal);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.places-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-muted);
+  margin: 8px 0 10px;
+}
+
+.places-tree {
+  margin-top: 6px;
+
+  ::ng-deep .mat-expansion-panel {
+    background: var(--color-base) !important;
+    border: 1px solid var(--hairline) !important;
+    border-radius: var(--radius-panel) !important;
+    margin-bottom: 10px;
+
+    .mat-expansion-panel-header {
+      height: 48px !important;
+      padding: 0 16px !important;
+
+      &:hover { background: rgba(230, 234, 240, 0.03) !important; }
+    }
+
+    mat-panel-title {
+      color: var(--color-text);
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    mat-panel-description {
+      color: var(--color-text-muted);
+      font-weight: 600;
+      font-size: 0.78rem;
+      justify-content: flex-end;
+    }
+  }
+}
+
+.state-cities {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.city-row {
+  padding: 10px 12px;
+  border-radius: var(--radius-panel);
+  background: rgba(230, 234, 240, 0.03);
+  border: 1px solid var(--hairline);
+}
+
+.city-name {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.city-meta {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  margin-left: 10px;
+}
+
+.district-list {
+  margin-top: 6px;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.empty-state {
+  margin-top: 10px;
+  color: var(--color-text-muted);
+}

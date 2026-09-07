@@ -99,6 +99,26 @@ export class ArchiveComponent implements OnInit {
     this.loadArchivedCampaigns();
   }
 
+  backToClients(): void {
+    this.selectedClient = undefined;
+    this.selectedCampaign = undefined;
+    this.archivedCampaigns = [];
+    this.archivedSends = [];
+    this.sendsTotalElements = 0;
+    this.campaignsPageIndex = 0;
+    this.sendsPageIndex = 0;
+    this.selectedStatus = 'ALL';
+    this.clientsPageIndex = 0;
+  }
+
+  backToCampaigns(): void {
+    this.selectedCampaign = undefined;
+    this.archivedSends = [];
+    this.sendsTotalElements = 0;
+    this.sendsPageIndex = 0;
+    this.selectedStatus = 'ALL';
+  }
+
   restoreClient(client: ArchivedClient): void {
     if (!confirm(`Restore ${client.name}?`)) {
       return;

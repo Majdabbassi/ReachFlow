@@ -1,0 +1,42 @@
+<div class="page-header">
+  <div class="title-group">
+    <h2>Lead Intelligence</h2>
+    <p>Discover and manage potential leads across multiple industries.</p>
+  </div>
+</div>
+
+<div class="shell-strip">
+  <div class="strip-stages">
+    <a class="strip-item" routerLink="/leads/new-search" [class.active]="isStripActive('/leads/new-search')">
+      <mat-icon>build</mat-icon>
+      <span class="strip-label">Build</span>
+    </a>
+    <a class="strip-item" routerLink="/leads/combinations" [class.active]="isStripActive('/leads/combinations')">
+      <mat-icon>hub</mat-icon>
+      <span class="strip-label">Queue</span>
+      <span class="strip-count" *ngIf="pendingCount > 0">{{ pendingCount }}</span>
+    </a>
+    <a class="strip-item" routerLink="/leads/database" [class.active]="isStripActive('/leads/database')">
+      <mat-icon>storage</mat-icon>
+      <span class="strip-label">Results</span>
+    </a>
+  </div>
+
+  <span class="spacer"></span>
+
+  <div class="n8n-indicator">
+    <span class="status-dot" [class.ok]="connectionOk" [class.warn]="!connectionOk"></span>
+    <span class="n8n-label">n8n</span>
+    <button mat-stroked-button color="primary" (click)="testConnection()" class="test-btn">
+      Test Connection
+    </button>
+  </div>
+</div>
+
+<div *ngIf="testResultShown" class="conn-result-row">
+  <span class="conn-result" [class.ok]="connectionOk" [class.warn]="!connectionOk">
+    {{ connectionMessage }}
+  </span>
+</div>
+
+<router-outlet></router-outlet>

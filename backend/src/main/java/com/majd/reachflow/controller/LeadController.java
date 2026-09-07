@@ -130,5 +130,11 @@ public class LeadController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/geocode-missing")
+    public ResponseEntity<Map<String, Object>> geocodeMissingLeads() {
+        int geocoded = leadService.geocodeMissingLeads();
+        return ResponseEntity.ok(Map.of("geocoded", geocoded));
+    }
+
 
 }

@@ -1,0 +1,20 @@
+<div class="page-header">
+  <div class="title-group">
+    <div class="breadcrumb">Library / Categories</div>
+    <h2>Global Management</h2>
+    <p>Manage the keyword taxonomy and places that power lead collection.</p>
+  </div>
+</div>
+
+<div class="shell-strip">
+  <a class="strip-item" routerLink="/categories/taxonomy" [class.active]="isStripActive('/categories/taxonomy')">
+    <mat-icon>category</mat-icon>
+    <span class="strip-label">Taxonomy</span>
+  </a>
+  <a class="strip-item" routerLink="/categories/places" [class.active]="isStripActive('/categories/places')">
+    <mat-icon>map</mat-icon>
+    <span class="strip-label">Places</span>
+  </a>
+</div>
+
+<router-outlet></router-outlet>

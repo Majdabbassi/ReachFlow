@@ -137,15 +137,22 @@
     </ng-template>
   </div>
 
-  <div class="map-section" *ngIf="!isLoading">
+  <div class="map-section" [class.map-expanded]="mapExpanded" *ngIf="!isLoading">
     <mat-card class="glass-card map-card">
       <div class="card-header">
         <div class="title-info">
           <mat-icon>map</mat-icon>
           <h3>Lead Discovery Map</h3>
         </div>
+        <div class="map-actions">
+          <button mat-icon-button (click)="toggleMap()" matTooltip="{{ mapExpanded ? 'Collapse map' : 'Expand map' }}">
+            <mat-icon>{{ mapExpanded ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
+          </button>
+        </div>
       </div>
-      <app-lead-map [leads]="(allLeads$ | async) || []"></app-lead-map>
+      <div class="map-holder">
+        <app-lead-map [leads]="(allLeads$ | async) || []"></app-lead-map>
+      </div>
     </mat-card>
   </div>
 
@@ -156,6 +163,10 @@
           <mat-icon>insights</mat-icon>
           <h3>Delivery Health</h3>
         </div>
+        <span class="health-rate" *ngIf="stats.deliveryRate > 0">{{ stats.deliveryRate }}%</span>
+        <span class="health-empty" *ngIf="stats.deliveryRate === 0 && stats.emailsSent === 0 && stats.failedEmails === 0">
+          No delivery data yet
+        </span>
       </div>
 
       <div class="analytics-content">
@@ -208,18 +219,18 @@
       </div>
 
       <div class="leads-list">
-        <div *ngIf="isLoadingLeads" class="skeleton-leads">
-          <div class="skeleton-lead-item" *ngFor="let i of [1,2,3,4,5]">
-            <app-skeleton-loader height="40px" width="40px" borderRadius="12px"></app-skeleton-loader>
-            <div class="skeleton-lead-info">
-              <app-skeleton-loader height="14px" width="120px" style="margin-bottom: 6px"></app-skeleton-loader>
-              <app-skeleton-loader height="12px" width="180px"></app-skeleton-loader>
+        <ng-container *ngIf="recentLeads$ | async as recentLeads">
+          <div *ngIf="isLoadingLeads" class="skeleton-leads">
+            <div class="skeleton-lead-item" *ngFor="let i of [1,2,3,4,5]">
+              <app-skeleton-loader height="40px" width="40px" borderRadius="12px"></app-skeleton-loader>
+              <div class="skeleton-lead-info">
+                <app-skeleton-loader height="14px" width="120px" style="margin-bottom: 6px"></app-skeleton-loader>
+                <app-skeleton-loader height="12px" width="180px"></app-skeleton-loader>
+              </div>
             </div>
           </div>
-        </div>
 
-        <ng-container *ngIf="!isLoadingLeads">
-          <div class="lead-item animate-fade-in" *ngFor="let lead of (recentLeads$ | async)">
+          <div class="lead-item animate-fade-in" *ngFor="let lead of recentLeads">
             <div class="lead-avatar">{{ (lead.institutionName || 'L')[0].toUpperCase() }}</div>
             <div class="lead-details">
               <span class="name">{{ lead.institutionName }}</span>
@@ -232,7 +243,7 @@
               <span class="badge">{{ lead.source }}</span>
             </div>
           </div>
-          <div *ngIf="(recentLeads$ | async)?.length === 0" class="empty-state">
+          <div *ngIf="!isLoadingLeads && recentLeads.length === 0" class="empty-state">
             <mat-icon>search_off</mat-icon>
             <p>No discovery leads found yet.</p>
           </div>

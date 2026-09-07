@@ -2,17 +2,87 @@
 
 @include mat.core();
 
-// --- CUSTOM COLOR PALETTE ---
-$primary-color: #6366f1; // Indigo
-$accent-color: #ec4899;  // Pink
-$warn-color: #ef4444;    // Red
-$bg-dark: #0f172a;       // Slate 900
-$surface-dark: #1e293b;  // Slate 800
-$border-color: rgba(255, 255, 255, 0.1);
+// ============================================================================
+// ReachFlow Design Tokens — "Console, not Dashboard"
+// ============================================================================
+// Semantic, not decorative. Colors carry meaning: signal for primary actions
+// and running work, amber for estimates, rust ONLY for FAILED, success for
+// COMPLETED. Two border-radius tiers. Monospace strictly for tabular/numeric
+// readouts (costs, time, job IDs, timestamps, coordinates).
+// ============================================================================
 
-$dark-primary: mat.m2-define-palette(mat.$m2-indigo-palette, 500);
-$dark-accent: mat.m2-define-palette(mat.$m2-pink-palette, A200);
-$dark-warn: mat.m2-define-palette(mat.$m2-red-palette);
+$signal: #22D3C4;
+$rust: #E5484D;
+
+$signal-map: (
+  50: #E6FCFA,
+  100: #C2F4EF,
+  200: #94EBE2,
+  300: #66E0D5,
+  400: #42D7CB,
+  500: $signal,
+  600: #1FBBAF,
+  700: #1A9D93,
+  800: #158078,
+  900: #10625C,
+  A100: #A6F3EB,
+  A200: $signal,
+  A400: #12B9AC,
+  A700: #0E9B8E,
+  contrast: (
+    50: rgba(6, 32, 30, 0.87),
+    100: rgba(6, 32, 30, 0.87),
+    200: rgba(6, 32, 30, 0.87),
+    300: #06201E,
+    400: #06201E,
+    500: #06201E,
+    600: #FFFFFF,
+    700: #FFFFFF,
+    800: #FFFFFF,
+    900: #FFFFFF,
+    A100: rgba(6, 32, 30, 0.87),
+    A200: #06201E,
+    A400: #FFFFFF,
+    A700: #FFFFFF,
+  )
+);
+
+$rust-map: (
+  50: #FDECEC,
+  100: #FBCECE,
+  200: #F7A1A3,
+  300: #F27477,
+  400: #EF5559,
+  500: $rust,
+  600: #D63F44,
+  700: #B6353A,
+  800: #942B30,
+  900: #712124,
+  A100: #FFB7B9,
+  A200: #FF8588,
+  A400: #E5484D,
+  A700: #C43A3F,
+  contrast: (
+    50: rgba(30, 5, 6, 0.87),
+    100: rgba(30, 5, 6, 0.87),
+    200: rgba(30, 5, 6, 0.87),
+    300: #1E0506,
+    400: #1E0506,
+    500: #FFFFFF,
+    600: #FFFFFF,
+    700: #FFFFFF,
+    800: #FFFFFF,
+    900: #FFFFFF,
+    A100: rgba(30, 5, 6, 0.87),
+    A200: rgba(30, 5, 6, 0.87),
+    A400: #FFFFFF,
+    A700: #FFFFFF,
+  )
+);
+
+$dark-primary: mat.m2-define-palette($signal-map, 500);
+$dark-accent: mat.m2-define-palette($signal-map, 500);
+$dark-warn: mat.m2-define-palette($rust-map, 500);
 
 $dark-theme: mat.m2-define-dark-theme((
   color: (
@@ -20,7 +90,9 @@ $dark-theme: mat.m2-define-dark-theme((
     accent: $dark-accent,
     warn: $dark-warn,
   ),
-  typography: mat.m2-define-typography-config(),
+  typography: mat.m2-define-typography-config(
+    $font-family: 'IBM Plex Sans',
+  ),
   density: 0,
 ));
 
@@ -31,109 +103,371 @@ $dark-theme: mat.m2-define-dark-theme((
 @import 'quill/dist/quill.bubble.css';
 
 .ql-toolbar.ql-snow {
-  border-color: rgba(148, 163, 184, 0.2) !important;
-  background: rgba(15, 23, 42, 0.4) !important;
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
-  
-  .ql-stroke { stroke: #94a3b8 !important; }
-  .ql-fill { fill: #94a3b8 !important; }
-  .ql-picker { color: #94a3b8 !important; }
+  border-color: rgba(230, 234, 240, 0.12) !important;
+  background: var(--color-panel) !important;
+  border-top-left-radius: var(--radius-panel);
+  border-top-right-radius: var(--radius-panel);
+
+  .ql-stroke { stroke: var(--color-text-muted) !important; }
+  .ql-fill { fill: var(--color-text-muted) !important; }
+  .ql-picker { color: var(--color-text-muted) !important; }
 }
 
 .ql-container.ql-snow {
-  border-color: rgba(148, 163, 184, 0.2) !important;
-  background: rgba(15, 23, 42, 0.2) !important;
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
-  font-family: 'Inter', sans-serif !important;
+  border-color: rgba(230, 234, 240, 0.12) !important;
+  background: var(--color-base) !important;
+  border-bottom-left-radius: var(--radius-panel);
+  border-bottom-right-radius: var(--radius-panel);
+  font-family: var(--font-sans) !important;
   font-size: 0.95rem !important;
-  color: #f1f5f9 !important;
+  color: var(--color-text) !important;
   min-height: 250px;
 }
 
 .ql-editor.ql-blank::before {
-  color: #475569 !important;
+  color: var(--color-text-muted) !important;
   font-style: normal !important;
 }
 
-// --- GLOBAL STYLES ---
-html, body { 
-  height: 100%; 
-  margin: 0; 
-  font-family: 'Inter', 'Roboto', sans-serif; 
-  background-color: $bg-dark;
-  color: #f8fafc;
+// ============================================================================
+// Design Tokens (CSS custom properties)
+// ============================================================================
+:root {
+  --color-base: #0D1117;
+  --color-panel: #151B24;
+  --color-signal: #22D3C4;
+  --color-amber: #E8A23D;
+  --color-rust: #E5484D;
+  --color-success: #3DD68C;
+  --color-text: #E6EAF0;
+  --color-text-muted: #8B95A5;
+
+  --hairline: rgba(230, 234, 240, 0.08);
+  --hairline-strong: rgba(230, 234, 240, 0.14);
+
+  --radius-panel: 6px;
+  --radius-interactive: 10px;
+
+  --font-sans: 'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Courier New', monospace;
+}
+
+// ============================================================================
+// Base
+// ============================================================================
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--color-base);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
 }
 
-// --- GLASSMORPHISM UTILITIES ---
+// ============================================================================
+// Panels & cards — hairline border, no soft drop shadow
+// ============================================================================
+.panel-card,
 .glass-card {
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid $border-color;
-  border-radius: 16px !important;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: var(--color-panel);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-panel);
+  box-shadow: none;
+}
 
-  &:hover {
-    background: rgba(30, 41, 59, 1); // Slate 800
-    border-color: rgba(99, 102, 241, 0.3);
+.mat-mdc-card,
+.mat-expansion-panel {
+  background: var(--color-panel);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-panel);
+}
+
+// ============================================================================
+// Buttons — solid signal fill for primary, panel fill + signal border for
+// secondary. Glow only on hover/focus, never as a resting state.
+// ============================================================================
+.mat-mdc-button,
+.mat-mdc-raised-button,
+.mat-mdc-stroked-button,
+.mat-mdc-flat-button,
+.mat-mdc-unelevated-button,
+.mat-mdc-outlined-button {
+  border-radius: var(--radius-interactive) !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+  font-family: var(--font-sans);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.mat-mdc-flat-button.mat-primary,
+.mat-mdc-raised-button.mat-primary,
+.mat-mdc-unelevated-button.mat-primary,
+.mat-mdc-button.mat-primary {
+  box-shadow: none !important;
+
+  &:not(:disabled):hover,
+  &:not(:disabled):focus-visible {
+    box-shadow: 0 0 0 1px var(--color-signal), 0 0 14px rgba(34, 211, 196, 0.25);
   }
 }
 
-.glass-header {
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid $border-color;
+.mat-mdc-stroked-button,
+.mat-mdc-outlined-button {
+  color: var(--color-text) !important;
+
+  &:not(:disabled):hover,
+  &:not(:disabled):focus-visible {
+    box-shadow: 0 0 0 1px var(--color-signal), 0 0 12px rgba(34, 211, 196, 0.2);
+  }
 }
 
-// --- MODERN UI TWEAKS ---
-.mat-mdc-button, .mat-mdc-raised-button {
-  border-radius: 8px !important;
-  text-transform: none !important;
-  font-weight: 500 !important;
-  letter-spacing: 0.025em !important;
+.mat-mdc-icon-button {
+  border-radius: var(--radius-interactive) !important;
 }
 
+// ============================================================================
+// Tables
+// ============================================================================
 .mat-mdc-table {
   background: transparent !important;
-  border-radius: 12px;
+  border-radius: var(--radius-panel);
   overflow: hidden;
 }
 
 .mat-mdc-header-row {
-  background: rgba(255, 255, 255, 0.03) !important;
+  background: rgba(230, 234, 240, 0.03) !important;
+
+  .mat-mdc-header-cell {
+    color: var(--color-text-muted) !important;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
 }
 
 .mat-mdc-row {
   &:hover {
-    background: rgba(255, 255, 255, 0.02) !important;
+    background: rgba(230, 234, 240, 0.02) !important;
   }
 }
 
+// ============================================================================
+// Form fields — focus glow only while focused
+// ============================================================================
 .mat-mdc-form-field {
   .mdc-text-field--outlined {
-    --mdc-outlined-text-field-container-shape: 8px;
+    --mdc-outlined-text-field-container-shape: var(--radius-interactive);
   }
 }
 
-// --- SCROLLBAR ---
+.mdc-text-field--outlined.mdc-text-field--focused {
+  .mdc-notched-outline__leading,
+  .mdc-notched-outline__notch,
+  .mdc-notched-outline__trailing {
+    border-color: var(--color-signal) !important;
+  }
+}
+
+// ============================================================================
+// Scrollbar
+// ============================================================================
 ::-webkit-scrollbar {
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: $bg-dark;
+  background: var(--color-base);
 }
 ::-webkit-scrollbar-thumb {
-  background: $surface-dark;
-  border-radius: 10px;
+  background: var(--color-panel);
+  border-radius: var(--radius-interactive);
+  border: 1px solid var(--hairline);
+
   &:hover {
-    background: rgba(45, 55, 72, 1); // slightly lighter slate
+    background: rgba(230, 234, 240, 0.14);
   }
 }
 
-// --- ANIMATIONS ---
+// ============================================================================
+// Status chips — one semantic mapping app-wide
+// ============================================================================
+.status-chip,
+.status-pill,
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-interactive);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: rgba(230, 234, 240, 0.05);
+  color: var(--color-text-muted);
+  border: 1px solid var(--hairline);
+
+  // Running / active work → signal
+  &.running,
+  &.launched,
+  &.active,
+  &.new,
+  &.searching,
+  &.in-progress {
+    color: var(--color-signal);
+    background: rgba(34, 211, 196, 0.08);
+    border-color: rgba(34, 211, 196, 0.3);
+  }
+
+  // Completed / positive → success
+  &.completed,
+  &.sent,
+  &.interested,
+  &.launched-ok {
+    color: var(--color-success);
+    background: rgba(61, 214, 140, 0.08);
+    border-color: rgba(61, 214, 140, 0.3);
+  }
+
+  // FAILED → rust (only failure)
+  &.failed,
+  &.invalid {
+    color: var(--color-rust);
+    background: rgba(229, 72, 77, 0.08);
+    border-color: rgba(229, 72, 77, 0.35);
+  }
+
+  // Pending / estimates / attention → amber
+  &.pending,
+  &.draft,
+  &.warn {
+    color: var(--color-amber);
+    background: rgba(232, 162, 61, 0.08);
+    border-color: rgba(232, 162, 61, 0.35);
+  }
+}
+
+// ============================================================================
+// Job/status running indicator — the ONE animated moment
+// ============================================================================
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 211, 196, 0.4); }
+  50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(34, 211, 196, 0); }
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  flex-shrink: 0;
+
+  &.status-running,
+  &.status-searching {
+    background: var(--color-signal);
+    animation: statusPulse 1.4s ease-in-out infinite;
+  }
+
+  &.status-completed {
+    background: var(--color-success);
+  }
+
+  &.status-failed {
+    background: var(--color-rust);
+  }
+}
+
+// ============================================================================
+// Numeric / tabular readouts — monospace ONLY for data
+// ============================================================================
+.mono-numeric,
+.mat-mdc-cell.mat-column-cost,
+.mat-mdc-cell.mat-column-amount,
+.mat-mdc-cell .coordinates,
+.job-id,
+.timestamp {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+// ============================================================================
+// Misc Material overrides
+// ============================================================================
+.mat-mdc-chip {
+  background: rgba(230, 234, 240, 0.04) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--hairline) !important;
+  border-radius: var(--radius-interactive) !important;
+}
+
+.mat-mdc-chip-selected {
+  background: rgba(34, 211, 196, 0.1) !important;
+  border-color: rgba(34, 211, 196, 0.35) !important;
+}
+
+.cdk-overlay-pane {
+  .mat-mdc-dialog-container {
+    background: var(--color-panel) !important;
+    border: 1px solid var(--hairline) !important;
+    border-radius: var(--radius-panel) !important;
+    box-shadow: none !important;
+  }
+}
+
+.mat-mdc-paginator {
+  background: transparent !important;
+  border-top: 1px solid var(--hairline) !important;
+
+  .mat-mdc-paginator-container {
+    color: var(--color-text-muted) !important;
+  }
+}
+
+.mat-mdc-progress-bar {
+  --mdc-linear-progress-active-indicator-color: var(--color-signal);
+  --mdc-linear-progress-track-color: rgba(230, 234, 240, 0.08);
+}
+
+.mat-mdc-progress-spinner {
+  --mdc-circular-progress-active-indicator-color: var(--color-signal);
+}
+
+// --- Shared layout helpers ---
+.container {
+  padding: 32px;
+  margin: 0 auto;
+}
+
+.narrow-content {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.spacer { flex: 1 1 auto; }
+
+.loading-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+
+  mat-progress-spinner {
+    margin: 0 auto;
+  }
+}
+
+// --- Transitions (targeted, not blanket) ---
+button, .mat-mdc-button {
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease !important;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -141,100 +475,4 @@ html, body {
 
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out forwards;
-}
-
-.container {
-  padding: 32px;
-  margin: 0 auto;
-}
-
-.spacer { flex: 1 1 auto; }
-
-// --- STATUS CHIPS ---
-.status-chip {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  
-  &.pending { background: rgba(234, 179, 8, 0.1); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.2); }
-  &.running { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
-  &.completed { background: rgba(34, 197, 94, 0.1); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.2); }
-  &.failed { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
-}
-
-// --- SMOOTH TRANSITIONS ---
-* {
-  transition: color 0.2s ease, background 0.2s ease;
-}
-
-button, .mat-mdc-button {
-  transition: all 0.2s ease !important;
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-// --- MATERIAL OVERRIDES FOR BETTER LOOK ---
-.mdc-text-field--outlined.mdc-text-field--focused {
-  .mdc-notched-outline__leading,
-  .mdc-notched-outline__notch,
-  .mdc-notched-outline__trailing {
-    border-color: $primary-color !important;
-  }
-}
-
-.mat-mdc-form-field-appearance-outline {
-  &.mat-focused .mat-mdc-text-field-wrapper {
-    .mdc-text-field {
-      background: rgba(30, 41, 59, 0.9);
-    }
-  }
-}
-
-// --- DIALOG IMPROVEMENTS ---
-.cdk-overlay-pane {
-  .mat-mdc-dialog-container {
-    background: rgba(30, 41, 59, 0.95) !important;
-    border: 1px solid rgba(148, 163, 184, 0.2) !important;
-    border-radius: 16px !important;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
-  }
-}
-
-// --- PAGINATOR STYLE ---
-.mat-mdc-paginator {
-  background: rgba(30, 41, 59, 0.5) !important;
-  border-top: 1px solid rgba(148, 163, 184, 0.1) !important;
-  
-  .mat-mdc-paginator-container {
-    color: #cbd5e1 !important;
-  }
-}
-
-// --- LOADING STATE ---
-.loading-state {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 40px;
-  
-  mat-progress-spinner {
-    margin: 0 auto;
-  }
-}
-
-// --- CHIP STYLING ---
-.mat-mdc-chip {
-  background: rgba(148, 163, 184, 0.1) !important;
-  color: #cbd5e1 !important;
-  border: 1px solid rgba(148, 163, 184, 0.2) !important;
-}
-
-.mat-mdc-chip-selected {
-  background: rgba(99, 102, 241, 0.2) !important;
-  border-color: rgba(99, 102, 241, 0.4) !important;
 }

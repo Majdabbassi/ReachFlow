@@ -9,12 +9,13 @@
 .heading h2 {
   margin: 0;
   font-size: 2rem;
-  letter-spacing: -0.02em;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
 }
 
 .heading p {
   margin: 6px 0 0;
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .page-header h2 {
@@ -34,29 +35,36 @@
 }
 
 .mode-switch {
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  border-radius: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-interactive);
   overflow: hidden;
 }
 
 .summary-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
   gap: 10px;
   margin-bottom: 12px;
 }
 
+.filter-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 .summary-card {
-  border-radius: 14px;
+  border-radius: var(--radius-panel);
   padding: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid var(--hairline);
+  background: var(--color-panel);
 }
 
 .summary-card .label {
   display: block;
   margin-bottom: 4px;
-  color: #94a3b8;
+  color: var(--color-text-muted);
   font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -64,25 +72,27 @@
 
 .summary-card strong {
   font-size: 1.1rem;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
-.summary-card.mode {
-  border-color: rgba(59, 130, 246, 0.4);
-}
-
-.summary-card.total {
-  border-color: rgba(20, 184, 166, 0.4);
+.summary-card.mode,
+.summary-card.total,
+.summary-card.invalid,
+.summary-card.duplicate {
+  border-color: rgba(34, 211, 196, 0.4);
 }
 
 .summary-card.selected {
-  border-color: rgba(245, 158, 11, 0.4);
+  border-color: rgba(232, 162, 61, 0.4);
 }
 
 .table-card {
   padding: 0.6rem;
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: linear-gradient(150deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.55));
+  background: var(--color-panel);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-panel);
 }
 
 .loading,
@@ -93,6 +103,7 @@
   justify-content: center;
   flex-direction: column;
   gap: 0.5rem;
+  color: var(--color-text-muted);
 }
 
 .empty mat-icon {
@@ -119,13 +130,15 @@ mat-cell {
 }
 
 .issue-chip.invalid {
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.18);
+  color: var(--color-amber);
+  background: rgba(232, 162, 61, 0.1);
+  border: 1px solid rgba(232, 162, 61, 0.35);
 }
 
 .issue-chip.duplicate {
-  color: #fca5a5;
-  background: rgba(239, 68, 68, 0.18);
+  color: var(--color-rust);
+  background: rgba(229, 72, 77, 0.08);
+  border: 1px solid rgba(229, 72, 77, 0.35);
 }
 
 mat-paginator {

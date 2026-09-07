@@ -1,15 +1,10 @@
 <div class="page-header">
   <div class="heading">
     <h2>Email Quality Audit</h2>
-    <p>Inspect risky records, switch between invalid and duplicate modes, and remove selected emails safely.</p>
+    <p>Inspect risky records by issue type and remove selected emails safely.</p>
   </div>
 
   <div class="actions">
-    <mat-button-toggle-group [value]="mode" (change)="onModeChange($event)" class="mode-switch">
-      <mat-button-toggle value="invalid">Invalid Emails</mat-button-toggle>
-      <mat-button-toggle value="duplicate">Duplicate Emails</mat-button-toggle>
-    </mat-button-toggle-group>
-
     <button mat-stroked-button color="primary" (click)="exportSelected()" [disabled]="selectedCount === 0">
       <mat-icon>download</mat-icon>
       Export Selected
@@ -23,18 +18,28 @@
 </div>
 
 <div class="summary-strip">
-  <div class="summary-card mode">
-    <span class="label">Current Mode</span>
-    <strong>{{ mode === 'invalid' ? 'Invalid Emails' : 'Duplicate Emails' }}</strong>
-  </div>
   <div class="summary-card total">
-    <span class="label">Total Results</span>
+    <span class="label">Total Flagged</span>
     <strong>{{ totalElements }}</strong>
+  </div>
+  <div class="summary-card invalid">
+    <span class="label">Invalid Emails</span>
+    <strong>{{ invalidTotal }}</strong>
+  </div>
+  <div class="summary-card duplicate">
+    <span class="label">Duplicate Emails</span>
+    <strong>{{ duplicateTotal }}</strong>
   </div>
   <div class="summary-card selected">
     <span class="label">Selected</span>
     <strong>{{ selectedCount }}</strong>
   </div>
+</div>
+
+<div class="filter-chip-row">
+  <button mat-stroked-button [color]="issueFilter === 'all' ? 'accent' : undefined" (click)="onIssueFilterChange('all')">All</button>
+  <button mat-stroked-button [color]="issueFilter === 'invalid' ? 'accent' : undefined" (click)="onIssueFilterChange('invalid')">Invalid</button>
+  <button mat-stroked-button [color]="issueFilter === 'duplicate' ? 'accent' : undefined" (click)="onIssueFilterChange('duplicate')">Duplicate</button>
 </div>
 
 <mat-card class="table-card">
@@ -44,8 +49,8 @@
 
   <div class="empty" *ngIf="!isLoading && rows.length === 0">
     <mat-icon>task_alt</mat-icon>
-    <h3>No rows found for this mode</h3>
-    <p>Switch mode to check the other audit list.</p>
+    <h3>No flagged emails found</h3>
+    <p>Adjust the filter or check back later.</p>
   </div>
 
   <ng-container *ngIf="!isLoading && rows.length > 0">

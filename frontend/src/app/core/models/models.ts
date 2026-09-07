@@ -278,26 +278,6 @@ export interface LaunchSearchCombinationRequest {
   maxResults?: number;
 }
 
-export interface AusbildungSearchRequest {
-  keywords: string[];
-  categories: string[];
-  countries?: string[];
-  maxResults: number;
-}
-
-export interface AusbildungResult {
-  applyUrl: string;
-  jobTitle: string;
-  company: string;
-  emails: string[];
-}
-
-export interface AusbildungSearchResponse {
-  results: AusbildungResult[];
-  total: number;
-  message?: string;
-}
-
 export type ScrapeStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
 
 export interface ScrapeProgress {

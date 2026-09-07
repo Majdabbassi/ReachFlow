@@ -1,0 +1,86 @@
+<div class="tab-body">
+  <mat-card class="glass-card combinations-card">
+    <div class="card-header">
+      <mat-icon>hub</mat-icon>
+      <mat-card-title>Search Combinations Queue</mat-card-title>
+      <span class="spacer"></span>
+
+      <button mat-stroked-button color="primary" routerLink="/leads/new-search">
+        <mat-icon>add</mat-icon>
+        Build New Search
+      </button>
+
+      <button mat-stroked-button color="primary" (click)="loadCombinations()" [disabled]="isLoadingCombinations">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+
+    <mat-card-content>
+      <div class="combination-toolbar">
+        <button mat-stroked-button [color]="combinationStatusFilter === 'ALL' ? 'accent' : undefined" (click)="onCombinationStatusFilterChange('ALL')">All</button>
+        <button mat-stroked-button [color]="combinationStatusFilter === 'PENDING' ? 'accent' : undefined" (click)="onCombinationStatusFilterChange('PENDING')">Pending</button>
+        <button mat-stroked-button [color]="combinationStatusFilter === 'LAUNCHED' ? 'accent' : undefined" (click)="onCombinationStatusFilterChange('LAUNCHED')">Launched</button>
+        <button mat-stroked-button [color]="combinationStatusFilter === 'FAILED' ? 'accent' : undefined" (click)="onCombinationStatusFilterChange('FAILED')">Failed</button>
+      </div>
+
+      <div class="empty-hint" *ngIf="isLoadingCombinations">Loading combinations...</div>
+
+      <div class="table-container" *ngIf="!isLoadingCombinations">
+        <mat-table [dataSource]="combinations" *ngIf="combinations.length > 0; else emptyCombinations">
+          <ng-container matColumnDef="keyword">
+            <mat-header-cell *matHeaderCellDef>Keyword</mat-header-cell>
+            <mat-cell *matCellDef="let row">{{ row.keywordNameDe || row.keywordNameEn }}</mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="place">
+            <mat-header-cell *matHeaderCellDef>Place</mat-header-cell>
+            <mat-cell *matCellDef="let row">{{ row.placeDisplayName }}</mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <mat-header-cell *matHeaderCellDef>Status</mat-header-cell>
+            <mat-cell *matCellDef="let row">
+              <span class="status-pill" [ngClass]="row.status.toLowerCase()">{{ row.status }}</span>
+            </mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="launchedAt">
+            <mat-header-cell *matHeaderCellDef>Launched</mat-header-cell>
+            <mat-cell *matCellDef="let row">{{ row.launchedAt ? (row.launchedAt | date:'short') : '—' }}</mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <mat-header-cell *matHeaderCellDef>Action</mat-header-cell>
+            <mat-cell *matCellDef="let row">
+              <button
+                mat-flat-button
+                color="primary"
+                (click)="launchCombination(row)"
+                [disabled]="launchingCombinationId === row.id">
+                <mat-icon *ngIf="launchingCombinationId !== row.id">rocket_launch</mat-icon>
+                <mat-progress-spinner *ngIf="launchingCombinationId === row.id" diameter="16" mode="indeterminate" style="margin-right: 6px"></mat-progress-spinner>
+                {{ row.status === 'LAUNCHED' ? 'Relaunch' : 'Launch' }}
+              </button>
+            </mat-cell>
+          </ng-container>
+
+          <mat-header-row *matHeaderRowDef="combinationDisplayedColumns"></mat-header-row>
+          <mat-row *matRowDef="let row; columns: combinationDisplayedColumns;"></mat-row>
+        </mat-table>
+
+        <ng-template #emptyCombinations>
+          <div class="empty-hint">No combinations found for this filter.</div>
+        </ng-template>
+      </div>
+
+      <mat-paginator
+        [length]="combinationsTotalElements"
+        [pageIndex]="combinationsPageIndex"
+        [pageSize]="combinationsPageSize"
+        [pageSizeOptions]="[10, 20, 50]"
+        (page)="onCombinationsPageChange($event)">
+      </mat-paginator>
+    </mat-card-content>
+  </mat-card>
+</div>

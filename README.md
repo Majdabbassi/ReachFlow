@@ -4,6 +4,18 @@
 
 ---
 
+## 📸 Screenshots
+
+| Dashboard | Lead Search |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Lead Search](docs/screenshots/lead-search-build.png) |
+
+| Lead Database | Campaign Composer |
+|---|---|
+| ![Lead Database](docs/screenshots/lead-database.png) | ![Campaign Composer](docs/screenshots/campaign-composer.png) |
+
+---
+
 ## 🌟 The "Ausbildung Finder" Story
 ReachFlow was born out of a real-world need: helping a friend navigate the complex German apprenticeship market. By automating the search process—identifying local businesses via Google Maps, extracting contact information, and managing outreach—ReachFlow transformed a manual, time-consuming task into a streamlined, data-driven operation.
 
@@ -47,7 +59,7 @@ There is **no callback endpoint** — the `@Async` backend thread blocks on the 
 
 **Implementation note:** both entry points live in `lead-list.component.ts`. The polling mechanism was generalized from a single `pollingSubscription` field to a `pollingSubscriptions: Map<string, any>` keyed by `jobId`, via `startPollingForJob(jobId, combinationId)` — passing `combinationId: null` for a plain "Run Search" job, or an actual id for a "Launch", which additionally calls `launchSearchCombination()` with `LAUNCHED`/`FAILED` once that job's poll resolves. This lets a "Run Search" and one or more "Launch" calls run concurrently without interfering with each other. The old direct-webhook code path (`collectFromWebhook()` in `lead.service.ts`, plus the results-preview UI card and its supporting fields/methods in the component and template) was deleted rather than left dormant.
 
-There's one exception, by design: the **Ausbildung Finder page** (`AusbildungFinderComponent`, openable from the sidenav) posts directly from the browser to a separate, hardcoded n8n webhook (`ausbildung.service.ts` → `http://localhost:5678/webhook-test/ausbildung-finder`) — a deliberately simple, standalone demo flow, not part of the main lead-collection pipeline. See the n8n section below for its webhook requirements.
+There's one exception worth knowing: the **Ausbildung Finder page** (route `/ausbildung-finder`, `AusbildungFinderComponent`, openable from the sidenav) is currently a **"Coming Soon" placeholder** — the dedicated apprenticeship-search feature it will host is still in development, so it has no working search form and doesn't call n8n or the backend. An earlier prototype UI posted directly from the browser to a hardcoded webhook (`http://localhost:5678/webhook-test/ausbildung-finder`) that never corresponded to a real node in the `emails_collector-n8n_automation` workflow; that dead code path has been removed.
 
 Despite the similar name, this standalone page is unrelated to the "Ausbildung" category/keyword that `CategorySeeder` seeds as base reference data (see the Base Reference Data & Resetting the Environment section below) — it's easy to confuse the two, but they don't share any code or data.
 
@@ -104,7 +116,7 @@ Gmail App Passwords are stored via a JPA `AttributeConverter` that AES-encrypts 
 ### 🔍 Intelligent Discovery
 - Multi-source scraping via Apify (Google Maps) and a custom email extractor hitting `/impressum`, `/kontakt`, `/contact`, and the homepage.
 - One unified collection pipeline (background job + progress polling) for both broad multi-city searches and single search-combination launches.
-- A dedicated Ausbildung Finder demo mode for apprenticeship opportunities in Germany.
+- A dedicated Ausbildung Finder page for apprenticeship opportunities in Germany (currently a "Coming Soon" placeholder while that feature is in development).
 
 ### 📊 Analytics & Auditing
 - Email audit views for invalid/duplicate addresses.
@@ -131,7 +143,7 @@ Two kinds of data live in the database, and it's worth knowing the difference be
 
 Both kinds of reference data **self-seed automatically and idempotently**, so a fresh start needs no manual setup:
 
-- **Places**: seeded lazily the first time the frontend loads the Leads or Ausbildung Finder page (`POST /api/search-combinations/seed-germany` → `SearchCombinationService.seedGermanyHierarchy()`), using a find-or-create pattern — safe to call repeatedly, never duplicates.
+- **Places**: seeded lazily the first time the frontend loads the Leads page (`POST /api/search-combinations/seed-germany` → `SearchCombinationService.seedGermanyHierarchy()`), using a find-or-create pattern — safe to call repeatedly, never duplicates.
 - **Categories & keywords**: seeded once on backend startup via `CategorySeeder` (a `CommandLineRunner`), following the same find-or-create pattern. It creates a small starter set (Ausbildung, IT Services, Hospitality, each with a few keywords) only if they don't already exist — it never touches leads, clients, or anything you've customized.
 
 **Recommended reset flow:**
@@ -201,7 +213,7 @@ The workflow lives in the repo root as `emails_collector-n8n_automation` (export
 ### Step 4 — Test End-to-End
 - Click the **Webhook** node → **Listen for test event** in n8n.
 - In the frontend → Leads → **Run Search** (or **Launch** a search combination).
-- Watch n8n execute each node. When it responds, the backend (Path A) imports leads automatically, or the browser (Path B) shows results for manual bulk-import.
+- Watch n8n execute each node. When it responds, the backend imports the leads automatically and the frontend's progress poll flips to COMPLETED.
 
 ### Backend Endpoints Involved
 - `POST /api/leads/collect` — starts an async job, returns `{ jobId, status }` immediately ([LeadController.java](file:///backend/src/main/java/com/majd/reachflow/controller/LeadController.java)). Used by both "Run Search" and "Launch a combination".

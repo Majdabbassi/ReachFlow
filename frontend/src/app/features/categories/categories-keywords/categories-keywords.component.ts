@@ -8,15 +8,12 @@ import { MatTableModule } from '@angular/material/table';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatExpansionModule } from '@angular/material/expansion';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ToastrService } from 'ngx-toastr';
-import { Category, CategoryWithKeywords, Keyword, PlaceCountryTree, PlaceDistrictTree, PlaceStateTree } from '../../core/models/models';
-import { CategoryService } from '../../core/services/category.service';
-import { LeadService } from '../../core/services/lead.service';
+import { Category, CategoryWithKeywords, Keyword } from '../../../core/models/models';
+import { CategoryService } from '../../../core/services/category.service';
 
 @Component({
-  selector: 'app-categories',
+  selector: 'app-categories-keywords',
   standalone: true,
   imports: [
     CommonModule,
@@ -28,16 +25,13 @@ import { LeadService } from '../../core/services/lead.service';
     MatTableModule,
     MatFormFieldModule,
     MatInputModule,
-    MatChipsModule,
-    MatExpansionModule,
-    MatProgressSpinnerModule
+    MatChipsModule
   ],
-  templateUrl: './categories.component.html',
-  styleUrl: './categories.component.scss'
+  templateUrl: './categories-keywords.component.html',
+  styleUrl: './categories-keywords.component.scss'
 })
-export class CategoriesComponent implements OnInit {
+export class CategoriesKeywordsComponent implements OnInit {
   private categoryService = inject(CategoryService);
-  private leadService = inject(LeadService);
   private toastr = inject(ToastrService);
 
   categories: CategoryWithKeywords[] = [];
@@ -57,78 +51,8 @@ export class CategoriesComponent implements OnInit {
   editingKeywordNameEn = '';
   editingKeywordNameDe = '';
 
-  placesLoading = false;
-  placesSeeding = false;
-  placeCountries: PlaceCountryTree[] = [];
-
   ngOnInit() {
     this.loadCategories();
-    this.loadPlaces();
-  }
-
-  loadPlaces() {
-    this.placesLoading = true;
-    this.leadService.getPlaceTree('DE').subscribe({
-      next: (countries) => {
-        this.placeCountries = countries;
-        this.placesLoading = false;
-      },
-      error: () => {
-        this.placesLoading = false;
-        this.toastr.error('Failed to load places from database');
-      }
-    });
-  }
-
-  seedPlaces() {
-    this.placesSeeding = true;
-    this.leadService.seedGermanyPlaces().subscribe({
-      next: () => {
-        this.toastr.success('Germany places seeded successfully');
-        this.placesSeeding = false;
-        this.loadPlaces();
-      },
-      error: () => {
-        this.placesSeeding = false;
-        this.toastr.error('Failed to seed Germany places');
-      }
-    });
-  }
-
-  get placeStatesCount(): number {
-    return this.placeCountries.reduce((sum, country) => sum + (country.states?.length || 0), 0);
-  }
-
-  get placeCitiesCount(): number {
-    return this.placeCountries.reduce(
-      (sum, country) => sum + (country.states || []).reduce((stateSum, state) => stateSum + (state.cities?.length || 0), 0),
-      0
-    );
-  }
-
-  get placeDistrictsCount(): number {
-    return this.placeCountries.reduce(
-      (sum, country) => sum + (country.states || []).reduce(
-        (stateSum, state) => stateSum + (state.cities || []).reduce(
-          (citySum, city) => citySum + (city.districts?.length || 0),
-          0
-        ),
-        0
-      ),
-      0
-    );
-  }
-
-  trackCountry(_index: number, country: PlaceCountryTree): string {
-    return `${country.code}-${country.id}`;
-  }
-
-  trackState(_index: number, state: PlaceStateTree): number {
-    return state.id;
-  }
-
-  getDistrictNames(districts: PlaceDistrictTree[]): string {
-    return districts.map((district) => district.name).join(', ');
   }
 
   loadCategories(selectCategoryId?: number) {

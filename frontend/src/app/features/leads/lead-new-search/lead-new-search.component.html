@@ -1,0 +1,259 @@
+<div class="page-header">
+  <div class="title-group">
+    <h2>Manual Lead Collection</h2>
+    <p>Select where to search, what to look for, then launch.</p>
+  </div>
+  <div class="header-actions">
+    <button mat-stroked-button (click)="toggleDebug()" [color]="showDebug ? 'accent' : 'primary'">
+      <mat-icon>{{ showDebug ? 'bug_report' : 'terminal' }}</mat-icon>
+      {{ showDebug ? 'Hide Debug' : 'Debug Logs' }}
+    </button>
+  </div>
+</div>
+
+<div class="workflow-steps">
+  <div class="step" [class.active]="true">
+    <span class="step-num">1</span>
+    <span class="step-label">Places</span>
+  </div>
+  <div class="step-arrow"><mat-icon>arrow_forward</mat-icon></div>
+  <div class="step" [class.active]="true">
+    <span class="step-num">2</span>
+    <span class="step-label">Industries</span>
+  </div>
+  <div class="step-arrow"><mat-icon>arrow_forward</mat-icon></div>
+  <div class="step" [class.active]="true">
+    <span class="step-num">3</span>
+    <span class="step-label">Settings</span>
+  </div>
+</div>
+
+<div class="selection-grid">
+  <mat-card class="glass-card collect-card">
+    <div class="card-header">
+      <mat-icon>location_city</mat-icon>
+      <mat-card-title>1. Target Places</mat-card-title>
+      <span class="selected-count" *ngIf="cities.length">
+        {{ cities.length }} {{ cities.length === 1 ? 'place' : 'places' }}
+      </span>
+    </div>
+
+    <mat-card-content>
+      <mat-form-field class="search-field" appearance="outline">
+        <mat-label>Search state, city, district</mat-label>
+        <input matInput [(ngModel)]="placeSearch" (ngModelChange)="onPlaceSearchChange()" placeholder="e.g. Bayern, Koeln, Kreuzberg">
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+
+      <div class="selected-chips" *ngIf="selectedPlaceLabels.length">
+        <mat-chip *ngFor="let place of selectedPlaceLabels" [removable]="true" (removed)="removeSelectedPlace(place.key)">
+          {{ place.label }}
+          <mat-icon matChipRemove>cancel</mat-icon>
+        </mat-chip>
+      </div>
+
+      <div class="place-tree" *ngIf="filteredPlaceTree.length > 0; else noPlacesFound">
+        <mat-accordion multi class="state-accordion">
+          <mat-expansion-panel *ngFor="let state of filteredPlaceTree" class="state-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <mat-checkbox
+                  color="primary"
+                  [checked]="isStateSelected(state.id)"
+                  (click)="$event.stopPropagation()"
+                  (change)="toggleState(state, $event.checked)">
+                  <span class="state-name">{{ state.name }}</span>
+                </mat-checkbox>
+              </mat-panel-title>
+            </mat-expansion-panel-header>
+
+            <div class="city-list">
+              <mat-accordion multi class="city-accordion">
+                <mat-expansion-panel *ngFor="let city of state.cities" class="city-panel">
+                  <mat-expansion-panel-header>
+                    <mat-panel-title>
+                      <mat-checkbox
+                        color="primary"
+                        [checked]="isCitySelected(city.id)"
+                        (click)="$event.stopPropagation()"
+                        (change)="toggleCity(city, $event.checked)">
+                        <span class="city-name">{{ city.name }}</span>
+                      </mat-checkbox>
+                    </mat-panel-title>
+                  </mat-expansion-panel-header>
+
+                  <div class="district-grid">
+                    <mat-checkbox
+                      color="primary"
+                      *ngFor="let district of city.districts"
+                      [checked]="isDistrictSelected(district.id)"
+                      (change)="toggleDistrict(city, district, $event.checked)">
+                      {{ district.name }}
+                    </mat-checkbox>
+                  </div>
+                </mat-expansion-panel>
+              </mat-accordion>
+            </div>
+          </mat-expansion-panel>
+        </mat-accordion>
+      </div>
+
+      <ng-template #noPlacesFound>
+        <div class="empty-hint">No places match your search.</div>
+      </ng-template>
+    </mat-card-content>
+
+    <div class="card-footer">
+      <button mat-stroked-button color="primary" (click)="selectAllCities()">All Cities</button>
+      <button mat-stroked-button color="primary" (click)="selectAllStates()">All States</button>
+      <button mat-stroked-button color="warn" (click)="clearPlaces()" [disabled]="!cities.length">Clear</button>
+    </div>
+  </mat-card>
+
+  <mat-card class="glass-card collect-card">
+    <div class="card-header">
+      <mat-icon>category</mat-icon>
+      <mat-card-title>2. Industries &amp; Keywords</mat-card-title>
+      <span class="selected-count" *ngIf="selectedKeywords.length">
+        {{ selectedKeywords.length }} {{ selectedKeywords.length === 1 ? 'industry' : 'industries' }}
+      </span>
+    </div>
+
+    <mat-card-content>
+      <mat-form-field class="search-field" appearance="outline">
+        <mat-label>Filter industries</mat-label>
+        <input matInput [(ngModel)]="keywordSearch" placeholder="e.g. Handwerk, IT, Gastronomie">
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+
+      <div class="keyword-domains-scroll">
+        <mat-accordion multi>
+          <mat-expansion-panel *ngFor="let domain of filteredKeywordDomains; trackBy: trackByDomain" [expanded]="isAnyKeywordSelected(domain)" class="domain-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <mat-checkbox [checked]="isAllKeywordsSelected(domain)"
+                              [indeterminate]="isAnyKeywordSelected(domain) && !isAllKeywordsSelected(domain)"
+                              (change)="toggleAllKeywords(domain, $event.checked)"
+                              (click)="$event.stopPropagation()"
+                              color="primary"
+                              class="header-checkbox">
+                </mat-checkbox>
+                {{ domain.name }}
+              </mat-panel-title>
+              <mat-panel-description>
+                {{ getSelectedCount(domain) }} selected
+              </mat-panel-description>
+            </mat-expansion-panel-header>
+
+            <div class="keyword-grid">
+              <mat-checkbox *ngFor="let keyword of domain.keywords; trackBy: trackByKeyword" [(ngModel)]="keyword.selected" color="primary">
+                <span class="keyword-label">{{ keyword.nameEn }}</span>
+                <span class="keyword-query">{{ keyword.nameDe }}</span>
+              </mat-checkbox>
+            </div>
+          </mat-expansion-panel>
+        </mat-accordion>
+        <div *ngIf="filteredKeywordDomains.length === 0" class="empty-hint">No industries match your search criteria.</div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>
+
+<mat-card class="glass-card settings-card">
+  <div class="card-header">
+    <mat-icon>settings</mat-icon>
+    <mat-card-title>3. Search Settings</mat-card-title>
+  </div>
+
+  <mat-card-content>
+    <div class="settings-row">
+      <mat-form-field appearance="outline" class="max-field">
+        <mat-label>Max leads per search</mat-label>
+        <input matInput type="number" [(ngModel)]="maxResults" min="1" max="100">
+        <mat-hint>est. {{ estimatedResults }} leads</mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="webhook-field">
+        <mat-label>Webhook URL</mat-label>
+        <input matInput [(ngModel)]="webhookUrl" placeholder="https://..." (blur)="onWebhookUrlBlur()">
+        <mat-icon matSuffix>link</mat-icon>
+      </mat-form-field>
+    </div>
+
+    <div *ngIf="scrapeProgress" class="scrape-progress-badge" [class.completed]="scrapeProgress.status === 'COMPLETED'" [class.failed]="scrapeProgress.status === 'FAILED'">
+      <div class="progress-header">
+        <span class="status-indicator" [class.status-running]="scrapeProgress.status === 'RUNNING'" [class.status-completed]="scrapeProgress.status === 'COMPLETED'" [class.status-failed]="scrapeProgress.status === 'FAILED'"></span>
+        <span class="status-text">{{ scrapeProgress.status }}</span>
+      </div>
+      <div class="progress-message">{{ scrapeProgress.message }}</div>
+      <div *ngIf="scrapeProgress.leadsFound !== undefined || scrapeProgress.leadsImported !== undefined" class="progress-stats">
+        <span *ngIf="scrapeProgress.leadsFound !== undefined">Found: {{ scrapeProgress.leadsFound }}</span>
+        <span *ngIf="scrapeProgress.leadsImported !== undefined">Imported: {{ scrapeProgress.leadsImported }}</span>
+      </div>
+    </div>
+  </mat-card-content>
+</mat-card>
+
+<div class="bottom-bar">
+  <div class="summary">
+    <span class="summary-item">
+      <mat-icon>location_city</mat-icon>
+      {{ cities.length }} {{ cities.length === 1 ? 'Place' : 'Places' }}
+    </span>
+    <span class="summary-sep"></span>
+    <span class="summary-item">
+      <mat-icon>category</mat-icon>
+      {{ selectedKeywords.length }} {{ selectedKeywords.length === 1 ? 'Industry' : 'Industries' }}
+    </span>
+  </div>
+
+  <div class="estimates">
+    <div class="estimate">
+      <span class="label">Estimated leads</span>
+      <span class="value mono">{{ estimatedResults }}</span>
+    </div>
+    <div class="estimate">
+      <span class="label">Processing cost</span>
+      <span class="value mono money">${{ estimatedCost }}</span>
+    </div>
+    <div class="estimate">
+      <span class="label">Est. time</span>
+      <span class="value mono">{{ estimatedTimeText }}</span>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button mat-stroked-button class="gen-btn" (click)="generateSearchCombinations()" [disabled]="isGeneratingCombinations || !placesLoaded">
+      <mat-icon *ngIf="!isGeneratingCombinations">auto_fix_high</mat-icon>
+      <mat-progress-spinner *ngIf="isGeneratingCombinations" diameter="18" mode="indeterminate"></mat-progress-spinner>
+      {{ isGeneratingCombinations ? 'Generating...' : 'Generate Combinations' }}
+    </button>
+    <button mat-flat-button color="primary" class="launch-btn" (click)="runCollection()" [disabled]="isCollecting">
+      <mat-icon *ngIf="!isCollecting">rocket_launch</mat-icon>
+      <mat-progress-spinner *ngIf="isCollecting" diameter="20" mode="indeterminate"></mat-progress-spinner>
+      {{ isCollecting ? 'Collecting Leads...' : 'Launch Search' }}
+    </button>
+  </div>
+</div>
+
+<!-- Developer Console -->
+<mat-card class="glass-card debug-card animate-fade-in" *ngIf="showDebug">
+  <div class="card-header">
+    <mat-icon>terminal</mat-icon>
+    <mat-card-title>Developer Console</mat-card-title>
+    <span class="spacer"></span>
+    <button mat-icon-button (click)="clearDebugLogs()" matTooltip="Clear Console">
+      <mat-icon>delete_sweep</mat-icon>
+    </button>
+  </div>
+  <mat-card-content>
+    <div class="debug-log-list">
+      <div class="log-row" *ngFor="let log of (debugLogs$ | async)" [attr.data-level]="log.level">
+        <span class="time">{{ log.time | date:'HH:mm:ss' }}</span>
+        <span class="message">{{ log.message }}</span>
+        <span class="details" *ngIf="log.details">{{ log.details }}</span>
+      </div>
+      <div *ngIf="(debugLogs$ | async)?.length === 0" class="empty-hint">No activity recorded. Launch a search to see logs.</div>
+    </div>
+  </mat-card-content>
+</mat-card>

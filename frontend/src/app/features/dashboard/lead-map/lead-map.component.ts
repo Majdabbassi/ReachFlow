@@ -13,12 +13,13 @@ import * as L from 'leaflet';
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      height: 100%;
+    }
     .map-container {
       width: 100%;
-      height: 400px;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      height: 100%;
     }
     .map-frame {
       width: 100%;
@@ -46,6 +47,12 @@ export class LeadMapComponent implements OnChanges, AfterViewInit, OnDestroy {
   ngOnDestroy() {
     if (this.map) {
       this.map.remove();
+    }
+  }
+
+  invalidateSize() {
+    if (this.map) {
+      setTimeout(() => this.map?.invalidateSize(), 0);
     }
   }
 
