@@ -83,7 +83,9 @@ public class ClientService {
 
         existingClient.setName(clientDTO.getName());
         existingClient.setEmail(clientDTO.getEmail());
-        existingClient.setAppPassword(clientDTO.getAppPassword());
+        if (clientDTO.getAppPassword() != null && !clientDTO.getAppPassword().isBlank()) {
+            existingClient.setAppPassword(clientDTO.getAppPassword());
+        }
         existingClient.setPhone(clientDTO.getPhone());
 
         Client savedClient = clientRepository.save(existingClient);

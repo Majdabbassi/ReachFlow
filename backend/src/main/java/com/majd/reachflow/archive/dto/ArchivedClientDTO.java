@@ -15,7 +15,6 @@ public class ArchivedClientDTO {
     private Long id;
     private String name;
     private String email;
-    private String appPassword;
     private String phone;
     private String documentName;
     private String documentContentType;

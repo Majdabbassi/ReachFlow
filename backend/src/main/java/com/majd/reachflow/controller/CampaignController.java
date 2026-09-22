@@ -1,5 +1,6 @@
 package com.majd.reachflow.controller;
 
+import com.majd.reachflow.dto.BulkDeleteCampaignsRequestDTO;
 import com.majd.reachflow.dto.CampaignDTO;
 import com.majd.reachflow.dto.CampaignScheduleRequestDTO;
 import com.majd.reachflow.dto.CampaignSendDTO;
@@ -65,7 +66,19 @@ public class CampaignController {
     @PostMapping("/{id}/send-selected")
     public ResponseEntity<Void> sendSelected(@PathVariable Long id, @RequestBody SelectiveSendRequestDTO request) {
         campaignService.sendSelected(id, request);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.accepted().build();
+    }
+
+    @DeleteMapping("/bulk")
+    public ResponseEntity<java.util.Map<String, Integer>> bulkDeleteCampaigns(@RequestBody BulkDeleteCampaignsRequestDTO request) {
+        int deleted = campaignService.deleteCampaigns(request.getCampaignIds());
+        return ResponseEntity.ok(java.util.Map.of("deletedCount", deleted));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCampaign(@PathVariable Long id) {
+        campaignService.deleteCampaigns(List.of(id));
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}/stats")

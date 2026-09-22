@@ -1,5 +1,6 @@
 package com.majd.reachflow.archive.entity;
 
+import com.majd.reachflow.config.AttributeEncryptor;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -26,6 +27,7 @@ public class ArchivedClient {
     private String email;
 
     @Column(nullable = false)
+    @Convert(converter = AttributeEncryptor.class)
     private String appPassword;
 
     private String phone;

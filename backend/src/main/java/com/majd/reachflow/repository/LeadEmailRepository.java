@@ -33,7 +33,6 @@ public interface LeadEmailRepository extends JpaRepository<LeadEmail, Long> {
             WHERE le.email IS NULL
                OR TRIM(le.email) = ''
                     OR LOWER(TRIM(le.email)) NOT REGEXP '^[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}$'
-                    OR LOWER(TRIM(le.email)) NOT REGEXP '^[a-z0-9._%+-]+@[a-z0-9.-]+\\.(de|com|org|net|eu)$'
                     OR LOWER(TRIM(le.email)) REGEXP '\\.(webp|png|jpg|jpeg|svg|gif)$'
                     OR LOWER(TRIM(le.email)) LIKE '%media%'
                     OR LOWER(TRIM(le.email)) LIKE '%@2x%'
@@ -46,7 +45,6 @@ public interface LeadEmailRepository extends JpaRepository<LeadEmail, Long> {
             WHERE le.email IS NULL
                OR TRIM(le.email) = ''
                     OR LOWER(TRIM(le.email)) NOT REGEXP '^[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}$'
-                    OR LOWER(TRIM(le.email)) NOT REGEXP '^[a-z0-9._%+-]+@[a-z0-9.-]+\\.(de|com|org|net|eu)$'
                     OR LOWER(TRIM(le.email)) REGEXP '\\.(webp|png|jpg|jpeg|svg|gif)$'
                     OR LOWER(TRIM(le.email)) LIKE '%media%'
                     OR LOWER(TRIM(le.email)) LIKE '%@2x%'

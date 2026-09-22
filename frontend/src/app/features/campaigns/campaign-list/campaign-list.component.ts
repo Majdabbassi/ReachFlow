@@ -123,12 +123,23 @@ export class CampaignListComponent implements OnInit {
     const selected = this.selection.selected;
     if (selected.length === 0) return;
 
-    if (confirm(`Are you sure you want to delete ${selected.length} campaigns?`)) {
-      // Mock delete for now
-      this.toastr.success(`Successfully deleted ${selected.length} campaigns`);
-      this.selection.clear();
-      this.loadCampaigns();
+    const ids = selected.map(c => c.id).filter((id): id is number => id != null);
+    if (ids.length === 0) return;
+
+    if (!confirm(`Are you sure you want to delete ${ids.length} campaigns?`)) {
+      return;
     }
+
+    this.campaignService.deleteCampaigns(ids).subscribe({
+      next: (result) => {
+        this.toastr.success(`Successfully deleted ${result.deletedCount} campaigns`);
+        this.selection.clear();
+        this.loadCampaigns();
+      },
+      error: () => {
+        this.toastr.error('Failed to delete campaigns');
+      }
+    });
   }
 
 }

@@ -132,6 +132,27 @@ public class LeadService {
         leadRepository.deleteById(id);
     }
 
+    @Transactional
+    public int bulkDeleteLeads(List<Long> leadIds) {
+        if (leadIds == null || leadIds.isEmpty()) {
+            return 0;
+        }
+
+        List<Long> uniqueIds = leadIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        int deleted = 0;
+        for (Long id : uniqueIds) {
+            if (leadRepository.existsById(id)) {
+                deleteLead(id);
+                deleted++;
+            }
+        }
+        return deleted;
+    }
+
     @Transactional(readOnly = true)
     public LeadDTO getLeadById(Long id) {
         Lead lead = leadRepository.findById(id)
@@ -640,7 +661,7 @@ public class LeadService {
         if (!hasText(value)) {
             return List.of();
         }
-        return Arrays.stream(value.split("\\\\|"))
+        return Arrays.stream(value.split("\\|"))
                 .map(String::trim)
                 .filter(this::hasText)
                 .map(v -> v.toLowerCase(Locale.ROOT))

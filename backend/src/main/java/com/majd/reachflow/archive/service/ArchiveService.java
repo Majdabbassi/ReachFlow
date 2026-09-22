@@ -216,7 +216,6 @@ public class ArchiveService {
                 .id(archivedClient.getId())
                 .name(archivedClient.getName())
                 .email(archivedClient.getEmail())
-                .appPassword(archivedClient.getAppPassword())
                 .phone(archivedClient.getPhone())
                 .documentName(archivedClient.getDocumentName())
                 .documentContentType(archivedClient.getDocumentContentType())

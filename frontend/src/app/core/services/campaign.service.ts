@@ -63,4 +63,10 @@ export class CampaignService {
   getStats(id: number): Observable<CampaignStats> {
     return this.http.get<CampaignStats>(`${this.apiUrl}/${id}/stats`);
   }
+
+  deleteCampaigns(ids: number[]): Observable<{ deletedCount: number }> {
+    return this.http.delete<{ deletedCount: number }>(`${this.apiUrl}/bulk`, {
+      body: { campaignIds: ids }
+    });
+  }
 }

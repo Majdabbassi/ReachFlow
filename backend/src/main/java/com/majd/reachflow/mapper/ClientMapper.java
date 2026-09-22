@@ -8,6 +8,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface ClientMapper {
     @Mapping(target = "categories", ignore = true)
+    @Mapping(target = "appPassword", ignore = true)
     ClientDTO toDTO(Client client);
 
     @Mapping(target = "campaigns", ignore = true)

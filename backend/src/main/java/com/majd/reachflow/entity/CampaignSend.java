@@ -36,7 +36,4 @@ public class CampaignSend {
     private LocalDateTime repliedAt;
 
     private LocalDateTime openedAt;
-
-    @Column(unique = true)
-    private String trackingToken;
 }

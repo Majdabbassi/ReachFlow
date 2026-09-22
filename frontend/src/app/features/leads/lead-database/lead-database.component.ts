@@ -115,11 +115,23 @@ export class LeadDatabaseComponent implements OnInit {
     const selected = this.selection.selected;
     if (selected.length === 0) return;
 
-    if (confirm(`Are you sure you want to delete ${selected.length} leads?`)) {
-      this.toastr.success(`Successfully deleted ${selected.length} leads`);
-      this.selection.clear();
-      this.loadLeads();
+    const ids = selected.map(l => l.id).filter((id): id is number => id != null);
+    if (ids.length === 0) return;
+
+    if (!confirm(`Are you sure you want to delete ${ids.length} leads?`)) {
+      return;
     }
+
+    this.leadService.deleteLeads(ids).subscribe({
+      next: (result) => {
+        this.toastr.success(`Successfully deleted ${result.deletedCount} leads`);
+        this.selection.clear();
+        this.loadLeads();
+      },
+      error: () => {
+        this.toastr.error('Failed to delete leads');
+      }
+    });
   }
 
   leads$: Observable<Lead[]> = of([]);

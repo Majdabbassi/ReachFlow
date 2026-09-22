@@ -29,6 +29,7 @@ public class CampaignExecutionService {
     private final LeadCategoryRepository leadCategoryRepository;
     private final ClientCategoryDocumentRepository clientCategoryDocumentRepository;
     private final MailService mailService;
+    private final AsyncEmailSender asyncEmailSender;
 
     @Transactional
     public void startCampaign(Long id, CampaignStartRequestDTO request) {
@@ -120,7 +121,7 @@ public class CampaignExecutionService {
 
         int delaySeconds = request.getDelaySeconds() == null ? 2 : Math.max(request.getDelaySeconds(), 0);
         boolean htmlBody = Boolean.TRUE.equals(request.getHtmlBody());
-        mailService.sendEmails(campaignId, campaign.getClient(), request.getSubject(), request.getBody(), htmlBody, sends, delaySeconds);
+        asyncEmailSender.sendSelectedEmails(campaignId, request.getSubject(), request.getBody(), htmlBody, request.getSendIds(), delaySeconds);
     }
 
     @Transactional
@@ -170,6 +171,7 @@ public class CampaignExecutionService {
         List<CampaignSend> existingSends = campaignSendRepository.findByCampaignId(campaignId);
         List<CampaignSend> staleSends = existingSends.stream()
             .filter(send -> !eligibleLeadEmailIds.contains(send.getLeadEmail().getId()))
+            .filter(send -> send.getStatus() == CampaignSendStatus.PENDING)
             .collect(Collectors.toList());
 
         if (!staleSends.isEmpty()) {
@@ -243,7 +245,9 @@ public class CampaignExecutionService {
             }
 
             if (!shouldBelong && existingSend != null) {
-                staleSends.add(existingSend);
+                if (existingSend.getStatus() == CampaignSendStatus.PENDING) {
+                    staleSends.add(existingSend);
+                }
             }
         }
 

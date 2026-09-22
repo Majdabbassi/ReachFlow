@@ -186,6 +186,26 @@ public class CampaignService {
     }
 
     @Transactional
+    public int deleteCampaigns(List<Long> campaignIds) {
+        if (campaignIds == null || campaignIds.isEmpty()) {
+            return 0;
+        }
+
+        List<Long> uniqueIds = campaignIds.stream()
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+
+        List<Campaign> campaigns = campaignRepository.findAllById(uniqueIds);
+        if (campaigns.size() != uniqueIds.size()) {
+            throw new BusinessException("Some campaigns were not found", HttpStatus.NOT_FOUND);
+        }
+
+        campaignSendRepository.bulkDeleteByCampaignIdIn(uniqueIds);
+        return campaignRepository.bulkDeleteByIdIn(uniqueIds);
+    }
+
+    @Transactional
     public void ensureCampaignForEachClient() {
         List<Client> clients = clientRepository.findAll();
         for (Client client : clients) {

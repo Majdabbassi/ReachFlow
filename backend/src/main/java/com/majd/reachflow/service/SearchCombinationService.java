@@ -159,8 +159,21 @@ public class SearchCombinationService {
         int created = 0;
         int existing = 0;
 
-        Map<Long, PlaceDistrict> districtById = placeDistrictRepository.findAllById(districtIds).stream()
+        List<PlaceDistrict> districts = districtIds.isEmpty() ? List.of() : placeDistrictRepository.findAllById(districtIds);
+        Map<Long, PlaceDistrict> districtById = districts.stream()
                 .collect(Collectors.toMap(PlaceDistrict::getId, district -> district));
+
+        List<PlaceCity> cities = cityIds.isEmpty() ? List.of() : placeCityRepository.findAllById(cityIds);
+        Map<Long, PlaceCity> cityById = new LinkedHashMap<>();
+        for (PlaceCity city : cities) {
+            if (city.getId() != null) {
+                cityById.put(city.getId(), city);
+            }
+        }
+
+        Set<Long> cityIdsWithDistricts = districtById.values().stream()
+                .map(district -> district.getCity().getId())
+                .collect(Collectors.toSet());
 
         for (Keyword keyword : keywords) {
             for (PlaceDistrict district : districtById.values()) {
@@ -177,6 +190,29 @@ public class SearchCombinationService {
                         .district(district)
                         .placeKey(placeKey)
                         .placeDisplayName(displayName)
+                        .status(SearchCombinationStatus.PENDING)
+                        .maxResults(maxResults)
+                        .build();
+                searchCombinationRepository.save(combination);
+                created++;
+            }
+
+            for (PlaceCity city : cityById.values()) {
+                if (cityIdsWithDistricts.contains(city.getId())) {
+                    continue;
+                }
+
+                String placeKey = "CITY:" + city.getId();
+                if (searchCombinationRepository.existsByKeywordIdAndPlaceKey(keyword.getId(), placeKey)) {
+                    existing++;
+                    continue;
+                }
+
+                SearchCombination combination = SearchCombination.builder()
+                        .keyword(keyword)
+                        .city(city)
+                        .placeKey(placeKey)
+                        .placeDisplayName(city.getName())
                         .status(SearchCombinationStatus.PENDING)
                         .maxResults(maxResults)
                         .build();

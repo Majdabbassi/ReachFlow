@@ -1,6 +1,7 @@
 package com.majd.reachflow.controller;
 
 import com.majd.reachflow.dto.LeadDTO;
+import com.majd.reachflow.dto.BulkDeleteLeadsRequestDTO;
 import com.majd.reachflow.dto.BulkImportResultDTO;
 import com.majd.reachflow.dto.BulkLeadImportResponseDTO;
 import com.majd.reachflow.dto.CollectRequestDTO;
@@ -122,6 +123,12 @@ public class LeadController {
     @PutMapping("/{id}")
     public ResponseEntity<LeadDTO> updateLead(@PathVariable Long id, @Valid @RequestBody LeadDTO leadDTO) {
         return ResponseEntity.ok(leadService.updateLead(id, leadDTO));
+    }
+
+    @DeleteMapping("/bulk")
+    public ResponseEntity<Map<String, Integer>> bulkDeleteLeads(@RequestBody BulkDeleteLeadsRequestDTO request) {
+        int deleted = leadService.bulkDeleteLeads(request.getLeadIds());
+        return ResponseEntity.ok(Map.of("deletedCount", deleted));
     }
 
     @DeleteMapping("/{id}")

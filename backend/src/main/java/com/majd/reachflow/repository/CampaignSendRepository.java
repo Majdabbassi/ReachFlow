@@ -11,13 +11,10 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 @Repository
 public interface CampaignSendRepository extends JpaRepository<CampaignSend, Long> {
-
-    Optional<CampaignSend> findByTrackingToken(String trackingToken);
 
     @Query("SELECT cs.leadEmail.id FROM CampaignSend cs WHERE cs.campaign.id = :campaignId")
     Set<Long> findLeadEmailIdsByCampaignId(@Param("campaignId") Long campaignId);

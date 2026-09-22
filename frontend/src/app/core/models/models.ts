@@ -110,7 +110,6 @@ export interface ArchivedClient {
   id: number;
   name: string;
   email: string;
-  appPassword: string;
   phone?: string;
   documentName?: string;
   documentContentType?: string;

@@ -81,6 +81,12 @@ export class LeadService {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 
+  deleteLeads(ids: number[]): Observable<{ deletedCount: number }> {
+    return this.http.delete<{ deletedCount: number }>(`${this.apiUrl}/bulk`, {
+      body: { leadIds: ids }
+    });
+  }
+
   seedGermanyPlaces(): Observable<void> {
     return this.http.post<void>(`${this.searchCombinationsApiUrl}/seed-germany`, {});
   }
