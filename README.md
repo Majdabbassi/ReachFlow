@@ -2,17 +2,55 @@
 
 **ReachFlow** is a professional-grade outreach and lead generation platform designed to automate the discovery of prospects and streamline campaign management. Originally conceived as a tool to help find **Ausbildung (Apprenticeship)** opportunities in Germany, it has evolved into a robust full-stack solution integrating advanced automation workflows.
 
+[![CI](https://github.com/Majdabbassi/ReachFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/Majdabbassi/ReachFlow/actions/workflows/ci.yml)
+
+> **A local tool, by design.** ReachFlow runs on your own machine and has no login. It stores Gmail app
+> passwords and can send email, so don't put it on a network others can reach. Every port is bound to
+> `127.0.0.1`, CORS only allows the app's own origins, and the stored passwords are encrypted (AES-256-GCM).
+> If you ever need several users, authentication is the first thing to add.
+
 ---
 
 ## 📸 Screenshots
 
-| Dashboard | Lead Search |
+| Dashboard | Lead Database |
 |---|---|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Lead Search](docs/screenshots/lead-search-build.png) |
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Lead Database](docs/screenshots/lead-database.png) |
 
-| Lead Database | Campaign Composer |
+| Ausbildung Finder | Lead Search |
 |---|---|
-| ![Lead Database](docs/screenshots/lead-database.png) | ![Campaign Composer](docs/screenshots/campaign-composer.png) |
+| ![Ausbildung Finder](docs/screenshots/ausbildung-finder.png) | ![Lead Search](docs/screenshots/lead-search-build.png) |
+
+| Campaign (103 of 103 delivered) | Email Audit |
+|---|---|
+| ![Campaign](docs/screenshots/campaign.png) | ![Email Audit](docs/screenshots/email-audit.png) |
+
+> Screenshots use the bundled demo data: generated businesses on reserved `.example` domains, so no real person appears.
+
+---
+
+## ▶️ Try it in two minutes, no accounts needed
+
+The real scraper needs an Apify key and the real mailer needs a Gmail app password. **Demo mode** replaces both with local stand-ins, so you can see the whole product work:
+
+```bash
+git clone https://github.com/Majdabbassi/ReachFlow.git
+cd ReachFlow
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+```
+
+| What | Where |
+|---|---|
+| ReachFlow | http://localhost:8088 |
+| **Fake inbox (MailHog)**: every campaign email lands here | http://localhost:8025 |
+| Mock scraper | answers the same webhook as the n8n workflow, with generated German businesses |
+
+1. Open the app: a demo client, three categories with attachments and 15 leads are already there.
+2. **Ausbildung Finder** → pick a couple of professions and cities → *Find training companies*. Watch the live progress.
+3. **Campaigns** → open the demo campaign → *Launch outreach*. Emails appear one by one in MailHog (with the PDF attached), and the counters update as they go.
+4. Hit **Stop** part-way, then launch again: it resumes with the people not yet emailed, nobody gets two emails.
+
+Switch to the real thing by running the plain `docker compose up -d` and following the n8n guide below.
 
 ---
 
@@ -59,9 +97,9 @@ There is **no callback endpoint** — the `@Async` backend thread blocks on the 
 
 **Implementation note:** both entry points live in `lead-list.component.ts`. The polling mechanism was generalized from a single `pollingSubscription` field to a `pollingSubscriptions: Map<string, any>` keyed by `jobId`, via `startPollingForJob(jobId, combinationId)` — passing `combinationId: null` for a plain "Run Search" job, or an actual id for a "Launch", which additionally calls `launchSearchCombination()` with `LAUNCHED`/`FAILED` once that job's poll resolves. This lets a "Run Search" and one or more "Launch" calls run concurrently without interfering with each other. The old direct-webhook code path (`collectFromWebhook()` in `lead.service.ts`, plus the results-preview UI card and its supporting fields/methods in the component and template) was deleted rather than left dormant.
 
-There's one exception worth knowing: the **Ausbildung Finder page** (route `/ausbildung-finder`, `AusbildungFinderComponent`, openable from the sidenav) is currently a **"Coming Soon" placeholder** — the dedicated apprenticeship-search feature it will host is still in development, so it has no working search form and doesn't call n8n or the backend. An earlier prototype UI posted directly from the browser to a hardcoded webhook (`http://localhost:5678/webhook-test/ausbildung-finder`) that never corresponded to a real node in the `emails_collector-n8n_automation` workflow; that dead code path has been removed.
+The **Ausbildung Finder** (route `/ausbildung-finder`) is the guided version of that same pipeline, built for the original story: pick apprenticeship professions ("Fachinformatiker Anwendungsentwicklung", "Mechatroniker", ...) and cities, and it searches "Ausbildung &lt;profession&gt;" in each, files every company it finds under the **Ausbildung** category, and shows the same live progress. Because the leads carry that category, the matching client's campaign picks them up automatically.
 
-Despite the similar name, this standalone page is unrelated to the "Ausbildung" category/keyword that `CategorySeeder` seeds as base reference data (see the Base Reference Data & Resetting the Environment section below) — it's easy to confuse the two, but they don't share any code or data.
+
 
 ### 🧹 Deduplication & data quality
 
@@ -85,6 +123,15 @@ flowchart LR
 
 `CampaignSchedulerService` polls every 60 seconds for campaigns due to run and hands them to `CampaignService`/`CampaignExecutionService`, which sends via `MailService` over Gmail SMTP using the client's AES-encrypted app password.
 
+**Delivery guarantees (and why they took some care):**
+
+- *Start returns immediately.* The send loop runs on an `@Async` thread, reached through the Spring proxy (a plain same-class call silently skips `@Async` and would block the request for the whole campaign).
+- *Every email is its own transaction.* The status (`SENT`, `FAILED`, `BOUNCED`) is saved the moment the email goes out, so the UI counters move live and a crash never forgets who was already contacted.
+- *Stop is honoured.* Each iteration re-reads the campaign in a fresh transaction, so a stop request is seen on the very next email. A stopped campaign goes back to `DRAFT`; starting it again sends only the pending/failed ones, never a duplicate.
+- *A finished campaign becomes `COMPLETED`*, and goes back to `DRAFT` when new leads arrive.
+
+These behaviours are covered by an integration test that runs a real campaign against an in-process SMTP server (see Tests & CI).
+
 ---
 
 ## 🧠 Design Decisions & Rationale
@@ -107,7 +154,7 @@ The UI is a dashboard-first experience — search filters, campaign controls, pa
 Every endpoint uses a dedicated DTO (`LeadDTO`, `ClientDTO`, `CampaignDTO`, `SearchCombinationDTO`, etc.), avoiding circular-reference JSON issues and keeping the public API shape independent of entity changes.
 
 ### ❓ Why AES Encryption Even in Local-Only
-Gmail App Passwords are stored via a JPA `AttributeConverter` that AES-encrypts before write and decrypts on read (`AttributeEncryptor`, using an `encryption.key` property, defaulting to a dev key if unset). For a personal project, plain text would technically work — the encryption exists to demonstrate the pattern a real SaaS deployment would use, with zero operational overhead: it just works out of the box, or you can set `encryption.key` for a real deployment.
+Gmail App Passwords are stored via a JPA `AttributeConverter` (`AttributeEncryptor`) that encrypts before write and decrypts on read, using AES-256-GCM with a fresh random IV per value, and one `Cipher` per call because a `Cipher` instance is not thread-safe (campaign sends and web requests decrypt concurrently). The key comes from `ENCRYPTION_KEY`; if it is unset a public development key is used and a warning is logged. For a personal tool plain text would technically work; the encryption demonstrates the pattern a real deployment would use, with zero operational overhead.
 
 ---
 
@@ -116,7 +163,7 @@ Gmail App Passwords are stored via a JPA `AttributeConverter` that AES-encrypts 
 ### 🔍 Intelligent Discovery
 - Multi-source scraping via Apify (Google Maps) and a custom email extractor hitting `/impressum`, `/kontakt`, `/contact`, and the homepage.
 - One unified collection pipeline (background job + progress polling) for both broad multi-city searches and single search-combination launches.
-- A dedicated Ausbildung Finder page for apprenticeship opportunities in Germany (currently a "Coming Soon" placeholder while that feature is in development).
+- A guided **Ausbildung Finder** for apprenticeship opportunities in Germany: choose professions and cities, one click, live progress, leads are filed under the right category.
 
 ### 📊 Analytics & Auditing
 - Email audit views for invalid/duplicate addresses.
@@ -129,7 +176,9 @@ Gmail App Passwords are stored via a JPA `AttributeConverter` that AES-encrypts 
 - Gmail SMTP delivery with AES-encrypted app passwords.
 
 ### 🛡️ Security
-- Local AES encryption for stored credentials.
+- Gmail app passwords are encrypted at rest with **AES-256-GCM** (random IV per value, tamper-evident), set your own key with `ENCRYPTION_KEY`; rows written by older versions are still readable.
+- The API never returns a stored app password.
+- Every published port is bound to `127.0.0.1`; CORS only allows the app's own origins.
 - DTO-based API boundary — entities never travel across the wire.
 
 ---
@@ -159,7 +208,7 @@ No manual data entry needed to get back to a working demo state.
 - Docker & Docker Compose
 - Node.js & npm (for local frontend development)
 - Java 21 & Maven (for local backend development)
-- **Apify API Key** (required for the Google Maps scraper in the n8n workflow — sign up at [apify.com](https://apify.com/))
+- **Apify API Key**, only for the real scraper (n8n workflow); [demo mode](#️-try-it-in-two-minutes-no-accounts-needed) needs none
 
 ### Quick Start
 1. Clone the repository:
@@ -183,7 +232,7 @@ Then continue with the **n8n Workflow Import** section below to wire up the scra
 
 ## 🤖 n8n Workflow — Import & Configuration Guide
 
-The workflow lives in the repo root as `emails_collector-n8n_automation` (exported n8n JSON) and runs as four nodes:
+The workflow lives in `n8n/emails-collector.workflow.json` (exported n8n JSON) and runs as four nodes:
 
 1. **Webhook** — receives `POST { cities, keywords, maxResults }`.
 2. **parse apify input** *(Code)* — normalizes `cities`/`keywords` (handles arrays, JSON strings, or objects with `name`/`value`/`label`), builds every `"{keyword} in {city}"` combination as `searchStringsArray`, plus `maxCrawledPlacesPerSearch`.
@@ -195,7 +244,7 @@ The workflow lives in the repo root as `emails_collector-n8n_automation` (export
 1. Open the n8n UI at `http://localhost:5678`.
 2. Click the **☰ hamburger menu** → **Workflows** → **+ New Workflow**.
 3. In the top-right, click **"…"** → **Import from File**.
-4. Select `emails_collector-n8n_automation` from the project root.
+4. Select `n8n/emails-collector.workflow.json`.
 5. Save the imported workflow.
 
 ### Step 2 — Configure the Apify Credential
@@ -216,12 +265,28 @@ The workflow lives in the repo root as `emails_collector-n8n_automation` (export
 - Watch n8n execute each node. When it responds, the backend imports the leads automatically and the frontend's progress poll flips to COMPLETED.
 
 ### Backend Endpoints Involved
-- `POST /api/leads/collect` — starts an async job, returns `{ jobId, status }` immediately ([LeadController.java](file:///backend/src/main/java/com/majd/reachflow/controller/LeadController.java)). Used by both "Run Search" and "Launch a combination".
+- `POST /api/leads/collect` — starts an async job, returns `{ jobId, status }` immediately ([LeadController.java](backend/src/main/java/com/majd/reachflow/controller/LeadController.java)). Used by both "Run Search" and "Launch a combination".
 - `GET /api/leads/scrape-status/{jobId}` — polled by the frontend every 2s for progress/completion.
 - `POST /api/search-combinations/{id}/launch` — records LAUNCHED/FAILED status once a combination's job completes.
 - `POST /api/leads/bulk` — still available for manual CSV/bulk imports outside the scraping pipeline.
 
-All async scraping logic lives in [LeadService.java](file:///backend/src/main/java/com/majd/reachflow/service/LeadService.java), which wraps a `RestTemplate` POST to the n8n webhook with a 10-minute socket timeout to accommodate large map-scrape jobs.
+All async scraping logic lives in [LeadService.java](backend/src/main/java/com/majd/reachflow/service/LeadService.java), which wraps a `RestTemplate` POST to the n8n webhook with a 10-minute socket timeout to accommodate large map-scrape jobs.
+
+---
+
+## 🧪 Tests & CI
+
+```bash
+cd backend
+./mvnw test        # unit tests, no services needed
+DB_HOST=localhost DB_NAME=reachflow_it DB_ARCHIVE_NAME=reachflow_it_archive ./mvnw test   # also runs the MySQL integration test
+```
+
+- `AttributeEncryptorTest`: round trip, unique ciphertext, tamper detection, reading old rows, and a multi-threaded test (it fails against the previous shared-`Cipher` implementation).
+- `LeadServiceTest`: de-duplication and email merging.
+- `CampaignSendingIntegrationTest` (runs when `DB_HOST` is set): runs a real campaign through an in-process SMTP server (GreenMail) and checks that start returns immediately, statuses are saved as emails go out, Stop is honoured, a resume sends each recipient exactly once, and the campaign ends `COMPLETED`. Each assertion was verified to fail when the bug it guards is reintroduced.
+
+GitHub Actions runs the backend tests against a MySQL service, builds the Angular app, and validates both compose files on every push.
 
 ---
 

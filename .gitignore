@@ -12,14 +12,9 @@ Thumbs.db
 frontend/node_modules/
 frontend/dist/
 frontend/.angular/
-frontend/package-lock.json
 
 # Backend
 backend/target/
-backend/.mvn/
-backend/mvnw
-backend/mvnw.cmd
-backend/.gitattributes
 
 # Docker
 mysql_data/
@@ -27,3 +22,9 @@ n8n_data/
 
 # Logs
 *.log
+
+# Local configuration
+.env
+
+# Generated analysis output (graphify)
+graphify-out/
