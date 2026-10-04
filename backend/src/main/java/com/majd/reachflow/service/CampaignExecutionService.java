@@ -31,6 +31,10 @@ public class CampaignExecutionService {
     private final MailService mailService;
     private final AsyncEmailSender asyncEmailSender;
 
+    @org.springframework.context.annotation.Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private CampaignExecutionService self;
+
     @Transactional
     public void startCampaign(Long id, CampaignStartRequestDTO request) {
         if (request == null) {
@@ -44,27 +48,33 @@ public class CampaignExecutionService {
                 .map(CampaignSend::getId)
                 .toList();
 
-        startCampaignAsync(id, request.getSubject(), request.getBody(), htmlBody, delaySeconds, sendIds);
+        // Through the proxy so @Async really applies (a this.call would send every email while the
+        // HTTP request, or the scheduler thread, waits).
+        self.startCampaignAsync(id, request.getSubject(), request.getBody(), htmlBody, delaySeconds, sendIds);
     }
 
+    // No @Transactional here on purpose: the send loop runs for as long as the campaign takes, and
+    // MailService commits each email in its own short transaction (see MailService.sendEmails).
     @Async
-    @Transactional
     public void startCampaignAsync(Long campaignId, String subject, String body, boolean htmlBody, int delaySeconds, List<Long> sendIds) {
         try {
-            Campaign campaign = campaignRepository.findById(campaignId)
-                    .orElseThrow(() -> new BusinessException("Campaign not found with id: " + campaignId, HttpStatus.NOT_FOUND));
-
-            List<CampaignSend> sendsToProcess = campaignSendRepository.findByCampaignIdAndIdIn(campaignId, sendIds);
-            if (sendsToProcess.isEmpty()) {
-                setCampaignToDraft(campaignId);
+            if (!campaignRepository.existsById(campaignId)) {
+                throw new BusinessException("Campaign not found with id: " + campaignId, HttpStatus.NOT_FOUND);
+            }
+            if (sendIds.isEmpty()) {
+                self.setCampaignToDraft(campaignId);
                 return;
             }
 
-            mailService.sendEmails(campaignId, campaign.getClient(), subject, body, htmlBody, sendsToProcess, delaySeconds);
-            checkCampaignCompletion(campaignId);
+            boolean finished = mailService.sendEmails(campaignId, sendIds, subject, body, htmlBody, delaySeconds);
+            if (finished) {
+                self.finishCampaignRun(campaignId);
+            }
+            // If it was stopped, MailService already put the campaign back to DRAFT; re-running the
+            // finishing the run would mark it COMPLETED/DRAFT based on the pending sends instead of leaving the stop as is.
         } catch (Exception ex) {
             log.error("startCampaignAsync failed for campaign {}", campaignId, ex);
-            setCampaignToDraft(campaignId);
+            self.setCampaignToDraft(campaignId);
             if (ex instanceof RuntimeException runtimeException) {
                 throw runtimeException;
             }
@@ -124,26 +134,45 @@ public class CampaignExecutionService {
         asyncEmailSender.sendSelectedEmails(campaignId, request.getSubject(), request.getBody(), htmlBody, request.getSendIds(), delaySeconds);
     }
 
+    /**
+     * Brings an idle campaign's status in line with its sends. Never touches a campaign that is
+     * mid-run (only the sender owns RUNNING) or has a stop pending.
+     *
+     * <p>It used to set RUNNING whenever sends were pending, so a campaign that merely received new
+     * leads looked "running" and could not be started ("Campaign is already running").
+     */
     @Transactional
     public void checkCampaignCompletion(Long campaignId) {
         Campaign campaign = campaignRepository.findById(campaignId).orElse(null);
-        if (campaign == null) {
+        if (campaign == null
+                || campaign.getStatus() == CampaignStatus.RUNNING
+                || campaign.getStatus() == CampaignStatus.STOP_REQUESTED) {
             return;
         }
+        applyIdleStatus(campaign);
+    }
 
-        if (campaign.getStatus() == CampaignStatus.STOP_REQUESTED) {
+    /** Called when a send loop ends normally: the campaign leaves RUNNING for DRAFT or COMPLETED. */
+    @Transactional
+    public void finishCampaignRun(Long campaignId) {
+        Campaign campaign = campaignRepository.findById(campaignId).orElse(null);
+        if (campaign == null || campaign.getStatus() != CampaignStatus.RUNNING) {
             return;
         }
+        applyIdleStatus(campaign);
+    }
 
-        long total = campaignSendRepository.countByCampaignId(campaignId);
-        long pending = campaignSendRepository.countByCampaignIdAndStatus(campaignId, CampaignSendStatus.PENDING);
+    /** COMPLETED when everything went out and nothing needs a retry, otherwise ready to (re)start. */
+    private void applyIdleStatus(Campaign campaign) {
+        long total = campaignSendRepository.countByCampaignId(campaign.getId());
+        long pending = campaignSendRepository.countByCampaignIdAndStatus(campaign.getId(), CampaignSendStatus.PENDING);
+        long failed = campaignSendRepository.countByCampaignIdAndStatus(campaign.getId(), CampaignSendStatus.FAILED);
 
-        CampaignStatus nextStatus = (total > 0 && pending > 0)
-            ? CampaignStatus.RUNNING
-            : CampaignStatus.DRAFT;
-
-        if (campaign.getStatus() != nextStatus) {
-            campaign.setStatus(nextStatus);
+        CampaignStatus next = (total > 0 && pending == 0 && failed == 0)
+                ? CampaignStatus.COMPLETED
+                : CampaignStatus.DRAFT;
+        if (campaign.getStatus() != next) {
+            campaign.setStatus(next);
             campaignRepository.save(campaign);
         }
     }

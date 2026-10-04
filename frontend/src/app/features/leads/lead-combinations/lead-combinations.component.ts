@@ -13,6 +13,9 @@ import { LeadService } from '../../../core/services/lead.service';
 import { SearchCombination, SearchCombinationStatus } from '../../../core/models/models';
 import { N8nSettingsService } from '../../../core/services/n8n-settings.service';
 
+// One poll every 2 s: a little over the backend's 10-minute scraper timeout, so long jobs keep their progress UI.
+const MAX_SCRAPE_POLLS = 330;
+
 @Component({
   selector: 'app-lead-combinations',
   standalone: true,
@@ -96,7 +99,8 @@ export class LeadCombinationsComponent implements OnInit {
       keywords: [keywordName],
       cities: [combination.placeDisplayName],
       maxResults: launchMaxResults,
-      webhookUrl: this.n8nSettings.getWebhookUrl()
+      webhookUrl: this.n8nSettings.getWebhookUrl(),
+      categoryIds: combination.categoryId ? [combination.categoryId] : []
     }).subscribe({
       next: (response) => {
         this.startPollingForLaunch(response.jobId, combination.id, launchMaxResults);
@@ -116,7 +120,7 @@ export class LeadCombinationsComponent implements OnInit {
 
     const subscription = interval(2000).pipe(
       switchMap(() => this.leadService.getScrapeProgress(jobId)),
-      take(60)
+      take(MAX_SCRAPE_POLLS)
     ).subscribe({
       next: (progress) => {
         if (progress.status === 'COMPLETED') {

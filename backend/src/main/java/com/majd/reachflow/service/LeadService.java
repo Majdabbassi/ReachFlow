@@ -744,10 +744,19 @@ public class LeadService {
         String citiesCsv = request.getCities() != null ? String.join(", ", request.getCities()) : "";
         
         scrapeProgressTracker.registerJob(jobId, keywordsCsv, citiesCsv);
-        collectLeadsAsyncInternal(request, jobId);
+        // Through the proxy: a plain this.call would skip @Async and block this request until the
+        // whole scrape is done, so the UI would never get a job id to poll.
+        self.collectLeadsAsyncInternal(request, jobId);
         
         return jobId;
     }
+
+    @org.springframework.beans.factory.annotation.Value("${demo.webhook-url:}")
+    private String demoWebhookUrl;
+
+    @org.springframework.context.annotation.Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private LeadService self;
 
     @Async
     @SuppressWarnings("unchecked")
@@ -774,8 +783,12 @@ public class LeadService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
 
+            // Demo mode swaps the user's n8n webhook for the bundled mock scraper.
+            String webhookUrl = (demoWebhookUrl != null && !demoWebhookUrl.isBlank())
+                    ? demoWebhookUrl : request.getWebhookUrl();
+
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                request.getWebhookUrl(),
+                webhookUrl,
                 HttpMethod.POST,
                 entity,
                 new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {}
@@ -803,6 +816,8 @@ public class LeadService {
                                 .primaryEmail((String) item.get("email"))
                                 .emails((List<String>) item.get("allEmails"))
                                 .source("Scraper Automation")
+                                // Without a category a lead can never match a client, so never be emailed.
+                                .categoryIds(request.getCategoryIds())
                                 .build();
 
                             if (leadDTO.getLatitude() == null && leadDTO.getLongitude() == null
@@ -819,7 +834,9 @@ public class LeadService {
                             }
 
                             // Map categories if needed, for now we leave them empty or use a default
-                            createOrSkipLead(leadDTO);
+                            // Via the proxy: this runs on an async thread with no session, so the call
+                            // needs its own @Transactional (one transaction per lead).
+                            self.createOrSkipLead(leadDTO);
                             importedCount++;
                             i++;
                             if (i % 5 == 0 || i == rawResultsCount) {

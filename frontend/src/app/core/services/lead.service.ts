@@ -124,7 +124,7 @@ export class LeadService {
     return this.http.post<SearchCombination>(`${this.searchCombinationsApiUrl}/${id}/launch`, request);
   }
 
-  collectLeads(request: { keywords: string[]; cities: string[]; maxResults?: number; webhookUrl?: string }): Observable<{ jobId: string; status: string }> {
+  collectLeads(request: { keywords: string[]; cities: string[]; maxResults?: number; webhookUrl?: string; categoryIds?: number[] }): Observable<{ jobId: string; status: string }> {
     return this.http.post<{ jobId: string; status: string }>(`${this.apiUrl}/collect`, request);
   }
 

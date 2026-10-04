@@ -23,6 +23,7 @@ import java.util.Map;
  * every startup, never creates duplicates, and never touches leads or clients.
  */
 @Component
+@org.springframework.core.annotation.Order(1) // before DemoDataSeeder (2), which needs these categories
 @RequiredArgsConstructor
 @Slf4j
 public class CategorySeeder implements CommandLineRunner {

@@ -23,6 +23,9 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,65 +41,47 @@ public class MailService {
     private final LeadCategoryRepository leadCategoryRepository;
     private final ClientCategoryRepository clientCategoryRepository;
     private final ClientCategoryDocumentRepository clientCategoryDocumentRepository;
+    private final PlatformTransactionManager transactionManager;
 
-    public void sendEmails(Long campaignId, Client client, String subject, String body, boolean htmlBody, List<CampaignSend> sends, int delaySeconds) {
-        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
-        mailSender.setHost("smtp.gmail.com");
-        mailSender.setPort(465);
-        mailSender.setUsername(client.getEmail());
-        mailSender.setPassword(client.getAppPassword());
-        mailSender.setProtocol("smtps");
-        Properties props = mailSender.getJavaMailProperties();
-        props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.ssl.enable", "true");
-        props.put("mail.smtp.starttls.enable", "true");
-        props.put("mail.smtp.ssl.trust", "smtp.gmail.com");
+    // Gmail by default. Demo mode points these at a local fake SMTP server (MailHog).
+    @org.springframework.beans.factory.annotation.Value("${mail.smtp.host:smtp.gmail.com}")
+    private String smtpHost;
+    @org.springframework.beans.factory.annotation.Value("${mail.smtp.port:465}")
+    private int smtpPort;
+    @org.springframework.beans.factory.annotation.Value("${mail.smtp.secure:true}")
+    private boolean smtpSecure;
 
-        for (int i = 0; i < sends.size(); i++) {
-            Campaign campaign = campaignRepository.findById(campaignId).orElse(null);
-            if (campaign == null) {
-                log.warn("Campaign {} no longer exists while sending emails", campaignId);
-                break;
+    /**
+     * Sends the given campaign sends one by one, pausing {@code delaySeconds} between emails.
+     *
+     * <p>Deliberately not transactional as a whole: every email runs in its own short
+     * transaction. A single transaction around the entire loop (which can last hours) meant
+     * the statuses were only written at the very end, so a crash re-sent everyone, the UI
+     * showed nothing sent, a stop request was never seen (stale snapshot) and the campaign
+     * could never be marked finished.
+     *
+     * @return true if every send was processed, false if the run was cut short (stop requested,
+     *         campaign deleted)
+     */
+    public boolean sendEmails(Long campaignId, List<Long> sendIds, String subject, String body,
+                           boolean htmlBody, int delaySeconds) {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+
+        JavaMailSenderImpl mailSender = tx.execute(status -> buildMailSender(campaignId));
+        if (mailSender == null) {
+            log.warn("Campaign {} no longer exists, nothing to send", campaignId);
+            return false;
+        }
+
+        for (int i = 0; i < sendIds.size(); i++) {
+            Long sendId = sendIds.get(i);
+            Boolean keepGoing = tx.execute(status -> sendOne(campaignId, sendId, mailSender, subject, body, htmlBody));
+            if (!Boolean.TRUE.equals(keepGoing)) {
+                return false;
             }
 
-            if (campaign.getStatus() == CampaignStatus.STOP_REQUESTED) {
-                campaign.setStatus(CampaignStatus.DRAFT);
-                campaignRepository.save(campaign);
-                log.info("Stop requested for campaign {}, halting send loop", campaignId);
-                break;
-            }
-
-            CampaignSend send = sends.get(i);
-            try {
-                LeadEmail leadEmail = send.getLeadEmail();
-                String recipientEmail = leadEmail == null ? null : leadEmail.getEmail();
-                if (!isValidRecipientEmail(recipientEmail)) {
-                    log.warn("Skipping invalid recipient email {}", recipientEmail);
-                    send.setStatus(CampaignSendStatus.FAILED);
-                    continue;
-                }
-                String personalizedSubject = applyTemplate(subject, leadEmail);
-                String personalizedBody = applyTemplate(body, leadEmail);
-
-                MimeMessage message = mailSender.createMimeMessage();
-                MimeMessageHelper helper = new MimeMessageHelper(message, true);
-                helper.setFrom(client.getEmail());
-                helper.setTo(recipientEmail);
-                helper.setSubject(personalizedSubject);
-                helper.setText(personalizedBody, htmlBody);
-                addCategoryAttachment(helper, client, leadEmail);
-                mailSender.send(message);
-                send.setStatus(CampaignSendStatus.SENT);
-                send.setSentAt(LocalDateTime.now());
-            } catch (MessagingException e) {
-                log.error("Failed to send email to {}: {}", send.getLeadEmail().getEmail(), e.getMessage());
-                send.setStatus(isBounceError(e) ? CampaignSendStatus.BOUNCED : CampaignSendStatus.FAILED);
-            } catch (RuntimeException e) {
-                log.error("Failed to send email to {}: {}", send.getLeadEmail().getEmail(), e.getMessage());
-                send.setStatus(CampaignSendStatus.FAILED);
-            }
-
-            if (delaySeconds > 0 && i < sends.size() - 1) {
+            if (delaySeconds > 0 && i < sendIds.size() - 1) {
                 try {
                     Thread.sleep(delaySeconds * 1000L);
                 } catch (InterruptedException e) {
@@ -105,7 +90,95 @@ public class MailService {
                 }
             }
         }
-        campaignSendRepository.saveAll(sends);
+        return true;
+    }
+
+    private JavaMailSenderImpl buildMailSender(Long campaignId) {
+        Campaign campaign = campaignRepository.findById(campaignId).orElse(null);
+        if (campaign == null) {
+            return null;
+        }
+        Client client = campaign.getClient();
+
+        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
+        mailSender.setHost(smtpHost);
+        mailSender.setPort(smtpPort);
+        Properties props = mailSender.getJavaMailProperties();
+        if (smtpSecure) {
+            mailSender.setUsername(client.getEmail());
+            mailSender.setPassword(client.getAppPassword());
+            mailSender.setProtocol("smtps");
+            props.put("mail.smtp.auth", "true");
+            props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.ssl.trust", smtpHost);
+        } else {
+            // Plain SMTP without credentials: only for a local test inbox such as MailHog.
+            mailSender.setProtocol("smtp");
+            props.put("mail.smtp.auth", "false");
+        }
+        return mailSender;
+    }
+
+    /**
+     * Handles one send inside its own transaction.
+     *
+     * @return false when the whole run should stop (campaign deleted or a stop was requested)
+     */
+    private boolean sendOne(Long campaignId, Long sendId, JavaMailSenderImpl mailSender,
+                            String subject, String body, boolean htmlBody) {
+        // A fresh transaction per email also means a fresh read: a stop requested from the UI
+        // while the loop is running is seen on the very next iteration.
+        Campaign campaign = campaignRepository.findById(campaignId).orElse(null);
+        if (campaign == null) {
+            log.warn("Campaign {} no longer exists while sending emails", campaignId);
+            return false;
+        }
+        if (campaign.getStatus() == CampaignStatus.STOP_REQUESTED) {
+            campaign.setStatus(CampaignStatus.DRAFT);
+            campaignRepository.save(campaign);
+            log.info("Stop requested for campaign {}, halting send loop", campaignId);
+            return false;
+        }
+
+        CampaignSend send = campaignSendRepository.findById(sendId).orElse(null);
+        if (send == null || !campaignId.equals(send.getCampaign().getId())) {
+            log.warn("Send {} does not belong to campaign {}, skipping", sendId, campaignId);
+            return true;
+        }
+        Client client = campaign.getClient();
+
+        try {
+            LeadEmail leadEmail = send.getLeadEmail();
+            String recipientEmail = leadEmail == null ? null : leadEmail.getEmail();
+            if (!isValidRecipientEmail(recipientEmail)) {
+                log.warn("Skipping invalid recipient email {}", recipientEmail);
+                send.setStatus(CampaignSendStatus.FAILED);
+                campaignSendRepository.save(send);
+                return true;
+            }
+            String personalizedSubject = applyTemplate(subject, leadEmail);
+            String personalizedBody = applyTemplate(body, leadEmail);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+            helper.setFrom(client.getEmail());
+            helper.setTo(recipientEmail);
+            helper.setSubject(personalizedSubject);
+            helper.setText(personalizedBody, htmlBody);
+            addCategoryAttachment(helper, client, leadEmail);
+            mailSender.send(message);
+            send.setStatus(CampaignSendStatus.SENT);
+            send.setSentAt(LocalDateTime.now());
+        } catch (MessagingException e) {
+            log.error("Failed to send email to {}: {}", send.getLeadEmail().getEmail(), e.getMessage());
+            send.setStatus(isBounceError(e) ? CampaignSendStatus.BOUNCED : CampaignSendStatus.FAILED);
+        } catch (RuntimeException e) {
+            log.error("Failed to send email to {}: {}", send.getLeadEmail().getEmail(), e.getMessage());
+            send.setStatus(CampaignSendStatus.FAILED);
+        }
+        campaignSendRepository.save(send);
+        return true;
     }
 
     private boolean isValidRecipientEmail(String email) {

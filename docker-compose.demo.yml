@@ -1,0 +1,35 @@
+# Demo mode: run ReachFlow end to end with NO outside accounts.
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+#
+#  - mailhog      a fake SMTP server + inbox UI (http://localhost:8025): campaigns land here
+#                 instead of going out through Gmail
+#  - mock-scraper stands in for the n8n + Apify workflow (same webhook contract)
+services:
+  mailhog:
+    image: mailhog/mailhog
+    container_name: mailhog
+    ports:
+      - "127.0.0.1:${MAILHOG_UI_HOST_PORT:-8025}:8025"
+    restart: unless-stopped
+
+  mock-scraper:
+    build: ./demo/mock-scraper
+    container_name: mock_scraper
+    environment:
+      - MOCK_DELAY_SECONDS=${MOCK_DELAY_SECONDS:-4}
+    restart: unless-stopped
+
+  backend:
+    environment:
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - SMTP_SECURE=false
+      - DEMO_WEBHOOK_URL=http://mock-scraper:5679/webhook
+      - DEMO_SEED=true
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+      mock-scraper:
+        condition: service_started

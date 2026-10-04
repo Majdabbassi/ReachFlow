@@ -26,6 +26,9 @@ import {
 } from '../../../core/models/models';
 import { N8nSettingsService } from '../../../core/services/n8n-settings.service';
 
+// One poll every 2 s: a little over the backend's 10-minute scraper timeout, so long jobs keep their progress UI.
+const MAX_SCRAPE_POLLS = 330;
+
 type DebugLevel = 'info' | 'success' | 'warn' | 'error';
 
 interface DebugLog {
@@ -470,7 +473,8 @@ export class LeadNewSearchComponent implements OnInit {
       keywords: this.selectedKeywordNames,
       cities: this.cities,
       maxResults: this.maxResults,
-      webhookUrl: this.n8nSettings.getWebhookUrl()
+      webhookUrl: this.n8nSettings.getWebhookUrl(),
+      categoryIds: this.lastSelectedCategoryIds
     }).subscribe({
       next: (response) => {
         this.currentJobId = response.jobId;
@@ -492,7 +496,7 @@ export class LeadNewSearchComponent implements OnInit {
 
     const subscription = interval(2000).pipe(
       switchMap(() => this.leadService.getScrapeProgress(jobId)),
-      take(60)
+      take(MAX_SCRAPE_POLLS)
     ).subscribe({
       next: (progress) => {
         this.scrapeProgress = progress;

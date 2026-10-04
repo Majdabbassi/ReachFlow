@@ -4,14 +4,14 @@ services:
     image: mysql:8
     container_name: mysql_db
     environment:
-      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root}
       - MYSQL_DATABASE=reachflow
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
-      - "3306:3306"
+      - "127.0.0.1:${MYSQL_HOST_PORT:-3306}:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,11 +22,11 @@ services:
     image: phpmyadmin/phpmyadmin
     container_name: phpmyadmin_ui
     ports:
-      - "${PHPMYADMIN_HOST_PORT:-5051}:80"
+      - "127.0.0.1:${PHPMYADMIN_HOST_PORT:-5051}:80"
     environment:
       - PMA_HOST=mysql
       - PMA_USER=root
-      - PMA_PASSWORD=root
+      - PMA_PASSWORD=${MYSQL_ROOT_PASSWORD:-root}
     depends_on:
       mysql:
         condition: service_healthy
@@ -39,14 +39,14 @@ services:
       dockerfile: n8n.Dockerfile
     container_name: n8n_app
     ports:
-      - "${N8N_HOST_PORT:-5678}:5678"
+      - "127.0.0.1:${N8N_HOST_PORT:-5678}:5678"
     environment:
       - DB_TYPE=mysqldb
       - DB_MYSQLDB_HOST=mysql
       - DB_MYSQLDB_PORT=3306
       - DB_MYSQLDB_DATABASE=n8n_internal
       - DB_MYSQLDB_USER=root
-      - DB_MYSQLDB_PASSWORD=root
+      - DB_MYSQLDB_PASSWORD=${MYSQL_ROOT_PASSWORD:-root}
       - N8N_HOST=localhost
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
@@ -69,14 +69,17 @@ services:
       dockerfile: Dockerfile
     container_name: backend_app
     ports:
-      - "${BACKEND_HOST_PORT:-8082}:8080"
+      - "127.0.0.1:${BACKEND_HOST_PORT:-8082}:8080"
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_NAME=reachflow
       - DB_ARCHIVE_NAME=reachflow_archive
       - DB_USER=root
-      - DB_PASSWORD=root
+      - DB_PASSWORD=${MYSQL_ROOT_PASSWORD:-root}
+      # Key for the encrypted Gmail app passwords. Set your own in .env (see .env.example).
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-my-secret-key-123}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:8088,http://localhost:4200}
     depends_on:
       mysql:
         condition: service_healthy
@@ -89,7 +92,7 @@ services:
       dockerfile: Dockerfile
     container_name: frontend_app
     ports:
-      - "${FRONTEND_HOST_PORT:-8088}:80"
+      - "127.0.0.1:${FRONTEND_HOST_PORT:-8088}:80"
     depends_on:
       - backend
     restart: unless-stopped

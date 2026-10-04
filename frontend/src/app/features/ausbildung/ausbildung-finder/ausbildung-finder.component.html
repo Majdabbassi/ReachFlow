@@ -1,18 +1,98 @@
 <div class="page-header">
   <div class="title-group">
     <h2>Ausbildung Finder</h2>
-    <p>Dedicated search for Ausbildung apprenticeship opportunities in Germany.</p>
+    <p>Find companies in Germany that train apprentices, ready for your next campaign.</p>
   </div>
 </div>
 
-<mat-card class="glass-card coming-soon-card">
-  <mat-card-content class="coming-soon">
-    <mat-icon class="coming-soon-icon">construction</mat-icon>
-    <h3>Coming Soon</h3>
-    <p class="coming-soon-text">
-      The dedicated Ausbildung apprenticeship search is currently in development.
-      This page will let you search apprenticeship opportunities across Germany and
-      extract application-ready contact signals — it will be available here once it's ready.
+<div class="finder-grid">
+  <mat-card class="glass-card">
+    <mat-card-content>
+      <h3 class="card-title"><mat-icon>school</mat-icon> 1. Professions</h3>
+      <p class="hint">Each profession is searched as “Ausbildung &lt;profession&gt;”.</p>
+      <div class="option-chips">
+        <button
+          type="button"
+          *ngFor="let profession of professions"
+          class="option-chip"
+          [class.selected]="selectedProfessions.has(profession)"
+          [disabled]="isRunning"
+          (click)="toggleProfession(profession)">
+          {{ profession }}
+        </button>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="glass-card">
+    <mat-card-content>
+      <h3 class="card-title"><mat-icon>location_city</mat-icon> 2. Cities</h3>
+      <mat-form-field appearance="outline" class="city-field">
+        <mat-label>Add a city</mat-label>
+        <input matInput [(ngModel)]="cityInput" [disabled]="isRunning"
+               (keydown.enter)="addCity(cityInput)" placeholder="e.g. Dresden" />
+        <button mat-icon-button matSuffix type="button" [disabled]="isRunning || !cityInput.trim()"
+                (click)="addCity(cityInput)" aria-label="Add city">
+          <mat-icon>add</mat-icon>
+        </button>
+      </mat-form-field>
+
+      <div class="option-chips">
+        <button type="button" *ngFor="let city of popularCities" class="option-chip small"
+                [disabled]="isRunning" (click)="addCity(city)">+ {{ city }}</button>
+      </div>
+
+      <mat-chip-set class="selected-cities" *ngIf="cities.length">
+        <mat-chip *ngFor="let city of cities" (removed)="removeCity(city)" [removable]="!isRunning">
+          {{ city }}
+          <mat-icon matChipRemove>cancel</mat-icon>
+        </mat-chip>
+      </mat-chip-set>
+    </mat-card-content>
+  </mat-card>
+</div>
+
+<mat-card class="glass-card run-card">
+  <mat-card-content>
+    <h3 class="card-title"><mat-icon>rocket_launch</mat-icon> 3. Run</h3>
+
+    <p class="warning" *ngIf="categoryMissing">
+      The “Ausbildung” category is missing. Create it under Global management → Taxonomy first.
     </p>
+    <p class="warning" *ngIf="categoryLoadFailed">
+      Could not load the categories from the backend.
+      <button mat-button type="button" (click)="loadCategory()">Retry</button>
+    </p>
+
+    <div class="run-row">
+      <mat-form-field appearance="outline" class="max-field">
+        <mat-label>Max results per search</mat-label>
+        <input matInput type="number" min="1" max="100" [(ngModel)]="maxResults" [disabled]="isRunning" />
+      </mat-form-field>
+
+      <div class="summary">
+        <strong>{{ searchCount }}</strong> search{{ searchCount === 1 ? '' : 'es' }}
+        <span class="muted">({{ keywords.length }} profession{{ keywords.length === 1 ? '' : 's' }} × {{ cities.length }} cit{{ cities.length === 1 ? 'y' : 'ies' }})</span>
+      </div>
+
+      <button mat-flat-button color="primary" type="button" [disabled]="!canRun" (click)="run()">
+        <mat-icon>search</mat-icon>
+        {{ isRunning ? 'Searching…' : 'Find training companies' }}
+      </button>
+    </div>
+
+    <div class="progress" *ngIf="progress || isRunning">
+      <mat-progress-bar
+        [mode]="progress?.leadsFound ? 'determinate' : 'indeterminate'"
+        [value]="percent"></mat-progress-bar>
+      <p class="progress-text">{{ progress?.message || 'Contacting the scraper…' }}</p>
+    </div>
+
+    <div class="done" *ngIf="progress?.status === 'COMPLETED'">
+      <mat-icon>check_circle</mat-icon>
+      <span>{{ progress?.leadsImported }} companies saved under “Ausbildung”.</span>
+      <a mat-stroked-button routerLink="/leads/database">View leads</a>
+      <a mat-stroked-button routerLink="/campaigns">Open campaigns</a>
+    </div>
   </mat-card-content>
 </mat-card>
