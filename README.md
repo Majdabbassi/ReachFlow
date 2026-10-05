@@ -29,7 +29,7 @@
 
 ---
 
-## ▶️ Try it in two minutes, no accounts needed
+## Try it in two minutes (no accounts needed)
 
 The real scraper needs an Apify key and the real mailer needs a Gmail app password. **Demo mode** replaces both with local stand-ins, so you can see the whole product work:
 
@@ -208,7 +208,7 @@ No manual data entry needed to get back to a working demo state.
 - Docker & Docker Compose
 - Node.js & npm (for local frontend development)
 - Java 21 & Maven (for local backend development)
-- **Apify API Key**, only for the real scraper (n8n workflow); [demo mode](#️-try-it-in-two-minutes-no-accounts-needed) needs none
+- **Apify API Key**, only for the real scraper (n8n workflow); [demo mode](#try-it-in-two-minutes-no-accounts-needed) needs none
 
 ### Quick Start
 1. Clone the repository:
